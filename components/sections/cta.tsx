@@ -24,7 +24,7 @@ export function CTA() {
 
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center">
             <Link
-              href="#contato"
+              href="/quiz"
               className="inline-flex items-center justify-center border border-white/20 text-white hover:bg-white/10 rounded-full px-6 md:px-8 py-2 md:py-3 text-sm md:text-lg font-semibold transition-all"
             >
               Falar com especialista
