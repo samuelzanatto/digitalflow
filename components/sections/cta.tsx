@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
+import { TransitionLink } from "@/components/transition-link";
 
 export function CTA() {
   return (
@@ -23,12 +23,12 @@ export function CTA() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center items-center">
-            <Link
+            <TransitionLink
               href="/quiz"
               className="inline-flex items-center justify-center border border-white/20 text-white hover:bg-white/10 rounded-full px-6 md:px-8 py-2 md:py-3 text-sm md:text-lg font-semibold transition-all"
             >
               Falar com especialista
-            </Link>
+            </TransitionLink>
           </div>
 
           <div className="flex items-center justify-center gap-2 text-xs md:text-sm text-white/60">

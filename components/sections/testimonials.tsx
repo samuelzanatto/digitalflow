@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Testimonial {
   name: string;
@@ -13,40 +14,40 @@ interface Testimonial {
 
 const testimonials: Testimonial[] = [
   {
-    name: "Rafael Csizmar",
-    role: "Estrategista Digital",
-    quote: "Com a flow, dobramos nosso ROI em 3 meses. A performance é irrefutável.",
-    image: "🎯",
+    name: "Carlos Eduardo",
+    role: "Dono de Loja de Roupas",
+    quote: "Não entendo nada de publicidade, mas com a Flow meu faturamento triplicou. Agora preciso contratar mais gente porque não dou conta dos pedidos.",
+    image: "https://i.pravatar.cc/150?img=33",
   },
   {
-    name: "Rubens Miguel",
-    role: "Empresário",
-    quote: "Finalmente encontrei uma agência que entende realmente de performance e resultados.",
-    image: "📈",
+    name: "Fernanda Costa",
+    role: "Proprietária - Salão de Beleza",
+    quote: "Achei que era um risco investir, mas virou meu maior gasto inteligente. A agenda está sempre cheia agora.",
+    image: "https://i.pravatar.cc/150?img=47",
   },
   {
-    name: "Matheus Borges",
-    role: "Infoprodutor",
-    quote: "Os dados, a estratégia e o atendimento direto fazem toda a diferença. Recomendo!",
-    image: "⚡",
+    name: "Marcelo Silva",
+    role: "Dono de Academia",
+    quote: "Meu personal foi quem me indicou. Antes eu tentava marketing no bairro, agora vem gente de toda a cidade. Que diferença!",
+    image: "https://i.pravatar.cc/150?img=12",
   },
   {
-    name: "Davy Barros",
-    role: "Gestor de Tráfego",
-    quote: "Seus criativos convertem 50% mais que a média do mercado. Excelente!",
-    image: "🚀",
+    name: "Juliana Martins",
+    role: "Dona de Padaria Artesanal",
+    quote: "Sou apenas uma mulher que ama fazer pão. A Flow cuidou de trazer clientes pra mim. Meu negócio saiu do prejuízo.",
+    image: "https://i.pravatar.cc/150?img=48",
   },
   {
-    name: "Bruno Aguiar",
-    role: "Investidor Digital",
-    quote: "O ROI de 300%+ é consistente. Resultado que fala mais que promessa.",
-    image: "💰",
+    name: "Roberto Oliveira",
+    role: "Proprietário - Oficina Mecânica",
+    quote: "Eu desconfiava, mas meu filho sugeriu tentar. Hoje a oficina não para. Triplicou o faturamento sem eu fazer nada além do meu trabalho.",
+    image: "https://i.pravatar.cc/150?img=11",
   },
   {
-    name: "Larissa Andrade",
-    role: "Empreendedora",
-    quote: "Melhor decisão que tomei foi investir em tráfego pago com a flow.",
-    image: "⭐",
+    name: "Amanda Souza",
+    role: "Dona de Consultório Odontológico",
+    quote: "Comecei do zero com pouco investimento. A Flow me ajudou a encher minha agenda de pacientes. Hoje tenho duas recepcionistas só pra marcar consulta.",
+    image: "https://i.pravatar.cc/150?img=45",
   },
 ];
 
@@ -80,7 +81,12 @@ export function Testimonials() {
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
               <Card className="bg-white/5 backdrop-blur border-white/10 hover:border-white/20 transition-all duration-300 p-4 md:p-6 h-full flex flex-col">
-                <div className="text-4xl md:text-5xl mb-4">{testimonial.image}</div>
+                <div className="mb-4">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={testimonial.image} alt={testimonial.name} />
+                    <AvatarFallback>{testimonial.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </div>
                 <p className="text-white mb-4 font-semibold flex-1 text-sm md:text-base">&ldquo;{testimonial.quote}&rdquo;</p>
                 <div>
                   <p className="text-white font-bold text-sm md:text-base">{testimonial.name}</p>

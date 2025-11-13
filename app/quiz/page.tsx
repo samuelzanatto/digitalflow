@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowRight, CheckCircle, ArrowLeft } from "lucide-react";
+import { TransitionLink } from "@/components/transition-link";
+import { useTransitionContext } from "@/hooks/useTransitionContext";
 
-type Step = "quiz" | "submitting" | "success";
+type Step = "quiz" | "submitting";
 
 interface Answer {
   [key: number]: string;
@@ -77,6 +78,8 @@ export default function QuizPage() {
   const [step, setStep] = useState<Step>("quiz");
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
+  const { isExiting } = useTransitionContext();
+  const [navigated, setNavigated] = useState(false);
 
   const handleAnswerSelect = (answer: string) => {
     setAnswers((prev) => ({
@@ -107,22 +110,19 @@ export default function QuizPage() {
 
     setStep("submitting");
 
-    // Construir mensagem para WhatsApp
-    const questionAnswers = quizQuestions
-      .map((q) => `${q.question}\n→ ${answers[q.id] || "Não respondido"}`)
-      .join("\n\n");
+    // Salvar dados do usuário e respostas no localStorage
+    const quizData = {
+      name: userName,
+      email: userEmail,
+      answers: answers,
+      timestamp: new Date().toISOString(),
+    };
 
-    const message = `Olá! Segue abaixo as respostas do quiz:\n\n*Nome:* ${userName}\n*Email:* ${userEmail}\n\n${questionAnswers}`;
+    localStorage.setItem("quizUser", JSON.stringify(quizData));
 
-    // Número do WhatsApp (substitua com seu número)
-    const phoneNumber = "5567981788514"; // Formato: 55 + DDD + número
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
-
-    // Simular delay antes de abrir WhatsApp
+    // Simular delay antes de redirecionar para o chat
     setTimeout(() => {
-      window.open(whatsappUrl, "_blank");
-      setStep("success");
+      window.location.href = "/chat";
     }, 1500);
   };
 
@@ -133,16 +133,26 @@ export default function QuizPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-b from-black via-black to-purple-950/20 flex items-center justify-center px-4 py-20">
-      <AnimatePresence mode="wait">
-        {step === "quiz" && (
-          <motion.div
-            key="quiz"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="w-full max-w-2xl"
-          >
+      <motion.div
+        animate={{ opacity: navigated || isExiting ? 0 : 1, y: navigated || isExiting ? 50 : 0 }}
+        transition={{ duration: 0.5 }}
+        onAnimationComplete={() => {
+          if (isExiting) {
+            setNavigated(true);
+          }
+        }}
+        className="w-full max-w-2xl mx-auto"
+      >
+        <AnimatePresence mode="wait">
+          {step === "quiz" && (
+            <motion.div
+              key="quiz"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full"
+            >
             <motion.div
               variants={contentVariants}
               className="space-y-8"
@@ -268,6 +278,17 @@ export default function QuizPage() {
                   <ArrowRight size={20} />
                 </motion.button>
               </div>
+
+              {/* Back to Home Button */}
+              <div className="text-center">
+                <TransitionLink
+                  href="/"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/20 hover:border-white/40 text-white/60 hover:text-white transition-all duration-300"
+                >
+                  <ArrowLeft size={18} />
+                  <span className="font-medium">Voltar ao Início</span>
+                </TransitionLink>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -292,60 +313,12 @@ export default function QuizPage() {
               Enviando suas respostas...
             </h2>
             <p className="text-white/60">
-              Você será redirecionado para o WhatsApp em breve
+              Você será redirecionado para a sala de atendimento em breve
             </p>
           </motion.div>
         )}
-
-        {step === "success" && (
-          <motion.div
-            key="success"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="w-full max-w-md text-center space-y-6"
-          >
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
-            >
-              <CheckCircle
-                size={80}
-                className="mx-auto text-green-500"
-                strokeWidth={1.5}
-              />
-            </motion.div>
-
-            <motion.div
-              variants={contentVariants}
-              className="space-y-3"
-            >
-              <h2 className="text-3xl md:text-4xl text-white font-light">
-                Respostas enviadas!
-              </h2>
-              <p className="text-white/60 text-base md:text-lg">
-                Obrigado por responder nosso quiz. Um especialista entrará em contato com você em breve pelo WhatsApp.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full px-8 py-3 font-medium transition-all gap-2"
-              >
-                Voltar ao Início
-                <ArrowRight size={20} />
-              </Link>
-            </motion.div>
-          </motion.div>
-        )}
       </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

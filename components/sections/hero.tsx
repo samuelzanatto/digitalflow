@@ -76,16 +76,9 @@ export function Hero() {
             >
               <Link
                 href="#contato"
-                className="inline-flex items-center justify-center bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm md:text-lg font-semibold shadow-lg shadow-purple-500/50 transition-all"
+                className="inline-flex items-center justify-center bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm md:text-lg font-semibold shadow-lg shadow-purple-500/50 hover:shadow-purple-500/30 transition-all duration-300"
               >
                 Começar agora
-              </Link>
-
-              <Link
-                href="#servicos"
-                className="inline-flex items-center justify-center border border-white/20 text-white hover:bg-white/10 rounded-full px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm md:text-lg font-semibold transition-all"
-              >
-                Agendar
               </Link>
             </motion.div>
 

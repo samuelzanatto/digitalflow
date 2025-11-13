@@ -11,7 +11,7 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 mb-6 md:mb-8">
           {/* Brand */}
           <div>
-            <h3 className="text-white font-black text-base md:text-lg mb-3 md:mb-4">flow</h3>
+            <h3 className="text-white font-extralight text-base md:text-lg mb-3 md:mb-4">flow</h3>
             <p className="text-white/60 text-xs md:text-sm">
               A plataforma que transforma sua visão em negócio escalável.
             </p>
@@ -19,7 +19,7 @@ export function Footer() {
 
           {/* Navegação */}
           <div>
-            <h4 className="text-white font-semibold mb-3 md:mb-4 text-sm md:text-base">Navegue</h4>
+            <h4 className="text-white font-extralight mb-3 md:mb-4 text-sm md:text-base">Navegue</h4>
             <ul className="space-y-1 md:space-y-2">
               <li>
                 <Link href="/" className="text-white/60 hover:text-white transition-colors text-xs md:text-sm">
@@ -46,7 +46,7 @@ export function Footer() {
 
           {/* Recursos */}
           <div>
-            <h4 className="text-white font-semibold mb-3 md:mb-4 text-sm md:text-base">Recursos</h4>
+            <h4 className="text-white font-extralight mb-3 md:mb-4 text-sm md:text-base">Recursos</h4>
             <ul className="space-y-1 md:space-y-2">
               <li>
                 <Link href="/" className="text-white/60 hover:text-white transition-colors text-xs md:text-sm">
@@ -73,7 +73,7 @@ export function Footer() {
 
           {/* Redes Sociais */}
           <div>
-            <h4 className="text-white font-semibold mb-3 md:mb-4 text-sm md:text-base">Siga-nos</h4>
+            <h4 className="text-white font-extralight mb-3 md:mb-4 text-sm md:text-base">Siga-nos</h4>
             <div className="flex gap-2 md:gap-4">
               <Link href="#" className="text-white/60 hover:text-purple-400 transition-colors">
                 <Instagram size={16} className="md:w-5 md:h-5" />

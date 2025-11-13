@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TransitionProvider } from "@/components/transition-provider";
+import { PageLoader } from "@/components/page-loader";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -28,6 +29,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <TransitionProvider>
+            <PageLoader />
             {children}
           </TransitionProvider>
         </ThemeProvider>
