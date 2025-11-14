@@ -17,6 +17,7 @@ import {
   IconSettings,
   IconUsers,
   IconQuestionMark,
+  IconLayout,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -44,6 +45,11 @@ const data = {
       title: "Dashboard",
       url: "/dashboard",
       icon: IconDashboard,
+    },
+    {
+      title: "Páginas",
+      url: "/dashboard/paginas",
+      icon: IconLayout,
     },
     {
       title: "Chat",

@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para páginas de vendas
+model SalesPage {
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  slug          String   @unique
+  description   String?
+  thumbnail     String?
+  layout        Json     @default("[]") // Dados do Craft.js
+  published     Boolean  @default(false)
+  viewCount     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relações
+  sections      PageSection[]
+  customDomain  CustomDomain?
+  analytics     PageAnalytics[]
+
+  @@index([userId])
+  @@index([slug])
+}
+
+// Modelo para seções da página
+model PageSection {
+  id            String   @id @default(cuid())
+  pageId        String
+  page          SalesPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  type          String   // 'hero', 'text', 'image', 'cta', 'form', etc
+  order         Int
+  props         Json     // Propriedades do componente
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([pageId])
+}
+
+// Modelo para domínios customizados
+model CustomDomain {
+  id            String   @id @default(cuid())
+  pageId        String   @unique
+  page          SalesPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  domain        String   @unique
+  verified      Boolean  @default(false)
+  dnsRecord     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([pageId])
+  @@index([domain])
+}
+
+// Modelo para analytics
+model PageAnalytics {
+  id            String   @id @default(cuid())
+  pageId        String
+  page          SalesPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  date          DateTime @default(now())
+  views         Int      @default(0)
+  clicks        Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([pageId])
+  @@index([date])
+}

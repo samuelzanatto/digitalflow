@@ -177,7 +177,7 @@ export function Hero() {
                     alt="Owner Digital Flow"
                     width={1920}
                     height={1080}
-                    className="w-full h-full object-cover scale-110"
+                    className="w-full h-full object-cover scale-120"
                     style={{ objectPosition: "center 10%" }}
                   />
                 </motion.div>
