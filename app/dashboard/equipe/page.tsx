@@ -15,8 +15,10 @@ export default function EquipePage() {
   }, [setPageHeader])
 
   return (
-    <div className="flex flex-1 flex-col gap-6 rounded-b-2xl bg-black/90 p-4 lg:p-6">
-      <TeamChat />
+    <div className="flex flex-1 flex-col gap-6 rounded-b-2xl bg-black/90 overflow-hidden">
+      <div className="h-[calc(100vh-80px)]">
+        <TeamChat />
+      </div>
     </div>
   )
 }

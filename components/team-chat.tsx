@@ -10,6 +10,7 @@ import { formatRelative } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { createSupabaseBrowserClient, type SupabaseBrowserClient } from '@/lib/supabase/client'
+import { useUnreadMessages } from '@/contexts/unread-messages'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -59,6 +60,7 @@ export function TeamChat() {
   const [onlineUsers, setOnlineUsers] = useState<ChatIdentity[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
+  const { resetUnread } = useUnreadMessages()
 
   const getSupabaseClient = () => {
     if (supabaseRef.current) return supabaseRef.current
@@ -142,7 +144,17 @@ export function TeamChat() {
 
     setMessages(data ?? [])
     setLoading(false)
-  }, [])
+    resetUnread() // Clear unread counter when user views messages
+  }, [resetUnread])
+
+  useEffect(() => {
+    const handleFocus = () => {
+      resetUnread()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [resetUnread])
 
   useEffect(() => {
     if (!identity) {
@@ -306,6 +318,16 @@ export function TeamChat() {
     void handleSend()
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Send message on Enter (without Shift)
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void handleSend()
+    }
+    // Allow Shift+Enter to add a new line (default behavior)
+    // No need to handle it explicitly
+  }
+
   const renderMessages = () => {
     if (loading) {
       return (
@@ -397,8 +419,8 @@ export function TeamChat() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-200px)] flex-1 flex-col overflow-hidden rounded-3xl bg-zinc-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.45)]">
-      <div className="flex items-center justify-end border-b border-white/5 px-6 py-4">
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex items-center justify-end border-b border-white/5 py-6 px-4">
         {renderOnlineUsers()}
       </div>
 
@@ -411,6 +433,7 @@ export function TeamChat() {
           <Textarea
             value={pendingMessage}
             onChange={(event) => setPendingMessage(event.target.value)}
+            onKeyDown={handleKeyDown}
             maxLength={MAX_MESSAGE_LENGTH}
             placeholder="Escreva uma mensagem para sua equipe..."
             className="min-h-[100px] resize-none border-slate-600/50 bg-slate-900/60 text-slate-100 placeholder-slate-500"
@@ -433,7 +456,7 @@ export function TeamChat() {
               <Button
                 type="submit"
                 disabled={!pendingMessage.trim() || sending || !identity}
-                className="bg-white/90 text-slate-900 hover:bg-white font-semibold disabled:opacity-50 disabled:bg-white/50 disabled:text-slate-500"
+                className="bg-white/90 text-slate-900 hover:bg-white font-semibold disabled:opacity-50 disabled:bg-white/50 disabled:text-slate-900"
               >
                 {sending ? 'Enviando...' : 'Enviar mensagem'}
               </Button>
