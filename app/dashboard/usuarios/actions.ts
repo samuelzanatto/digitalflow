@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
 
+import { sendInviteEmail, hasGmailTransport } from '@/lib/email/gmail'
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from '@/lib/supabase/admin'
 
 export type AdminActionResult = {
@@ -16,6 +17,10 @@ const rootAdminEmail = (process.env.NEXT_PUBLIC_ROOT_ADMIN_EMAIL || 'admin@digit
 const missingAdminConfigResult: AdminActionResult = {
   success: false,
   message: 'Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY para gerenciar usuários.',
+}
+const missingEmailConfigResult: AdminActionResult = {
+  success: false,
+  message: 'Configure o SMTP do Gmail (GMAIL_SMTP_USER e GMAIL_SMTP_PASS) para enviar convites.',
 }
 
 const resolveAppUrl = () => {
@@ -43,14 +48,35 @@ export async function inviteUserAction(payload: { email: string; name?: string }
     return missingAdminConfigResult
   }
 
+  if (!hasGmailTransport) {
+    return missingEmailConfigResult
+  }
+
   const supabase = createSupabaseAdminClient()
-  const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
-    data: name ? { full_name: name } : undefined,
-    redirectTo: `${resolveAppUrl()}/auth/callback`,
+  const { data, error } = await supabase.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: {
+      data: name ? { full_name: name } : undefined,
+      redirectTo: `${resolveAppUrl()}/auth/callback`,
+    },
   })
 
-  if (error) {
-    return { success: false, message: error.message }
+  const inviteUrl = data?.properties?.action_link
+
+  if (error || !inviteUrl) {
+    return { success: false, message: error?.message || 'Não foi possível gerar o link de convite.' }
+  }
+
+  try {
+    await sendInviteEmail({
+      to: email,
+  inviteUrl,
+      invitedName: name,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erro desconhecido ao enviar o email.'
+    return { success: false, message: `Falha ao enviar email via Gmail: ${message}` }
   }
 
   revalidatePath('/dashboard/usuarios')

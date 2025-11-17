@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useRef, useState } from "react"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { createSupabaseBrowserClient } from "@/lib/supabase/client"
+import { createSupabaseBrowserClient, type SupabaseBrowserClient } from "@/lib/supabase/client"
 
 export function LoginForm({
   className,
@@ -16,11 +16,29 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = useMemo(() => createSupabaseBrowserClient(), [])
+  const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [info, setInfo] = useState("")
   const [mode, setMode] = useState<"login" | "recovery">("login")
+
+  const ensureSupabaseClient = () => {
+    if (supabaseRef.current) {
+      return supabaseRef.current
+    }
+
+    if (typeof window === "undefined") {
+      return null
+    }
+
+    try {
+      supabaseRef.current = createSupabaseBrowserClient()
+      return supabaseRef.current
+    } catch (err) {
+      console.error('Falha ao criar cliente Supabase no login:', err)
+      return null
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -31,9 +49,22 @@ export function LoginForm({
     const formData = new FormData(e.currentTarget)
     const email = formData.get("email") as string
     const password = formData.get("password") as string
+    const supabase = ensureSupabaseClient()
+
+    if (!supabase) {
+      setError("Não conseguimos carregar o cliente de autenticação. Recarregue a página e tente novamente.")
+      setIsLoading(false)
+      return
+    }
 
     if (!email) {
       setError("Informe um email válido")
+      setIsLoading(false)
+      return
+    }
+
+    if (!supabase) {
+      setError("Ainda estamos inicializando o cliente de autenticação. Tente novamente em instantes.")
       setIsLoading(false)
       return
     }
@@ -63,7 +94,7 @@ export function LoginForm({
       setIsLoading(false)
       return
     } else {
-      const redirectTo = `${window.location.origin}/auth/reset-password`
+          const redirectTo = `${window.location.origin}/auth/reset-password`
       const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       })

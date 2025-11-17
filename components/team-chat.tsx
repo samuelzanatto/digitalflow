@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useRef, useState } from 'react'
 import type {
   AuthChangeEvent,
   RealtimePostgresChangesPayload,
@@ -10,7 +10,6 @@ import { formatRelative } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { createSupabaseBrowserClient, type SupabaseBrowserClient } from '@/lib/supabase/client'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -57,16 +56,27 @@ export function TeamChat() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [identity, setIdentity] = useState<ChatIdentity | null>(null)
+  const [onlineUsers, setOnlineUsers] = useState<ChatIdentity[]>([])
   const listRef = useRef<HTMLDivElement>(null)
-  const supabase = useMemo<SupabaseBrowserClient>(() => createSupabaseBrowserClient(), [])
+  const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
+
+  const getSupabaseClient = () => {
+    if (supabaseRef.current) return supabaseRef.current
+    if (typeof window === 'undefined') return null
+    supabaseRef.current = createSupabaseBrowserClient()
+    return supabaseRef.current
+  }
 
   useEffect(() => {
+    const client = getSupabaseClient()
+    if (!client) return
+
     let mounted = true
 
     const hydrateIdentity = async () => {
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await client.auth.getUser()
       if (mounted) {
         setIdentity(formatAuthUser(user))
       }
@@ -74,7 +84,7 @@ export function TeamChat() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
+    } = client.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
         setIdentity(formatAuthUser(session?.user ?? null))
       },
@@ -88,11 +98,13 @@ export function TeamChat() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [supabase])
+  }, [])
 
   const loadMessages = useCallback(async () => {
+    const client = getSupabaseClient()
+    if (!client) return
     setLoading(true)
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('team_messages')
       .select('*')
       .order('inserted_at', { ascending: true })
@@ -107,7 +119,7 @@ export function TeamChat() {
 
     setMessages(data ?? [])
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     startTransition(() => {
@@ -116,7 +128,10 @@ export function TeamChat() {
   }, [loadMessages])
 
   useEffect(() => {
-    const channel = supabase
+    const client = getSupabaseClient()
+    if (!client) return
+
+    const channel = client
       .channel('team_messages_stream')
       .on(
         'postgres_changes',
@@ -140,14 +155,64 @@ export function TeamChat() {
       })
 
     return () => {
-      void supabase.removeChannel(channel)
+      void client.removeChannel(channel)
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     if (!listRef.current) return
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages])
+
+  useEffect(() => {
+    if (!identity) return
+    const client = getSupabaseClient()
+    if (!client) return
+
+    const channel = client.channel('team_online_presence', {
+      config: {
+        presence: {
+          key: identity.id,
+        },
+      },
+    })
+
+    channel.on('presence', { event: 'sync' }, () => {
+      type PresencePayload = ChatIdentity & { presence_ref: string }
+      const state = channel.presenceState<PresencePayload>()
+      const unique = new Map<string, ChatIdentity>()
+
+      Object.values(state).forEach((entries) => {
+        entries.forEach((rest) => {
+          if (rest.id) {
+            unique.set(rest.id, {
+              id: rest.id,
+              name: rest.name,
+              email: rest.email,
+              avatarUrl: rest.avatarUrl,
+            })
+          }
+        })
+      })
+
+      setOnlineUsers(Array.from(unique.values()))
+    })
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        void channel.track({
+          id: identity.id,
+          name: identity.name,
+          email: identity.email,
+          avatarUrl: identity.avatarUrl ?? undefined,
+        })
+      }
+    })
+
+    return () => {
+      void client.removeChannel(channel)
+    }
+  }, [identity])
 
   const handleSend = async () => {
     if (!pendingMessage.trim() || sending) return
@@ -164,9 +229,16 @@ export function TeamChat() {
       user_id: identity.id,
     }
 
-    // Supabase SSR helper still loses insert inference, so we suppress the explicit any.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from('team_messages') as any).insert(payload)
+    const client = getSupabaseClient()
+    if (!client) {
+      toast.error('Cliente do chat ainda não carregou. Recarregue a página e tente novamente.')
+      setSending(false)
+      return
+    }
+
+  // Supabase typings com SSR ainda não inferem corretamente o insert, então suprimimos o any aqui.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (client.from('team_messages') as any).insert(payload)
     if (error) {
       console.error('Erro ao enviar mensagem do chat', error)
       toast.error('Falha ao enviar mensagem. Tente novamente.')
@@ -238,49 +310,53 @@ export function TeamChat() {
     )
   }
 
-  return (
-    <Card className="flex h-[calc(100vh-220px)] flex-col gap-0 overflow-hidden border-white/10 bg-zinc-900/60">
-      <div className="flex flex-col gap-3 border-b border-white/5 p-4 text-white">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-white/60">
-            Chat geral da equipe
-          </p>
-          <h2 className="text-2xl font-semibold">Converse com o seu time em tempo real</h2>
-          <p className="text-sm text-white/60">
-            Todos que estiverem logados na dashboard podem acompanhar aqui as atualizações.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/70">
-          <Avatar className="h-10 w-10 border border-white/10">
-            {identity?.avatarUrl && <AvatarImage src={identity.avatarUrl} alt={identity.name} />}
-            <AvatarFallback className="bg-white/10 text-xs uppercase text-white">
-              {identity?.name
-                ?.split(' ')
-                .map((piece) => piece[0]?.toUpperCase() ?? '')
-                .join('')
-                .slice(0, 2) || 'FL'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-xs uppercase tracking-widest text-white/50">Você está falando como</p>
-            <p className="text-base font-medium text-white">{identity?.name ?? 'Carregando...'}</p>
-            <p className="text-xs text-white/50">{identity?.email ?? 'Conta Flow'}</p>
-          </div>
+  const renderOnlineUsers = () => {
+    if (!onlineUsers.length) {
+      return <span className="text-xs uppercase tracking-widest text-white/30">Ninguém online</span>
+    }
+
+    return (
+      <div className="flex items-center gap-3">
+        <span className="text-xs uppercase tracking-widest text-white/40">Online agora</span>
+        <div className="flex items-center gap-2">
+          {onlineUsers.map((user) => (
+            <div key={user.id} className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-white/80">
+              <Avatar className="h-6 w-6 border border-white/10">
+                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+                <AvatarFallback className="bg-white/10 text-[10px] uppercase text-white">
+                  {user.name
+                    .split(' ')
+                    .map((piece) => piece[0]?.toUpperCase() ?? '')
+                    .join('')
+                    .slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <span>{user.name}</span>
+            </div>
+          ))}
         </div>
       </div>
+    )
+  }
 
-      <div ref={listRef} className="flex-1 overflow-y-auto bg-black/20 px-4 py-6">
+  return (
+    <div className="flex min-h-[calc(100vh-200px)] flex-1 flex-col overflow-hidden rounded-3xl bg-zinc-950/80 shadow-[0_40px_120px_rgba(0,0,0,0.45)]">
+      <div className="flex items-center justify-end border-b border-white/5 px-6 py-4">
+        {renderOnlineUsers()}
+      </div>
+
+      <div ref={listRef} className="flex-1 overflow-y-auto px-6 py-8">
         {renderMessages()}
       </div>
 
-      <div className="border-t border-white/5 bg-black/40 p-4">
+      <div className="border-t border-white/5 px-6 py-5">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Textarea
             value={pendingMessage}
             onChange={(event) => setPendingMessage(event.target.value)}
             maxLength={MAX_MESSAGE_LENGTH}
             placeholder="Escreva uma mensagem para sua equipe..."
-            className="min-h-[90px] resize-none border-white/10 bg-transparent text-white placeholder-white/40"
+            className="min-h-[100px] resize-none border-white/10 bg-black/30 text-white placeholder-white/40"
           />
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/40">
             <span>
@@ -308,6 +384,6 @@ export function TeamChat() {
           </div>
         </form>
       </div>
-    </Card>
+    </div>
   )
 }

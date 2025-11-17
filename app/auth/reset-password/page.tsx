@@ -1,45 +1,125 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { createSupabaseBrowserClient } from "@/lib/supabase/client"
+import { createSupabaseBrowserClient, type SupabaseBrowserClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
-  const supabase = useMemo(() => createSupabaseBrowserClient(), [])
+  const searchParams = useSearchParams()
+  const supabase = useMemo<SupabaseBrowserClient | null>(() => {
+    if (typeof window === "undefined") {
+      return null
+    }
+    return createSupabaseBrowserClient()
+  }, [])
   const [password, setPassword] = useState("")
   const [confirmation, setConfirmation] = useState("")
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isHydratingSession, setIsHydratingSession] = useState(true)
 
   useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
     let mounted = true
-    const checkSession = async () => {
+    const bootstrapSession = async () => {
+      setIsHydratingSession(true)
+
+      const cleanupUrl = () => {
+        if (mounted) {
+          router.replace("/auth/reset-password")
+        }
+      }
+
+      const attemptHashSession = async () => {
+        if (typeof window === "undefined" || !window.location.hash) {
+          return false
+        }
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+        const accessToken = hashParams.get("access_token")
+        const refreshToken = hashParams.get("refresh_token")
+
+        if (!accessToken || !refreshToken) {
+          return false
+        }
+
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+
+        if (error) {
+          if (mounted) {
+            setError("Não foi possível validar o link recebido. Solicite outro email de redefinição.")
+            setHasSession(false)
+          }
+          return true
+        }
+
+        cleanupUrl()
+        return true
+      }
+
+      const attemptCodeExchange = async () => {
+        const code = searchParams.get("code")
+        if (!code) {
+          return false
+        }
+
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (exchangeError) {
+          if (mounted) {
+            setError("Seu link expirou ou já foi utilizado. Solicite um novo email de redefinição.")
+            setHasSession(false)
+          }
+          return true
+        }
+
+        cleanupUrl()
+        return true
+      }
+
+      const handledHash = await attemptHashSession()
+      if (!handledHash) {
+        await attemptCodeExchange()
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
       if (mounted) {
         setHasSession(Boolean(user))
+        setIsHydratingSession(false)
       }
     }
 
-    void checkSession()
+    void bootstrapSession()
+
     return () => {
       mounted = false
     }
-  }, [supabase])
+  }, [router, searchParams, supabase])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
     setStatus(null)
+
+    if (!supabase) {
+      setError("Ainda estamos preparando o ambiente. Tente novamente em instantes.")
+      return
+    }
 
     if (!password || password.length < 8) {
       setError("A nova senha deve ter pelo menos 8 caracteres.")
@@ -74,7 +154,7 @@ export default function ResetPasswordPage() {
           Escolha uma nova senha para continuar usando a plataforma.
         </p>
 
-        {hasSession === false && (
+        {hasSession === false && !isHydratingSession && (
           <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             Não encontramos uma sessão ativa. Clique novamente no link recebido no email
             para reabrir esta página.
@@ -123,7 +203,12 @@ export default function ResetPasswordPage() {
             <Field>
               <Button
                 type="submit"
-                disabled={isSubmitting || hasSession === false}
+                disabled={
+                  isSubmitting ||
+                  hasSession === false ||
+                  !supabase ||
+                  isHydratingSession
+                }
                 className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg shadow-purple-500/50"
               >
                 {isSubmitting ? "Atualizando..." : "Atualizar senha"}

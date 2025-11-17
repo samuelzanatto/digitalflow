@@ -148,111 +148,108 @@ export function UserManagementPanel({ initialUsers }: { initialUsers: User[] }) 
         </Card>
       </div>
 
-      <Card className="border border-white/10 bg-white/5 p-6 text-white">
-        <form className="grid grid-cols-1 gap-4 md:grid-cols-3" onSubmit={handleInvite}>
-          <div className="space-y-2">
-            <Label htmlFor="invite-name">Nome completo</Label>
-            <Input
-              id="invite-name"
-              placeholder="Ex: Ana Costa"
-              value={formState.name}
-              onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
-              disabled={formPending}
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="invite-email">Email corporativo</Label>
-            <Input
-              id="invite-email"
-              type="email"
-              placeholder="ana@empresa.com"
-              value={formState.email}
-              onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
-              disabled={formPending}
-            />
-          </div>
-          <div className="md:col-span-3">
-            <Button type="submit" className="w-full md:w-auto" disabled={formPending}>
-              {formPending ? 'Enviando convite...' : 'Enviar convite'}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      <Card className="border border-white/10 bg-black/40">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/5 text-sm text-white">
-            <thead>
-              <tr className="bg-white/5 text-xs uppercase tracking-widest text-white/50">
-                <th className="px-4 py-3 text-left">Nome</th>
-                <th className="px-4 py-3 text-left">Email</th>
-                <th className="px-4 py-3 text-left">Último acesso</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {users.map((user) => {
-                const isRootAdmin = user.email?.toLowerCase() === rootAdminEmail
-                return (
-                  <tr key={user.id} className="hover:bg-white/5">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-white">{buildDisplayName(user)}</div>
-                      {isRootAdmin && (
-                        <Badge variant="secondary" className="mt-1 bg-amber-500/10 text-amber-200">
-                          Administrador principal
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-white/80">{user.email}</td>
-                    <td className="px-4 py-3 text-white/60">{formatDate(user.last_sign_in_at)}</td>
-                    <td className="px-4 py-3">
-                      {user.email_confirmed_at ? (
-                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-200">
-                          confirmado
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="bg-white/10 text-white/70">
-                          pendente
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-2"
-                          disabled={!user.email || rowPendingId === user.email}
-                          onClick={() => user.email && void handleResetPassword(user.email)}
-                        >
-                          <IconMailForward className="size-4" />
-                          {rowPendingId === user.email ? 'Enviando...' : 'Resetar senha'}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="gap-2"
-                          disabled={isRootAdmin || rowPendingId === user.id}
-                          onClick={() => void handleDelete(user.id)}
-                        >
-                          <IconTrash className="size-4" />
-                          {rowPendingId === user.id ? 'Removendo...' : 'Remover'}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+      <form className="grid grid-cols-1 gap-4 md:grid-cols-3" onSubmit={handleInvite}>
+        <div className="space-y-2">
+          <Label htmlFor="invite-name">Nome completo</Label>
+          <Input
+            id="invite-name"
+            placeholder="Ex: Ana Costa"
+            value={formState.name}
+            onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
+            disabled={formPending}
+          />
         </div>
-        {users.length === 0 && (
-          <div className="p-6 text-center text-sm text-white/60">Nenhum usuário cadastrado.</div>
-        )}
-      </Card>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="invite-email">Email corporativo</Label>
+          <Input
+            id="invite-email"
+            type="email"
+            placeholder="ana@empresa.com"
+            value={formState.email}
+            onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
+            disabled={formPending}
+          />
+        </div>
+        <div className="md:col-span-3">
+          <Button type="submit" className="w-full md:w-auto" disabled={formPending}>
+            {formPending ? 'Enviando convite...' : 'Enviar convite'}
+          </Button>
+        </div>
+      </form>
+
+      <div className="overflow-x-auto border rounded-2xl">
+        <table className="min-w-full divide-y divide-white/5 text-sm text-white">
+          <thead>
+            <tr className="bg-white/5 text-xs uppercase tracking-widest text-white/50">
+              <th className="px-4 py-3 text-left">Nome</th>
+              <th className="px-4 py-3 text-left">Email</th>
+              <th className="px-4 py-3 text-left">Último acesso</th>
+              <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {users.map((user) => {
+              const isRootAdmin = user.email?.toLowerCase() === rootAdminEmail
+              return (
+                <tr key={user.id} className="hover:bg-white/5">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-white">{buildDisplayName(user)}</div>
+                    {isRootAdmin && (
+                      <Badge variant="secondary" className="mt-1 bg-amber-500/10 text-amber-200">
+                        Administrador principal
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-white/80">{user.email}</td>
+                  <td className="px-4 py-3 text-white/60">{formatDate(user.last_sign_in_at)}</td>
+                  <td className="px-4 py-3">
+                    {user.email_confirmed_at ? (
+                      <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-200">
+                        confirmado
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-white/10 text-white/70">
+                        pendente
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        disabled={!user.email || rowPendingId === user.email}
+                        onClick={() => user.email && void handleResetPassword(user.email)}
+                      >
+                        <IconMailForward className="size-4" />
+                        {rowPendingId === user.email ? 'Enviando...' : 'Resetar senha'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="gap-2"
+                        disabled={isRootAdmin || rowPendingId === user.id}
+                        onClick={() => void handleDelete(user.id)}
+                      >
+                        <IconTrash className="size-4" />
+                        {rowPendingId === user.id ? 'Removendo...' : 'Remover'}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      
+      {users.length === 0 && (
+        <div className="p-6 text-center text-sm text-white/60">Nenhum usuário cadastrado.</div>
+      )}
     </div>
   )
 }
