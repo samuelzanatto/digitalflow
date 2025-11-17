@@ -99,6 +99,8 @@ interface TextBlockProps {
   width?: string | number
   height?: string | number
   padding?: number
+  fontFamily?: string
+  fontWeight?: 'normal' | 'bold' | '400' | '500' | '600' | '700' | '800' | '900'
 }
 
 const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
@@ -111,6 +113,8 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
       width = '100%',
       height = 'auto',
       padding = 20,
+      fontFamily = 'var(--font-poppins), sans-serif',
+      fontWeight = 'normal',
     },
     ref
   ) => {
@@ -147,6 +151,8 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
             textAlign: alignment,
             margin: '0',
             lineHeight: '1.6',
+            fontFamily,
+            fontWeight: fontWeight as unknown as number,
           }}
         >
           {content}
@@ -169,6 +175,8 @@ export const TextBlock = TextBlockComponent
     width: '100%',
     height: 'auto',
     padding: 20,
+    fontFamily: 'var(--font-poppins), sans-serif',
+    fontWeight: 'normal',
   },
   displayName: 'Bloco de Texto',
 }
@@ -179,7 +187,11 @@ interface CTAButtonProps {
   textColor?: string
   padding?: number
   borderRadius?: number
-  link?: string
+  link?: string // legado
+  linkType?: 'url' | 'page'
+  linkUrl?: string
+  linkPageSlug?: string
+  openInNewTab?: boolean
   width?: string | number
   height?: string | number
 }
@@ -193,6 +205,10 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
       padding = 16,
       borderRadius = 8,
       link = '#',
+      linkType = 'url',
+      linkUrl = '',
+      linkPageSlug = '',
+      openInNewTab = false,
       width = 'auto',
       height = 'auto',
     },
@@ -201,6 +217,19 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
     const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
+
+    const resolvedHref = React.useMemo(() => {
+      if (linkType === 'page' && linkPageSlug) {
+        return `/page/${linkPageSlug}`
+      }
+      if (linkType === 'url' && linkUrl) {
+        return linkUrl
+      }
+      return link
+    }, [linkType, linkUrl, linkPageSlug, link])
+
+    const target = openInNewTab ? '_blank' : undefined
+    const rel = openInNewTab ? 'noopener noreferrer' : undefined
 
     return (
       <div
@@ -226,7 +255,9 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
         className="w-full"
       >
         <a
-          href={link}
+          href={resolvedHref}
+          target={target}
+          rel={rel}
           style={{
             backgroundColor,
             color: textColor,
@@ -261,6 +292,10 @@ export const CTAButton = CTAButtonComponent
     padding: 16,
     borderRadius: 8,
     link: '#',
+    linkType: 'url',
+    linkUrl: '',
+    linkPageSlug: '',
+    openInNewTab: false,
     width: 'auto',
     height: 'auto',
   },
@@ -269,7 +304,17 @@ export const CTAButton = CTAButtonComponent
 
 interface ContainerProps {
   backgroundColor?: string
-  padding?: number
+  paddingTop?: number
+  paddingBottom?: number
+  paddingLeft?: number
+  paddingRight?: number
+  paddingLinked?: boolean
+  marginTop?: number
+  marginBottom?: number
+  marginLeft?: number
+  marginRight?: number
+  marginLinked?: boolean
+  fullBleed?: boolean
   children?: React.ReactNode
   display?: 'block' | 'flex' | 'grid'
   flexDirection?: 'row' | 'column'
@@ -283,13 +328,22 @@ interface ContainerProps {
   borderRadius?: number
   borderColor?: string
   borderWidth?: number
+  minHeight?: number
 }
 
 const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
   (
     {
       backgroundColor = '#ffffff',
-      padding = 20,
+      paddingTop = 20,
+      paddingBottom = 20,
+      paddingLeft = 20,
+      paddingRight = 20,
+      marginTop = 0,
+      marginBottom = 0,
+      marginLeft = 0,
+      marginRight = 0,
+      fullBleed = false,
       display = 'block',
       flexDirection = 'column',
       gap = 0,
@@ -302,26 +356,100 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       borderRadius = 0,
       borderColor = '#e5e7eb',
       borderWidth = 2,
+      minHeight = 200,
       children,
     },
     ref
   ) => {
+    // Subscrever a TODAS as mudanças de props + eventos para garantir re-renderização em tempo real
     const { connectors: { connect, drag }, isSelected, parentId } = useNode((node) => ({
       isSelected: node.events.selected,
       parentId: node.data.parent,
+      // Subscrever a todas as props para forçar re-render quando mudam
+      backgroundColor: node.data.props.backgroundColor,
+      paddingTop: node.data.props.paddingTop,
+      paddingBottom: node.data.props.paddingBottom,
+      paddingLeft: node.data.props.paddingLeft,
+      paddingRight: node.data.props.paddingRight,
+      paddingLinked: node.data.props.paddingLinked,
+      marginTop: node.data.props.marginTop,
+      marginBottom: node.data.props.marginBottom,
+      marginLeft: node.data.props.marginLeft,
+      marginRight: node.data.props.marginRight,
+      marginLinked: node.data.props.marginLinked,
+      fullBleed: node.data.props.fullBleed,
+      display: node.data.props.display,
+      flexDirection: node.data.props.flexDirection,
+      gap: node.data.props.gap,
+      width: node.data.props.width,
+      height: node.data.props.height,
+      fullWidth: node.data.props.fullWidth,
+      flex: node.data.props.flex,
+      justifyContent: node.data.props.justifyContent,
+      alignItems: node.data.props.alignItems,
+      borderRadius: node.data.props.borderRadius,
+      borderColor: node.data.props.borderColor,
+      borderWidth: node.data.props.borderWidth,
+      minHeight: node.data.props.minHeight,
     }))
-    const { enabled } = useEditor((state) => ({
-      enabled: state.options.enabled,
-    }))
+    
+    const { enabled, parentSpacing } = useEditor((state) => {
+      const parentNode = parentId ? state.nodes[parentId] : undefined
+      const parentProps = parentNode?.data?.props as Record<string, number | undefined> | undefined
+      return {
+        enabled: state.options.enabled,
+        parentSpacing: {
+          paddingTop: parentProps?.paddingTop ?? 0,
+          paddingBottom: parentProps?.paddingBottom ?? 0,
+          paddingLeft: parentProps?.paddingLeft ?? 0,
+          paddingRight: parentProps?.paddingRight ?? 0,
+        },
+      }
+    })
 
     const isRootLevel = parentId === 'ROOT'
     const shouldFullWidth = isRootLevel ? true : fullWidth
 
+    // Calcular padding usando apenas valores individuais (sem fallback para geral)
+    const paddingStyle = `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`
+    const resolvedHeight = typeof height === 'number' && height > 0 ? `${height}px` : 'auto'
+    const resolvedWidth: React.CSSProperties['width'] = fullBleed
+      ? `calc(100% + ${parentSpacing.paddingLeft + parentSpacing.paddingRight}px)`
+      : shouldFullWidth
+        ? '100%'
+        : width
+
+    const bleedHorizontalMargin = (side: 'left' | 'right', value: number) => {
+      const parentPad = side === 'left' ? parentSpacing.paddingLeft : parentSpacing.paddingRight
+      return `${value - parentPad}px`
+    }
+    const standardPx = (value: number) => `${value}px`
+
+    const marginTopValue = standardPx(marginTop)
+    const marginBottomValue = standardPx(marginBottom)
+    const marginLeftValue = fullBleed ? bleedHorizontalMargin('left', marginLeft) : standardPx(marginLeft)
+    const marginRightValue = fullBleed ? bleedHorizontalMargin('right', marginRight) : standardPx(marginRight)
+
+    const resolvedMinHeight =
+      typeof minHeight === 'number' && minHeight > 0
+        ? `${minHeight}px`
+        : undefined
+
+    const effectiveMinHeight =
+      resolvedHeight !== 'auto'
+        ? resolvedHeight
+        : resolvedMinHeight ?? (isRootLevel ? 'auto' : undefined)
+
     const baseStyle: React.CSSProperties = {
       backgroundColor,
-      padding: `${padding}px`,
-      width: shouldFullWidth ? '100%' : `${width}px`,
-      height: isRootLevel ? 'auto' : `${height}px`,
+      padding: paddingStyle,
+      marginTop: marginTopValue,
+      marginBottom: marginBottomValue,
+      marginLeft: marginLeftValue,
+      marginRight: marginRightValue,
+      width: resolvedWidth,
+      height: resolvedHeight,
+      minHeight: effectiveMinHeight,
       border: isSelected
         ? `${borderWidth}px solid #3b82f6`
         : enabled
@@ -332,6 +460,10 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       boxSizing: 'border-box' as const,
       display,
       ...(flex && { flex: typeof flex === 'number' ? flex : flex }),
+    }
+
+    if (fullBleed) {
+      baseStyle.maxWidth = 'none'
     }
 
     const flexStyle: React.CSSProperties =
@@ -371,12 +503,22 @@ export const Container = ContainerComponent
 ;(Container as unknown as Record<string, unknown>).craft = {
   props: {
     backgroundColor: '#ffffff',
-    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingLeft: 20,
+    paddingRight: 20,
+    paddingLinked: true,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    marginLinked: true,
+    fullBleed: false,
     display: 'block',
     flexDirection: 'column',
     gap: 0,
     width: 400,
-    height: 200,
+    height: 0,
     fullWidth: false,
     flex: 1,
     justifyContent: 'flex-start',
@@ -384,6 +526,7 @@ export const Container = ContainerComponent
     borderRadius: 0,
     borderColor: '#e5e7eb',
     borderWidth: 2,
+    minHeight: 200,
   },
   displayName: 'Container',
   rules: {
@@ -441,15 +584,139 @@ export const Divider = DividerComponent
   displayName: 'Divisor',
 }
 
+interface FooterProps {
+  brandName?: string
+  brandDescription?: string
+  link1?: string
+  link2?: string
+  link3?: string
+  copyrightText?: string
+  padding?: number
+  backgroundColor?: string
+}
+
+const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
+  (
+    {
+      brandName = 'DigitalFlow',
+      brandDescription = 'Transformando ideias em experiências digitais',
+      link1 = 'Home',
+      link2 = 'Sobre',
+      link3 = 'Contato',
+      copyrightText = '© 2025 DigitalFlow. Todos os direitos reservados.',
+      padding = 48,
+      backgroundColor = '#1a1a1a',
+    },
+    ref
+  ) => {
+    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+      isSelected: node.events.selected,
+    }))
+
+    return (
+      <div
+        ref={(el) => {
+          if (el) {
+            connect(drag(el))
+            if (typeof ref === 'function') {
+              ref(el)
+            } else if (ref) {
+              ref.current = el
+            }
+          }
+        }}
+        style={{
+          width: '100%',
+          padding: `${padding}px`,
+          backgroundColor,
+          border: isSelected ? '2px solid #3b82f6' : 'none',
+          cursor: 'move',
+          boxSizing: 'border-box' as const,
+        }}
+        className="w-full"
+      >
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            {/* Brand */}
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 8px 0' }}>
+                {brandName}
+              </h3>
+              <p style={{ fontSize: '14px', color: '#9ca3af', margin: '0', lineHeight: '1.6' }}>
+                {brandDescription}
+              </p>
+            </div>
+
+            {/* Page Info */}
+            <div>
+              <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', margin: '0 0 8px 0' }}>
+                Links
+              </h4>
+              <ul style={{ margin: '0', padding: '0', listStyle: 'none' }}>
+                <li style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
+                  <a href="#" style={{ color: '#9ca3af', textDecoration: 'none', cursor: 'pointer' }}>
+                    {link1}
+                  </a>
+                </li>
+                <li style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
+                  <a href="#" style={{ color: '#9ca3af', textDecoration: 'none', cursor: 'pointer' }}>
+                    {link2}
+                  </a>
+                </li>
+                <li style={{ fontSize: '14px', color: '#9ca3af' }}>
+                  <a href="#" style={{ color: '#9ca3af', textDecoration: 'none', cursor: 'pointer' }}>
+                    {link3}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Empty space for 3rd column */}
+            <div />
+          </div>
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px solid #374151', paddingTop: '24px', paddingBottom: '24px' }}>
+            {/* Bottom Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0' }}>
+                {copyrightText}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+)
+
+FooterComponent.displayName = 'Footer'
+
+export const Footer = FooterComponent
+
+;(Footer as unknown as Record<string, unknown>).craft = {
+  props: {
+    brandName: 'DigitalFlow',
+    brandDescription: 'Transformando ideias em experiências digitais',
+    link1: 'Home',
+    link2: 'Sobre',
+    link3: 'Contato',
+    copyrightText: '© 2025 DigitalFlow. Todos os direitos reservados.',
+    padding: 48,
+    backgroundColor: '#1a1a1a',
+  },
+  displayName: 'Footer',
+}
+
 // Export sales-specific components
 export {
   PricingCard,
   TestimonialCard,
   FeatureCard,
   CaptureForm,
-  VideoSection,
   StatsCounter,
   FAQItem,
   TrustBadges,
   ImageComponent,
+  VSL,
 } from './sales-components'

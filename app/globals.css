@@ -181,3 +181,70 @@ html {
     animation: neon-scan-vertical linear forwards;
   }
 }
+
+/* React Flow dark theme alignment */
+.rf-theme-dark .react-flow {
+  --xy-node-background-color-default: hsl(var(--card));
+  --xy-node-color-default: hsl(var(--foreground));
+  --xy-node-border-default: 1px solid hsl(var(--border));
+  --xy-node-boxshadow-default: 0 10px 25px hsl(var(--background) / 0.35);
+  --xy-node-boxshadow-hover-default: 0 0 0 1px hsl(var(--primary) / 0.8);
+  --xy-node-boxshadow-selected-default: 0 0 0 1px hsl(var(--primary));
+  --xy-edge-stroke-default: hsl(var(--muted-foreground));
+  --xy-edge-stroke-selected-default: hsl(var(--primary));
+  --xy-connectionline-stroke-default: hsl(var(--muted-foreground));
+  --xy-background-pattern-dots-color-default: hsl(var(--muted-foreground) / 0.35);
+  --xy-background-pattern-line-color-default: hsl(var(--border));
+  --xy-background-pattern-cross-color-default: hsl(var(--border));
+  --xy-handle-background-color-default: hsl(var(--primary));
+  --xy-handle-border-color-default: hsl(var(--card));
+  --xy-controls-button-background-color-default: hsl(var(--card));
+  --xy-controls-button-background-color-hover-default: hsl(var(--accent));
+  --xy-controls-button-border-color-default: hsl(var(--border));
+  --xy-controls-button-color-default: hsl(var(--foreground));
+  --xy-controls-button-color-hover-default: hsl(var(--foreground));
+  --xy-minimap-background-color-default: hsl(var(--background));
+  --xy-selection-background-color-default: hsl(var(--primary) / 0.2);
+  --xy-selection-border-default: 1px dotted hsl(var(--primary));
+}
+
+.rf-theme-dark .react-flow__node {
+  color: hsl(var(--foreground));
+}
+
+/* Hide React Flow watermark */
+.react-flow__attribution {
+  display: none !important;
+}
+
+
+/* @craftjs/layers styling overrides - sobrescrever styled-components inline styles */
+@layer components {
+  /* Normal state - com fundo card */
+  [class*="craft-layer-node"] > div {
+    background: hsl(var(--card)) !important;
+  }
+
+  /* Hover state - um pouco mais escuro que card */
+  [class*="craft-layer-node"] > div:hover {
+    background: hsl(var(--card) / 0.85) !important;
+  }
+
+  /* Selected state - mantém azul */
+  div[style*="background: rgb(38, 128, 235)"] {
+    background: rgb(38, 128, 235) !important;
+  }
+
+  div[style*="background: rgb(38, 128, 235)"] * {
+    color: white !important;
+  }
+
+  div[style*="background: rgb(38, 128, 235)"] svg {
+    fill: white !important;
+  }
+
+  /* Layer children background */
+  [class*="craft-layer-children"] {
+    background: hsl(var(--card)) !important;
+  }
+}

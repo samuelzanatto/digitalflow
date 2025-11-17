@@ -1,21 +1,12 @@
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Se acessar /dashboard sem estar logado, redirecionar para /login
-  if (pathname.startsWith('/dashboard')) {
-    const isAuthenticated = request.cookies.get('auth-token')?.value
-
-    if (!isAuthenticated) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
-
-  return NextResponse.next()
+export async function middleware(request: NextRequest) {
+  return updateSession(request)
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*']
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }

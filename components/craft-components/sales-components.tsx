@@ -412,113 +412,6 @@ export const CaptureForm = CaptureFormComponent
 }
 
 /**
- * VideoSection - Para embedar VSL ou product demo
- * Essencial para páginas de vendas com video
- */
-interface VideoSectionProps {
-  title?: string
-  subtitle?: string
-  videoUrl?: string
-  aspectRatio?: 'video' | 'square'
-  backgroundColor?: string
-}
-
-const VideoSectionComponent = React.forwardRef<HTMLDivElement, VideoSectionProps>(
-  (
-    {
-      title = 'Watch Our Demo',
-      subtitle = 'See how we can help you',
-      aspectRatio = 'video',
-      backgroundColor = '#ffffff',
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
-      isSelected: node.events.selected,
-    }))
-
-    const paddingBottom = aspectRatio === 'video' ? '56.25%' : '100%'
-
-    return (
-      <div
-        ref={(el) => {
-          if (el) {
-            connect(drag(el))
-            if (typeof ref === 'function') {
-              ref(el)
-            } else if (ref) {
-              ref.current = el
-            }
-          }
-        }}
-        style={{
-          backgroundColor,
-          padding: '40px 20px',
-          border: isSelected ? '2px solid #3b82f6' : 'none',
-          cursor: 'move',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>{title}</h2>
-          <p style={{ fontSize: '16px', color: '#666' }}>{subtitle}</p>
-        </div>
-        <div
-          style={{
-            position: 'relative',
-            width: '100%',
-            paddingBottom,
-            height: '0',
-            maxWidth: '800px',
-            margin: '0 auto',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: '0',
-              left: '0',
-              width: '100%',
-              height: '100%',
-              borderRadius: '12px',
-              overflow: 'hidden',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                backgroundColor: '#e5e7eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#666',
-                fontSize: '14px',
-              }}
-            >
-              [Video Player Placeholder]
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-)
-
-VideoSectionComponent.displayName = 'VideoSection'
-export const VideoSection = VideoSectionComponent
-
-;(VideoSection as unknown as Record<string, unknown>).craft = {
-  props: {
-    title: 'Watch Our Demo',
-    subtitle: 'See how we can help you',
-    aspectRatio: 'video',
-    backgroundColor: '#ffffff',
-  },
-  displayName: 'Video Section',
-}
-
-/**
  * StatsCounter - Para mostrar social proof via numbers
  * Aumenta credibilidade e conversão
  */
@@ -933,4 +826,275 @@ export const ImageComponent = ImageComponentInner
     maxWidth: '100%',
   },
   displayName: 'Imagem',
+}
+
+/**
+ * VSL (Video Sales Letter) Component
+ * Player totalmente personalizável com suporte a YouTube e vídeo local
+ */
+interface VSLProps {
+  videoSource?: 'youtube' | 'upload'
+  youtubeUrl?: string
+  videoUrl?: string
+  width?: string | number
+  height?: number
+  aspectRatio?: string
+  autoplay?: boolean
+  controls?: boolean
+  muted?: boolean
+  loop?: boolean
+  borderRadius?: number
+  backgroundColor?: string
+  playButtonColor?: string
+  playButtonSize?: number
+  showThumbnail?: boolean
+  thumbnailUrl?: string
+  padding?: number
+  paddingTop?: number
+  paddingBottom?: number
+  paddingLeft?: number
+  paddingRight?: number
+  playerWidth?: number
+}
+
+const VSLComponent = React.forwardRef<HTMLDivElement, VSLProps>(
+  (
+    {
+      videoSource = 'youtube',
+      youtubeUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      videoUrl = '',
+      width = '100%',
+      height = 500,
+      aspectRatio = '16 / 9',
+      autoplay = false,
+      controls = true,
+      muted = false,
+      loop = false,
+      borderRadius = 12,
+      backgroundColor = '#000000',
+      playButtonColor = '#ff0000',
+      playButtonSize = 80,
+      showThumbnail = true,
+      thumbnailUrl = '',
+      padding = 20,
+      paddingTop,
+      paddingBottom,
+      paddingLeft,
+      paddingRight,
+      playerWidth = 960,
+    },
+    ref
+  ) => {
+    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+      isSelected: node.events.selected,
+    }))
+    const [showPlayer, setShowPlayer] = React.useState(!showThumbnail || !thumbnailUrl)
+    const videoRef = React.useRef<HTMLVideoElement>(null)
+
+    // Extract YouTube video ID from URL
+    const getYoutubeEmbedUrl = (url: string) => {
+      if (url.includes('youtube.com/embed/')) return url
+      const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/)
+      return videoId ? `https://www.youtube.com/embed/${videoId[1]}` : url
+    }
+
+    const handlePlayClick = () => {
+      setShowPlayer(true)
+      if (videoRef.current && videoSource === 'upload') {
+        videoRef.current.play()
+      }
+    }
+
+    const displayWidth = typeof width === 'number' ? `${width}px` : width
+    const maxPlayerWidth = playerWidth ? `${playerWidth}px` : '100%'
+    const resolvedHeight = typeof height === 'number' ? `${height}px` : height
+
+    const resolvedPaddingTop = paddingTop ?? padding ?? 20
+    const resolvedPaddingBottom = paddingBottom ?? padding ?? 20
+    const resolvedPaddingLeft = paddingLeft ?? padding ?? 20
+    const resolvedPaddingRight = paddingRight ?? padding ?? 20
+
+    return (
+      <div
+        ref={(el) => {
+          if (el) {
+            connect(drag(el))
+            if (typeof ref === 'function') {
+              ref(el)
+            } else if (ref) {
+              ref.current = el
+            }
+          }
+        }}
+        style={{
+          padding: `${resolvedPaddingTop}px ${resolvedPaddingRight}px ${resolvedPaddingBottom}px ${resolvedPaddingLeft}px`,
+          border: isSelected ? '2px solid #3b82f6' : 'none',
+          cursor: 'move',
+          boxSizing: 'border-box' as const,
+          width: displayWidth,
+          maxWidth: maxPlayerWidth,
+          margin: '0 auto',
+        }}
+        className="w-full"
+      >
+        {/* Container com aspect ratio mantido */}
+        <div
+          style={{
+            width: '100%',
+            aspectRatio: aspectRatio,
+            minHeight: resolvedHeight ?? undefined,
+            borderRadius: `${borderRadius}px`,
+            overflow: 'hidden',
+            backgroundColor,
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: backgroundColor,
+          }}
+        >
+          {/* Thumbnail with play button */}
+          {showThumbnail && thumbnailUrl && !showPlayer && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: `url(${thumbnailUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              onClick={handlePlayClick}
+            >
+              {/* Overlay */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                }}
+              />
+              {/* Play button */}
+              <div
+                style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  width: `${playButtonSize}px`,
+                  height: `${playButtonSize}px`,
+                  borderRadius: '50%',
+                  backgroundColor: playButtonColor,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+                  transition: 'transform 0.3s ease',
+                  cursor: 'pointer',
+                }}
+              >
+                <div
+                  style={{
+                    width: 0,
+                    height: 0,
+                    borderLeft: `${playButtonSize * 0.4}px solid white`,
+                    borderTop: `${playButtonSize * 0.25}px solid transparent`,
+                    borderBottom: `${playButtonSize * 0.25}px solid transparent`,
+                    marginLeft: `${playButtonSize * 0.1}px`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* YouTube embed */}
+          {showPlayer && videoSource === 'youtube' && (
+            <iframe
+              width="100%"
+              height="100%"
+              src={`${getYoutubeEmbedUrl(youtubeUrl)}?autoplay=${autoplay ? 1 : 0}`}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              style={{ border: 'none' }}
+            />
+          )}
+
+          {/* Upload video player */}
+          {showPlayer && videoSource === 'upload' && videoUrl && (
+            <video
+              ref={videoRef}
+              width="100%"
+              height="100%"
+              style={{ objectFit: 'contain' }}
+              autoPlay={autoplay}
+              controls={controls}
+              muted={muted}
+              loop={loop}
+            >
+              <source src={videoUrl} type="video/mp4" />
+              Seu navegador não suporta reprodução de vídeo
+            </video>
+          )}
+
+          {/* Fallback no video message */}
+          {showPlayer && !youtubeUrl && !videoUrl && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                color: '#999',
+                fontSize: '16px',
+              }}
+            >
+              Nenhum vídeo configurado
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+)
+
+VSLComponent.displayName = 'VSL'
+export const VSL = VSLComponent
+
+;(VSL as unknown as Record<string, unknown>).craft = {
+  props: {
+    videoSource: 'youtube',
+    youtubeUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    videoUrl: '',
+    width: '100%',
+    height: 500,
+    aspectRatio: '16 / 9',
+    autoplay: false,
+    controls: true,
+    muted: false,
+    loop: false,
+    borderRadius: 12,
+    backgroundColor: '#000000',
+    playButtonColor: '#ff0000',
+    playButtonSize: 80,
+    showThumbnail: true,
+    thumbnailUrl: '',
+    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingLeft: 20,
+    paddingRight: 20,
+    playerWidth: 960,
+  },
+  displayName: 'VSL (Vídeo)',
+  related: {
+    toolbar: [],
+  },
 }

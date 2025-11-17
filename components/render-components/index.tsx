@@ -90,7 +90,11 @@ TextBlockRender.displayName = 'TextBlockRender'
 // CTA Button - Render Only
 interface CTAButtonProps {
   text?: string
-  link?: string
+  link?: string // legado
+  linkType?: 'url' | 'page'
+  linkUrl?: string
+  linkPageSlug?: string
+  openInNewTab?: boolean
   backgroundColor?: string
   textColor?: string
 }
@@ -100,17 +104,31 @@ export const CTAButtonRender = React.forwardRef<HTMLAnchorElement, CTAButtonProp
     {
       text = 'Button',
       link = '#',
+      linkType = 'url',
+      linkUrl = '',
+      linkPageSlug = '',
+      openInNewTab = false,
       backgroundColor = '#0070f3',
       textColor = '#ffffff',
     },
     ref
   ) => {
+    const resolvedHref = React.useMemo(() => {
+      if (linkType === 'page' && linkPageSlug) {
+        return `/page/${linkPageSlug}`
+      }
+      if (linkType === 'url' && linkUrl) {
+        return linkUrl
+      }
+      return link
+    }, [linkType, linkUrl, linkPageSlug, link])
+
     return (
       <a
         ref={ref}
-        href={link}
-        target="_blank"
-        rel="noopener noreferrer"
+        href={resolvedHref}
+        target={openInNewTab ? '_blank' : undefined}
+        rel={openInNewTab ? 'noopener noreferrer' : undefined}
         style={{
           display: 'inline-block',
           padding: '12px 24px',

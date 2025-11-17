@@ -23,16 +23,17 @@ import {
   TextBlock, 
   HeroSection, 
   CTAButton, 
-  Divider, 
+  Divider,
+  Footer, 
   PricingCard,
   TestimonialCard,
   FeatureCard,
   CaptureForm,
-  VideoSection,
   StatsCounter,
   FAQItem,
   TrustBadges,
   ImageComponent,
+  VSL,
 } from '@/components/craft-components'
 
 interface ComponentItem {
@@ -81,6 +82,13 @@ const COMPONENTS: ComponentItem[] = [
     component: Divider,
   },
   {
+    id: 'footer',
+    name: 'Footer',
+    icon: <Layers className="w-5 h-5" />,
+    description: 'Rodapé da página',
+    component: Footer,
+  },
+  {
     id: 'pricing-card',
     name: 'Pricing Card',
     icon: <DollarSign className="w-5 h-5" />,
@@ -107,13 +115,6 @@ const COMPONENTS: ComponentItem[] = [
     icon: <Zap className="w-5 h-5" />,
     description: 'Email capture com CTA',
     component: CaptureForm,
-  },
-  {
-    id: 'video-section',
-    name: 'Seção de Vídeo',
-    icon: <Video className="w-5 h-5" />,
-    description: 'Para VSL ou demo de produto',
-    component: VideoSection,
   },
   {
     id: 'stats-counter',
@@ -143,6 +144,13 @@ const COMPONENTS: ComponentItem[] = [
     description: 'Imagem responsiva com caption',
     component: ImageComponent,
   },
+  {
+    id: 'vsl',
+    name: 'VSL (Vídeo)',
+    icon: <Video className="w-5 h-5" />,
+    description: 'Video Sales Letter com player personalizável',
+    component: VSL,
+  },
 ]
 
 export function ComponentsToolbox() {
@@ -164,10 +172,21 @@ export function ComponentsToolbox() {
         return <CTAButton text="Clique aqui" link="#" backgroundColor="#0070f3" />
       case 'container':
         return (
-          <Element is={Container} canvas backgroundColor="#ffffff" padding={20} />
+          <Element is={Container} canvas backgroundColor="#ffffff" paddingTop={20} paddingBottom={20} paddingLeft={20} paddingRight={20} />
         )
       case 'divider':
         return <Divider height={2} color="#e0e0e0" margin={20} />
+      case 'footer':
+        return (
+          <Footer
+            brandName="DigitalFlow"
+            brandDescription="Transformando ideias em experiências digitais"
+            link1="Home"
+            link2="Sobre"
+            link3="Contato"
+            copyrightText="© 2025 DigitalFlow. Todos os direitos reservados."
+          />
+        )
       case 'pricing-card':
         return (
           <PricingCard
@@ -206,13 +225,6 @@ export function ComponentsToolbox() {
             buttonText="Inscrever"
           />
         )
-      case 'video-section':
-        return (
-          <VideoSection
-            title="Veja a Demo"
-            subtitle="Aprenda como funciona"
-          />
-        )
       case 'stats-counter':
         return (
           <StatsCounter
@@ -243,6 +255,23 @@ export function ComponentsToolbox() {
             height="300px"
             borderRadius={12}
             shadow="md"
+          />
+        )
+      case 'vsl':
+        return (
+          <VSL
+            videoSource="youtube"
+            youtubeUrl="https://www.youtube.com/embed/dQw4w9WgXcQ"
+            width="100%"
+            height={500}
+            autoplay={false}
+            controls={true}
+            borderRadius={12}
+            backgroundColor="#000000"
+            playButtonColor="#ff0000"
+            playButtonSize={80}
+            showThumbnail={false}
+            videoUrl=""
           />
         )
       default:

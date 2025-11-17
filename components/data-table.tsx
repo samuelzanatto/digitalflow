@@ -365,6 +365,8 @@ export function DataTable({
     [data]
   )
 
+  // TanStack Table returns imperative helpers that React Compiler cannot safely memoize yet.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

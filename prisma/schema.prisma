@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // Modelo para páginas de vendas
@@ -77,4 +78,22 @@ model PageAnalytics {
 
   @@index([pageId])
   @@index([date])
+}
+
+// Modelo para fluxos (flows/funnels)
+model Flow {
+  id            String   @id @default(cuid())
+  userId        String
+  funnelId      String
+  name          String
+  description   String?
+  flowData      Json     @default("{}")
+  nodesData     Json     @default("{\"nodes\": [], \"edges\": []}") // Dados do ReactFlow
+  published     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, funnelId])
+  @@index([userId])
+  @@index([funnelId])
 }

@@ -3,8 +3,7 @@
 import React, { useState } from 'react'
 import { useEditor } from '@craftjs/core'
 import { toast } from 'sonner'
-import { Plus, Trash2, Palette } from 'lucide-react'
-import { HeroSection, TextBlock, CTAButton, Divider } from '@/components/craft-components'
+import { Trash2, Palette, Pipette } from 'lucide-react'
 
 export function EditorToolbarArea() {
   const { selected, actions, query } = useEditor((state) => ({
@@ -13,44 +12,6 @@ export function EditorToolbarArea() {
   const [backgroundColor, setBackgroundColor] = useState('#ffffff')
 
   const selectedNode = selected.size === 1 ? Array.from(selected)[0] : null
-
-  const handleAddComponent = (type: string) => {
-    let component: React.ReactNode = null
-
-    switch (type) {
-      case 'hero-section':
-        component = (
-          <HeroSection
-            title="Novo Hero"
-            subtitle="Subtítulo"
-            backgroundColor="#f0f9ff"
-          />
-        )
-        break
-      case 'text-block':
-        component = (
-          <TextBlock content="Novo texto" fontSize={16} color="#000000" />
-        )
-        break
-      case 'cta-button':
-        component = (
-          <CTAButton text="Clique aqui" link="#" backgroundColor="#0070f3" />
-        )
-        break
-      case 'divider':
-        component = <Divider height={2} color="#e0e0e0" margin={20} />
-        break
-    }
-
-    if (component) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        actions.add(component as any)
-      } catch (error) {
-        console.error('Erro ao adicionar componente:', error)
-      }
-    }
-  }
 
   const handleDeleteSelected = () => {
     if (!selectedNode) {
@@ -85,74 +46,101 @@ export function EditorToolbarArea() {
     }
   }
 
+  const handleBackgroundColorChange = (color: string) => {
+    setBackgroundColor(color)
+    
+    // Encontrar o root container e mudar sua backgroundColor via setProp
+    try {
+      const allNodes = query.getNodes()
+      const nodesList = Object.entries(allNodes)
+      
+      let rootNodeId: string | null = null
+      for (const [nodeId, node] of nodesList) {
+        const n = node as Record<string, unknown>
+        if (!n.parent) {
+          rootNodeId = nodeId
+          break
+        }
+      }
+
+      if (rootNodeId) {
+        actions.setProp(rootNodeId, (props: Record<string, unknown>) => {
+          props.backgroundColor = color
+        })
+        toast.success('Cor de fundo alterada')
+      }
+    } catch (error) {
+      console.error('Erro ao alterar cor de fundo:', error)
+      toast.error('Erro ao alterar cor de fundo')
+    }
+  }
+
+  const handleColorPicker = () => {
+    const colorInput = document.createElement('input')
+    colorInput.type = 'color'
+    colorInput.value = backgroundColor
+    colorInput.onchange = (e) => {
+      const color = (e.target as HTMLInputElement).value
+      handleBackgroundColorChange(color)
+    }
+    colorInput.click()
+  }
+
+  const handleEyedropper = async () => {
+    try {
+      // Verifica se o browser suporta a EyeDropper API
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eyeDropperAvailable = (window as any).EyeDropper
+      if (!eyeDropperAvailable) {
+        toast.error('Seu navegador não suporta seletor de cor')
+        return
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eyeDropper = new (window as any).EyeDropper()
+      const result = await eyeDropper.open()
+      handleBackgroundColorChange(result.sRGBHex)
+    } catch (error) {
+      if ((error as Error).name !== 'NotAllowedError') {
+        console.error('Erro ao usar eyedropper:', error)
+        toast.error('Erro ao usar seletor de cor')
+      }
+    }
+  }
+
   return (
-    <>
-      <span className="text-xs text-muted-foreground">Craft.js Editor</span>
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground">Editor</span>
 
-      <div className="ml-auto flex gap-1">
-        <button
-          onClick={() => handleAddComponent('hero-section')}
-          className="px-2 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1"
-          title="Adicionar Hero"
-        >
-          <Plus className="w-3 h-3" /> Hero
-        </button>
-        <button
-          onClick={() => handleAddComponent('text-block')}
-          className="px-2 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1"
-          title="Adicionar Texto"
-        >
-          <Plus className="w-3 h-3" /> Texto
-        </button>
-        <button
-          onClick={() => handleAddComponent('cta-button')}
-          className="px-2 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1"
-          title="Adicionar Botão"
-        >
-          <Plus className="w-3 h-3" /> CTA
-        </button>
-        <button
-          onClick={() => handleAddComponent('divider')}
-          className="px-2 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1"
-          title="Adicionar Divisor"
-        >
-          <Plus className="w-3 h-3" /> Linha
-        </button>
-
+      <div className="ml-auto flex gap-2">
         {selectedNode && (
           <button
             onClick={handleDeleteSelected}
-            className="px-2 py-1 text-xs rounded border hover:bg-destructive/10 text-destructive flex items-center gap-1 ml-2"
+            className="px-3 py-1 text-xs rounded border hover:bg-destructive/10 text-destructive flex items-center gap-1 transition-colors"
             title="Deletar elemento"
           >
-            <Trash2 className="w-3 h-3" /> Deletar
+            <Trash2 className="w-4 h-4" /> Deletar
           </button>
         )}
 
         {/* Page Background Color Button */}
-        <div className="ml-2 pl-2 border-l">
-          <button
-            onClick={() => {
-              const colorInput = document.createElement('input')
-              colorInput.type = 'color'
-              colorInput.value = backgroundColor
-              colorInput.onchange = (e) => {
-                const color = (e.target as HTMLInputElement).value
-                setBackgroundColor(color)
-                const frame = document.querySelector('.craftjs-frame') as HTMLDivElement
-                if (frame) {
-                  frame.style.backgroundColor = color
-                }
-              }
-              colorInput.click()
-            }}
-            className="px-2 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1"
-            title="Alterar cor de fundo"
-          >
-            <Palette className="w-3 h-3" /> Fundo
-          </button>
-        </div>
+        <button
+          onClick={handleColorPicker}
+          className="px-3 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1 transition-colors"
+          title="Alterar cor de fundo da página"
+        >
+          <Palette className="w-4 h-4" /> Fundo
+        </button>
+
+        {/* Eyedropper Button */}
+        <button
+          onClick={handleEyedropper}
+          className="px-3 py-1 text-xs rounded border hover:bg-accent flex items-center gap-1 transition-colors"
+          title="Selecionar cor na tela"
+        >
+          <Pipette className="w-4 h-4" />
+        </button>
       </div>
-    </>
+    </div>
   )
 }

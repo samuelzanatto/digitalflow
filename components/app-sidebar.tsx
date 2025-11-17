@@ -16,8 +16,10 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
+  IconUsersGroup,
   IconQuestionMark,
   IconLayout,
+  IconBraces,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -35,11 +37,6 @@ import {
 } from "@/components/ui/sidebar"
 
 const data = {
-  user: {
-    name: "Gestor Flow",
-    email: "gestor@flow.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -52,9 +49,19 @@ const data = {
       icon: IconLayout,
     },
     {
+      title: "Flows",
+      url: "/dashboard/flows",
+      icon: IconBraces,
+    },
+    {
       title: "Chat",
       url: "/dashboard/chat",
       icon: IconMessage,
+    },
+    {
+      title: "Equipe",
+      url: "/dashboard/equipe",
+      icon: IconUsersGroup,
     },
     {
       title: "Leads",
@@ -93,6 +100,11 @@ const data = {
       title: "Configurações",
       url: "/dashboard/configuracoes",
       icon: IconSettings,
+    },
+    {
+      title: "Usuários",
+      url: "/dashboard/usuarios",
+      icon: IconUsers,
     },
   ],
   documents: [
@@ -149,7 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )

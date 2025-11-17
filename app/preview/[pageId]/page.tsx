@@ -37,12 +37,6 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
   return (
     <div className="min-h-screen bg-white">
       <PageRenderer layout={layout} />
-      
-      {/* Footer */}
-      <footer className="border-t py-8 px-4 text-center text-sm text-muted-foreground bg-muted/30">
-        <p>Página: {page.title}</p>
-        <p className="text-xs mt-2">Criado com DigitalFlow Page Builder</p>
-      </footer>
     </div>
   )
 }
