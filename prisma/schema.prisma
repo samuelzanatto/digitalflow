@@ -7,13 +7,13 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 // Modelo para páginas de vendas
 model SalesPage {
-  id            String   @id @default(cuid())
+  id            String   @id @default(uuid())
   userId        String
   title         String
   slug          String   @unique
@@ -36,7 +36,7 @@ model SalesPage {
 
 // Modelo para seções da página
 model PageSection {
-  id            String   @id @default(cuid())
+  id            String   @id @default(uuid())
   pageId        String
   page          SalesPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   
@@ -51,7 +51,7 @@ model PageSection {
 
 // Modelo para domínios customizados
 model CustomDomain {
-  id            String   @id @default(cuid())
+  id            String   @id @default(uuid())
   pageId        String   @unique
   page          SalesPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   
@@ -67,7 +67,7 @@ model CustomDomain {
 
 // Modelo para analytics
 model PageAnalytics {
-  id            String   @id @default(cuid())
+  id            String   @id @default(uuid())
   pageId        String
   page          SalesPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
   
@@ -82,7 +82,7 @@ model PageAnalytics {
 
 // Modelo para fluxos (flows/funnels)
 model Flow {
-  id            String   @id @default(cuid())
+  id            String   @id @default(uuid())
   userId        String
   funnelId      String
   name          String
@@ -96,4 +96,17 @@ model Flow {
   @@unique([userId, funnelId])
   @@index([userId])
   @@index([funnelId])
+}
+
+model TeamMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  username   String
+  avatarUrl  String?  @map("avatar_url")
+  content    String
+  insertedAt DateTime @default(now()) @map("inserted_at")
+
+  @@map("team_messages")
+  @@index([userId])
+  @@index([insertedAt])
 }

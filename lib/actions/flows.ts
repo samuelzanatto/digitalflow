@@ -23,7 +23,7 @@ export interface UpdateFlowInput {
 
 export interface SaveFlowNodesInput {
   funnelId: string
-  userId: string
+  userId?: string
   nodesData: {
     nodes: Array<Record<string, unknown>>
     edges: Array<Record<string, unknown>>
@@ -62,15 +62,12 @@ export async function createFlow(input: CreateFlowInput) {
 /**
  * Obter flow por funnelId
  */
-export async function getFlow(funnelId: string, userId: string) {
+export async function getFlow(funnelId: string) {
   try {
     const flow = await withRetry(async () => {
-      return await prisma.flow.findUnique({
+      return await prisma.flow.findFirst({
         where: {
-          userId_funnelId: {
-            userId,
-            funnelId,
-          },
+          funnelId,
         },
       })
     })
@@ -98,48 +95,45 @@ export async function saveFlowNodes(input: SaveFlowNodesInput) {
 
     // Verificar se o flow existe
     const existingFlow = await withRetry(async () => {
-      return await prisma.flow.findUnique({
+      return await prisma.flow.findFirst({
         where: {
-          userId_funnelId: {
-            userId: input.userId,
-            funnelId: input.funnelId,
-          },
+          funnelId: input.funnelId,
         },
       })
     })
 
-    let flow
-
     if (!existingFlow) {
-      // Criar novo flow se não existir
-      flow = await withRetry(async () => {
+      // Criar um novo flow herdando o userId informado ou reaproveitando placeholder
+      const ownerId = input.userId ?? 'user-default'
+      const flow = await withRetry(async () => {
         return await prisma.flow.create({
           data: {
             id: randomUUID(),
-            userId: input.userId,
+            userId: ownerId,
             funnelId: input.funnelId,
             name: `Fluxo #${input.funnelId}`,
             nodesData: JSON.parse(JSON.stringify(nodesData)),
           },
         })
       })
-    } else {
-      // Atualizar flow existente
-      flow = await withRetry(async () => {
-        return await prisma.flow.update({
-          where: {
-            userId_funnelId: {
-              userId: input.userId,
-              funnelId: input.funnelId,
-            },
-          },
-          data: {
-            nodesData: JSON.parse(JSON.stringify(nodesData)),
-            updatedAt: new Date(),
-          },
-        })
-      })
+
+      return { success: true, data: flow }
     }
+
+    const flow = await withRetry(async () => {
+      return await prisma.flow.update({
+        where: {
+          userId_funnelId: {
+            userId: existingFlow.userId,
+            funnelId: existingFlow.funnelId,
+          },
+        },
+        data: {
+          nodesData: JSON.parse(JSON.stringify(nodesData)),
+          updatedAt: new Date(),
+        },
+      })
+    })
 
     // Log para debug
     console.log(`Flow salvo com sucesso para funnelId ${input.funnelId}:`, {

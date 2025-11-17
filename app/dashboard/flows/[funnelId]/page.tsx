@@ -26,8 +26,8 @@ import { usePageHeader } from "@/hooks/usePageHeader"
 import { Plus, Trash2, ArrowLeft, Save } from "lucide-react"
 import { toast } from "sonner"
 import { saveFlowNodes } from "@/lib/actions/flows"
+import { useSupabaseUser } from "@/hooks/useSupabaseUser"
 
-const USER_ID_PLACEHOLDER = "user-default"
 const STRUCTURED_LABEL_FALLBACK = "Novo nó"
 const DEFAULT_NODE_STYLE: CSSProperties = {
   backgroundColor: "#0f172a",
@@ -264,6 +264,7 @@ export default function FlowEditor() {
   const router = useRouter()
   const { setPageHeader } = usePageHeader()
   const funnelId = params.funnelId as string
+  const { user } = useSupabaseUser()
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
@@ -484,12 +485,10 @@ export default function FlowEditor() {
       // Parsear os nós e arestas do snapshot
       const flowData = JSON.parse(snapshotAtSave)
       
-      const userId = USER_ID_PLACEHOLDER
-      
       // Chamar a action para salvar no banco de dados
       const result = await saveFlowNodes({
         funnelId,
-        userId,
+        userId: user?.id,
         nodesData: {
           nodes: flowData.nodes,
           edges: flowData.edges,
@@ -508,7 +507,7 @@ export default function FlowEditor() {
     } finally {
       setIsSaving(false)
     }
-  }, [currentSnapshot, funnelId, hasUnsavedChanges, isHydrating, isSaving])
+  }, [currentSnapshot, funnelId, hasUnsavedChanges, isHydrating, isSaving, user?.id])
 
   useEffect(() => {
     const actions = (

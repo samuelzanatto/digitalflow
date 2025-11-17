@@ -42,6 +42,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { useSupabaseUser } from "@/hooks/useSupabaseUser"
 
 interface ApiFlow {
   id: string
@@ -51,6 +52,7 @@ interface ApiFlow {
   nodesData?: { nodes?: unknown[] } | null
   createdAt: string
   updatedAt: string
+  userId: string
 }
 
 interface Funnel {
@@ -61,6 +63,7 @@ interface Funnel {
   stagesCount: number
   createdAt: string
   updatedAt: string
+  createdBy: string
 }
 
 const mapFlowToFunnel = (flow: ApiFlow): Funnel => {
@@ -74,11 +77,19 @@ const mapFlowToFunnel = (flow: ApiFlow): Funnel => {
     stagesCount: Array.isArray(nodes) ? nodes.length : 0,
     createdAt: flow.createdAt,
     updatedAt: flow.updatedAt,
+    createdBy: flow.userId,
   }
+}
+
+const formatUserId = (id: string) => {
+  if (!id) return "-"
+  if (id.length <= 10) return id
+  return `${id.slice(0, 6)}…${id.slice(-4)}`
 }
 
 export default function FlowsPage() {
   const { setPageHeader } = usePageHeader()
+  const { user, loading: isUserLoading } = useSupabaseUser()
   const router = useRouter()
   const [funnels, setFunnels] = useState<Funnel[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -92,6 +103,7 @@ export default function FlowsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Funnel | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const canCreateFunnel = Boolean(user?.id && !isUserLoading)
 
   const handleOpenDialog = useCallback(() => setIsOpen(true), [])
 
@@ -120,7 +132,7 @@ export default function FlowsPage() {
 
   useEffect(() => {
     const actionButton = (
-      <Button className="gap-2" onClick={handleOpenDialog}>
+      <Button className="gap-2" onClick={handleOpenDialog} disabled={!canCreateFunnel}>
         <Plus className="w-4 h-4" />
         Novo Funil
       </Button>
@@ -130,7 +142,7 @@ export default function FlowsPage() {
       "Crie e personalize seus funis de vendas com fluxos automáticos",
       actionButton
     )
-  }, [handleOpenDialog, setPageHeader])
+  }, [canCreateFunnel, handleOpenDialog, setPageHeader])
 
   useEffect(() => {
     fetchFlows()
@@ -138,6 +150,10 @@ export default function FlowsPage() {
 
   const handleCreateFunnel = async () => {
     if (!newFunnel.name.trim() || isCreating) return
+    if (!user?.id) {
+      toast.error("Não foi possível identificar o usuário logado")
+      return
+    }
 
     setIsCreating(true)
     try {
@@ -147,6 +163,7 @@ export default function FlowsPage() {
         body: JSON.stringify({
           name: newFunnel.name,
           description: newFunnel.description,
+          userId: user.id,
         }),
       })
 
@@ -288,8 +305,12 @@ export default function FlowsPage() {
                 className="resize-none"
               />
             </div>
-            <Button onClick={handleCreateFunnel} disabled={!newFunnel.name.trim() || isCreating} className="w-full">
-              {isCreating ? "Criando..." : "Criar Funil"}
+            <Button
+              onClick={handleCreateFunnel}
+              disabled={!newFunnel.name.trim() || isCreating || !canCreateFunnel}
+              className="w-full"
+            >
+              {!canCreateFunnel ? "Carregando usuário..." : isCreating ? "Criando..." : "Criar Funil"}
             </Button>
           </div>
         </DialogContent>
@@ -468,9 +489,12 @@ export default function FlowsPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                  <span className="text-xs text-muted-foreground">
-                    Criado em {new Date(funnel.createdAt).toLocaleDateString("pt-BR")}
-                  </span>
+                  <div className="flex flex-col text-xs text-muted-foreground">
+                    <span>
+                      Criado em {new Date(funnel.createdAt).toLocaleDateString("pt-BR")}
+                    </span>
+                    <span className="opacity-80">Criado por: {formatUserId(funnel.createdBy)}</span>
+                  </div>
                   <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>

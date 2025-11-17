@@ -62,6 +62,16 @@ html {
 
 :root {
   --radius: 0.625rem;
+  --font-inter: 'Inter', sans-serif;
+  --font-roboto: 'Roboto', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+  --font-lora: 'Lora', serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-open-sans: 'Open Sans', sans-serif;
+  --font-raleway: 'Raleway', sans-serif;
+  --font-merriweather: 'Merriweather', serif;
+  --font-source-sans: 'Source Sans 3', sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

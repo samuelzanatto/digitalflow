@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
+import { prisma, withRetry } from '@/lib/db/prisma'
 import { randomUUID } from 'crypto'
-
-const USER_ID_PLACEHOLDER = 'user-default'
 
 export async function GET() {
   try {
-    const flows = await prisma.flow.findMany({
-      where: { userId: USER_ID_PLACEHOLDER },
-      orderBy: { updatedAt: 'desc' },
-    })
+    const flows = await withRetry(() =>
+      prisma.flow.findMany({
+        orderBy: { updatedAt: 'desc' },
+      }),
+    )
 
     return NextResponse.json({ success: true, data: flows })
   } catch (error) {
@@ -44,17 +43,29 @@ export async function POST(request: Request) {
         ? body.description.trim()
         : null
 
+    const userId =
+      typeof body.userId === 'string' && body.userId.trim().length > 0 ? body.userId.trim() : null
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Usuário autenticado é obrigatório' },
+        { status: 400 },
+      )
+    }
+
     const funnelId = randomUUID()
 
-    const flow = await prisma.flow.create({
-      data: {
-        id: randomUUID(),
-        userId: USER_ID_PLACEHOLDER,
-        funnelId,
-        name: rawName,
-        description,
-      },
-    })
+    const flow = await withRetry(() =>
+      prisma.flow.create({
+        data: {
+          id: randomUUID(),
+          userId,
+          funnelId,
+          name: rawName,
+          description,
+        },
+      }),
+    )
 
     return NextResponse.json({ success: true, data: flow }, { status: 201 })
   } catch (error) {

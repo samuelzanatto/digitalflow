@@ -105,7 +105,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     const fetchPages = async () => {
       setIsLoadingPages(true)
       try {
-        const result = await getUserPages('user-demo')
+  const result = await getUserPages()
         if (result.success && Array.isArray(result.data)) {
           const mapped = (result.data as Array<{ id: string; title: string; slug: string }>).
             map((page) => ({ id: page.id, title: page.title, slug: page.slug }))

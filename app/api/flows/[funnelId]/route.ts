@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
-
-const USER_ID_PLACEHOLDER = 'user-default'
+import { prisma, withRetry } from '@/lib/db/prisma'
 
 type RouteParams = Promise<{ funnelId?: string }>
 
@@ -19,20 +17,15 @@ export async function GET(
   const resolvedParams = await params
   const funnelId = resolvedParams?.funnelId
   if (!funnelId) {
-    return missingFunnelResponse()
+      return missingFunnelResponse()
   }
 
-  const userId = USER_ID_PLACEHOLDER
-
   try {
-    const flow = await prisma.flow.findUnique({
-      where: {
-        userId_funnelId: {
-          userId,
-          funnelId,
-        },
-      },
-    })
+      const flow = await withRetry(() =>
+        prisma.flow.findFirst({
+          where: { funnelId },
+        }),
+      )
 
     return NextResponse.json({ success: true, data: flow ?? null })
   } catch (error) {
@@ -51,10 +44,8 @@ export async function PATCH(
   const resolvedParams = await params
   const funnelId = resolvedParams?.funnelId
   if (!funnelId) {
-    return missingFunnelResponse()
+      return missingFunnelResponse()
   }
-
-  const userId = USER_ID_PLACEHOLDER
 
   try {
     const body = await request.json().catch(() => null)
@@ -91,15 +82,25 @@ export async function PATCH(
       )
     }
 
-    const updatedFlow = await prisma.flow.update({
-      where: {
-        userId_funnelId: {
-          userId,
-          funnelId,
-        },
-      },
-      data: updateData,
-    })
+      const existingFlow = await withRetry(() =>
+        prisma.flow.findFirst({
+          where: { funnelId },
+        }),
+      )
+
+    if (!existingFlow) {
+      return NextResponse.json(
+        { success: false, error: 'Fluxo não encontrado' },
+        { status: 404 },
+      )
+    }
+
+      const updatedFlow = await withRetry(() =>
+        prisma.flow.update({
+          where: { id: existingFlow.id },
+          data: updateData,
+        }),
+      )
 
     return NextResponse.json({ success: true, data: updatedFlow })
   } catch (error) {
@@ -118,20 +119,29 @@ export async function DELETE(
   const resolvedParams = await params
   const funnelId = resolvedParams?.funnelId
   if (!funnelId) {
-    return missingFunnelResponse()
+      return missingFunnelResponse()
   }
 
-  const userId = USER_ID_PLACEHOLDER
-
   try {
-    await prisma.flow.delete({
-      where: {
-        userId_funnelId: {
-          userId,
-          funnelId,
-        },
-      },
-    })
+      const existingFlow = await withRetry(() =>
+        prisma.flow.findFirst({
+          where: { funnelId },
+          select: { id: true },
+        }),
+      )
+
+    if (!existingFlow) {
+      return NextResponse.json(
+        { success: false, error: 'Fluxo não encontrado' },
+        { status: 404 },
+      )
+    }
+
+      await withRetry(() =>
+        prisma.flow.delete({
+          where: { id: existingFlow.id },
+        }),
+      )
 
     return NextResponse.json({ success: true })
   } catch (error) {

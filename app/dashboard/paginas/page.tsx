@@ -24,8 +24,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
-import { createSalesPage, getUserPages, refreshPagePreviewImage } from '@/lib/actions/pages'
+import {
+  createSalesPage,
+  deleteSalesPage,
+  getUserPages,
+  refreshPagePreviewImage,
+} from '@/lib/actions/pages'
 import { cn } from '@/lib/utils'
+import { useSupabaseUser } from '@/hooks/useSupabaseUser'
 
 interface SectionPreview {
   id: string
@@ -38,6 +44,7 @@ interface SalesPage {
   title: string
   slug: string
   description: string
+  userId: string
   thumbnail?: string | null
   published: boolean
   viewCount: number
@@ -54,7 +61,8 @@ interface CreateDialogHandle {
 const CreatePageDialog = React.forwardRef<CreateDialogHandle, {
   onCreatePage: (title: string, description: string) => Promise<void>
   isCreating: boolean
-}>(({ onCreatePage, isCreating }, ref) => {
+  canCreate: boolean
+}>(({ onCreatePage, isCreating, canCreate }, ref) => {
   const [isOpen, setIsOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -71,6 +79,11 @@ const CreatePageDialog = React.forwardRef<CreateDialogHandle, {
   const handleCreate = async () => {
     if (!title.trim()) {
       toast.error('Título é obrigatório')
+      return
+    }
+
+    if (!canCreate) {
+      toast.error('Aguarde o carregamento do usuário logado')
       return
     }
 
@@ -97,7 +110,7 @@ const CreatePageDialog = React.forwardRef<CreateDialogHandle, {
               placeholder="Ex: Webinar de Marketing"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              disabled={isCreating}
+              disabled={isCreating || !canCreate}
             />
           </div>
           <div className="space-y-2">
@@ -107,7 +120,7 @@ const CreatePageDialog = React.forwardRef<CreateDialogHandle, {
               placeholder="Descreva o objetivo desta página..."
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              disabled={isCreating}
+              disabled={isCreating || !canCreate}
             />
           </div>
         </div>
@@ -115,8 +128,8 @@ const CreatePageDialog = React.forwardRef<CreateDialogHandle, {
           <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isCreating}>
             Cancelar
           </Button>
-          <Button onClick={handleCreate} disabled={isCreating}>
-            {isCreating ? 'Criando...' : 'Criar Página'}
+          <Button onClick={handleCreate} disabled={isCreating || !canCreate}>
+            {!canCreate ? 'Carregando usuário...' : isCreating ? 'Criando...' : 'Criar Página'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -179,18 +192,26 @@ const getPagePreviewImage = (page: SalesPage): string | null => {
   return `/api/pages/${page.id}/preview?ver=${encodeURIComponent(versionToken)}`
 }
 
+const formatUserId = (id: string) => {
+  if (!id) return '-'
+  if (id.length <= 10) return id
+  return `${id.slice(0, 6)}…${id.slice(-4)}`
+}
+
 export default function PaginasPage() {
   const { setPageHeader } = usePageHeader()
+  const { user, loading: isUserLoading } = useSupabaseUser()
   const [pages, setPages] = useState<SalesPage[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [refreshingPageId, setRefreshingPageId] = useState<string | null>(null)
+  const [deletingPageId, setDeletingPageId] = useState<string | null>(null)
   const dialogRef = useRef<CreateDialogHandle>(null)
 
   const loadPages = useCallback(async () => {
     try {
       setIsLoading(true)
-      const result = await getUserPages('user-demo')
+      const result = await getUserPages()
       if (result.success && result.data) {
         setPages(result.data as unknown as SalesPage[])
       }
@@ -204,12 +225,16 @@ export default function PaginasPage() {
 
   const onCreatePage = useCallback(
     async (title: string, description: string) => {
+      if (!user?.id) {
+        toast.error('Não foi possível identificar o usuário logado')
+        return
+      }
       setIsCreating(true)
       try {
         const result = await createSalesPage({
           title,
           description,
-          userId: 'user-demo',
+          userId: user.id,
         })
 
         if (result.success) {
@@ -225,15 +250,34 @@ export default function PaginasPage() {
         setIsCreating(false)
       }
     },
-    [loadPages],
+    [loadPages, user?.id],
   )
 
-  const handleDeletePage = useCallback((id: string) => {
-    if (confirm('Tem certeza que deseja deletar esta página?')) {
-      setPages((prev) => prev.filter((p) => p.id !== id))
-      toast.success('Página deletada')
-    }
-  }, [])
+  const canCreatePage = Boolean(user?.id && !isUserLoading)
+
+  const handleDeletePage = useCallback(
+    async (id: string) => {
+      const confirmed = confirm('Tem certeza que deseja deletar esta página?')
+      if (!confirmed) return
+
+      setDeletingPageId(id)
+      try {
+        const result = await deleteSalesPage(id)
+        if (result.success) {
+          setPages((prev) => prev.filter((p) => p.id !== id))
+          toast.success('Página deletada')
+        } else {
+          toast.error(result.error || 'Falha ao deletar página')
+        }
+      } catch (error) {
+        console.error('Erro ao deletar página:', error)
+        toast.error('Erro ao deletar página')
+      } finally {
+        setDeletingPageId(null)
+      }
+    },
+    [],
+  )
 
   const handleTogglePublish = useCallback((id: string) => {
     setPages((prev) =>
@@ -265,7 +309,11 @@ export default function PaginasPage() {
 
   useEffect(() => {
     const actionButton = (
-      <Button onClick={() => dialogRef.current?.open()} className="gap-2">
+      <Button
+        onClick={() => dialogRef.current?.open()}
+        className="gap-2"
+        disabled={!canCreatePage}
+      >
         <Plus className="w-4 h-4" />
         Nova Página
       </Button>
@@ -275,7 +323,7 @@ export default function PaginasPage() {
       'Crie e gerencie suas páginas de vendas de forma visual',
       actionButton,
     )
-  }, [setPageHeader])
+  }, [canCreatePage, setPageHeader])
 
   useEffect(() => {
     loadPages()
@@ -293,7 +341,12 @@ export default function PaginasPage() {
 
   return (
     <>
-      <CreatePageDialog ref={dialogRef} onCreatePage={onCreatePage} isCreating={isCreating} />
+      <CreatePageDialog
+        ref={dialogRef}
+        onCreatePage={onCreatePage}
+        isCreating={isCreating}
+        canCreate={canCreatePage}
+      />
       <div className="flex flex-1 flex-col gap-6 rounded-b-2xl bg-black p-4 lg:p-6">
         {pages.length === 0 ? (
           <Card className="border-2 border-dashed border-white/15 bg-black/30 text-center">
@@ -341,6 +394,9 @@ export default function PaginasPage() {
                           {page.title}
                         </h3>
                         <p className="mt-1 text-xs text-muted-foreground">/{page.slug}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          Criado por: {formatUserId(page.userId)}
+                        </p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -363,8 +419,9 @@ export default function PaginasPage() {
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDeletePage(page.id)}
+                            disabled={deletingPageId === page.id}
                           >
-                            Deletar
+                            {deletingPageId === page.id ? 'Deletando...' : 'Deletar'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

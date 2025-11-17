@@ -3,6 +3,8 @@
 import { prisma, withRetry } from '@/lib/db/prisma'
 import { generatePreviewImagePath } from '@/lib/preview/page-preview'
 import { revalidatePath } from 'next/cache'
+import { randomUUID } from 'crypto'
+import { Prisma } from '@prisma/client'
 
 export interface CreatePageInput {
   title: string
@@ -44,24 +46,69 @@ async function persistGeneratedThumbnail(pageId: string) {
   })
 }
 
+function normalizeSlugCandidate(rawTitle: string) {
+  const fallback = 'pagina'
+  if (!rawTitle) return fallback
+
+  const normalized = rawTitle
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+
+  const cleaned = normalized.replace(/^-+|-+$/g, '')
+  return cleaned || fallback
+}
+
+function buildUniqueSlug(base: string, taken: Set<string>) {
+  if (!taken.has(base)) return base
+
+  let counter = 2
+  while (counter < 200) {
+    const candidate = `${base}-${counter}`
+    if (!taken.has(candidate)) {
+      return candidate
+    }
+    counter += 1
+  }
+
+  return `${base}-${randomUUID().slice(0, 8)}`
+}
+
 /**
  * Criar nova página de vendas
  */
 export async function createSalesPage(input: CreatePageInput) {
   try {
-    const slug = input.title
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '')
+    const ownerId = input.userId?.trim()
+    if (!ownerId) {
+      return { success: false, error: 'Usuário é obrigatório' }
+    }
+
+    const baseSlug = normalizeSlugCandidate(input.title)
+
+    const similarSlugs = await withRetry(async () => {
+      return await prisma.salesPage.findMany({
+        where: { slug: { startsWith: baseSlug } },
+        select: { slug: true },
+      })
+    })
+
+    const uniqueSlug = buildUniqueSlug(
+      baseSlug,
+      new Set(similarSlugs.map((entry) => entry.slug)),
+    )
 
     const page = await withRetry(async () => {
       return await prisma.salesPage.create({
         data: {
           title: input.title,
           description: input.description,
-          slug,
-          userId: input.userId,
+          slug: uniqueSlug,
+          userId: ownerId,
           layout: [],
         },
       })
@@ -70,19 +117,27 @@ export async function createSalesPage(input: CreatePageInput) {
     revalidatePath('/dashboard/paginas')
     return { success: true, data: page }
   } catch (error) {
-    console.error('Error creating page:', error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error('Prisma error creating page:', {
+        code: error.code,
+        meta: error.meta,
+        message: error.message,
+      })
+    } else {
+      console.error('Error creating page:', error)
+    }
     return { success: false, error: 'Falha ao criar página' }
   }
 }
 
 /**
- * Obter todas as páginas do usuário
+ * Obter páginas (todas ou filtradas por usuário)
  */
-export async function getUserPages(userId: string) {
+export async function getUserPages(userId?: string) {
   try {
     const pages = await withRetry(async () => {
       return await prisma.salesPage.findMany({
-        where: { userId },
+        where: userId ? { userId } : undefined,
         include: {
           customDomain: true,
           sections: {

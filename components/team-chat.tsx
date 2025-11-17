@@ -74,11 +74,19 @@ export function TeamChat() {
     let mounted = true
 
     const hydrateIdentity = async () => {
-      const {
-        data: { user },
-      } = await client.auth.getUser()
-      if (mounted) {
-        setIdentity(formatAuthUser(user))
+      try {
+        // Refresh session to ensure valid token
+        const { error: refreshError } = await client.auth.refreshSession()
+        if (refreshError) {
+          console.warn('[team-chat] session refresh error:', refreshError.message)
+        }
+        
+        const { data: { user } } = await client.auth.getUser()
+        if (mounted) {
+          setIdentity(formatAuthUser(user))
+        }
+      } catch (e) {
+        console.error('[team-chat] hydrate error:', e)
       }
     }
 
@@ -104,6 +112,17 @@ export function TeamChat() {
     const client = getSupabaseClient()
     if (!client) return
     setLoading(true)
+    
+    // Verify session is loaded
+    const { data: { session }, error: authError } = await client.auth.getSession()
+    
+    if (authError || !session) {
+      console.error('[team-chat] no session found:', authError?.message)
+      toast.error('Sua sessão expirou. Por favor, faça login novamente.')
+      setLoading(false)
+      return
+    }
+    
     const { data, error } = await client
       .from('team_messages')
       .select('*')
@@ -111,8 +130,12 @@ export function TeamChat() {
       .limit(MESSAGES_LIMIT)
 
     if (error) {
-      console.error('Erro ao carregar mensagens do chat', error)
-      toast.error('Não foi possível carregar o chat da equipe.')
+      console.error('[team-chat] error loading messages:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      })
+      toast.error(`Erro ao carregar chat: ${error.message || 'Desconhecido'}`)
       setLoading(false)
       return
     }
@@ -122,17 +145,27 @@ export function TeamChat() {
   }, [])
 
   useEffect(() => {
+    if (!identity) {
+      // Aguardar identidade ser carregada antes de carregar mensagens
+      return
+    }
+    
     startTransition(() => {
       void loadMessages()
     })
-  }, [loadMessages])
+  }, [identity, loadMessages])
 
   useEffect(() => {
     const client = getSupabaseClient()
     if (!client) return
 
     const channel = client
-      .channel('team_messages_stream')
+      .channel('team_messages_stream', {
+        config: {
+          broadcast: { self: false },
+          presence: { key: identity?.id },
+        },
+      })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'team_messages' },
@@ -140,6 +173,8 @@ export function TeamChat() {
           if (!payload.new) return
           const newMessage = payload.new as TeamMessageRow
           setMessages((prev) => {
+            // Avoid duplicates
+            if (prev.find((m) => m.id === newMessage.id)) return prev
             const next = [...prev, newMessage]
             if (next.length > MESSAGES_LIMIT) {
               return next.slice(next.length - MESSAGES_LIMIT)
@@ -148,16 +183,27 @@ export function TeamChat() {
           })
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'team_messages' },
+        (payload: RealtimePostgresChangesPayload<TeamMessageRow>) => {
+          const oldMessage = payload.old as TeamMessageRow
+          if (!oldMessage?.id) return
+          setMessages((prev) => prev.filter((m) => m.id !== oldMessage.id))
+        },
+      )
       .subscribe((status: 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR') => {
         if (status === 'SUBSCRIBED') {
-          console.info('[team-chat] realtime subscription ativa')
+          console.log('[team-chat] realtime subscription active')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[team-chat] realtime channel error')
         }
       })
 
     return () => {
-      void client.removeChannel(channel)
+      void channel.unsubscribe()
     }
-  }, [])
+  }, [identity])
 
   useEffect(() => {
     if (!listRef.current) return
@@ -236,14 +282,21 @@ export function TeamChat() {
       return
     }
 
-  // Supabase typings com SSR ainda não inferem corretamente o insert, então suprimimos o any aqui.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (client.from('team_messages') as any).insert(payload)
+    // Supabase typings com SSR ainda não inferem corretamente o insert, então suprimimos o any aqui.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (client.from('team_messages') as any).insert([payload]).select()
+    
     if (error) {
-      console.error('Erro ao enviar mensagem do chat', error)
+      console.error('[team-chat] error sending message:', {
+        code: error.code,
+        message: error.message,
+      })
       toast.error('Falha ao enviar mensagem. Tente novamente.')
-    } else {
+    } else if (data && data.length > 0) {
+      // Add message immediately without waiting for realtime
+      setMessages((prev) => [...prev, data[0]])
       setPendingMessage('')
+      toast.success('Mensagem enviada!')
     }
     setSending(false)
   }
@@ -256,7 +309,7 @@ export function TeamChat() {
   const renderMessages = () => {
     if (loading) {
       return (
-        <div className="flex h-full items-center justify-center text-sm text-white/60">
+        <div className="flex h-full items-center justify-center text-sm text-slate-300">
           Carregando histórico do time...
         </div>
       )
@@ -264,7 +317,7 @@ export function TeamChat() {
 
     if (!messages.length) {
       return (
-        <div className="flex h-full items-center justify-center text-center text-sm text-white/50">
+        <div className="flex h-full items-center justify-center text-center text-sm text-slate-400">
           Comece a conversa enviando a primeira mensagem!
         </div>
       )
@@ -281,7 +334,7 @@ export function TeamChat() {
             >
               <Avatar className="h-10 w-10 border border-white/10">
                 {message.avatar_url && <AvatarImage src={message.avatar_url} alt={message.username} />}
-                <AvatarFallback className="bg-white/10 text-xs uppercase text-white">
+                <AvatarFallback className="bg-primary/20 text-xs font-semibold uppercase text-primary">
                   {message.username
                     .split(' ')
                     .map((piece) => piece[0]?.toUpperCase() ?? '')
@@ -292,14 +345,18 @@ export function TeamChat() {
               <div
                 className={cn(
                   'max-w-[75%] rounded-3xl px-4 py-3 text-sm shadow-lg shadow-black/40',
-                  isOwn ? 'bg-primary text-white' : 'bg-white/5 text-white/90 backdrop-blur',
+                  isOwn 
+                    ? 'bg-white/90 text-slate-900 border border-white/20' 
+                    : 'bg-slate-800 text-slate-50 border border-slate-700/50',
                 )}
               >
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                <div className={cn('mb-2 text-xs font-bold uppercase tracking-wide', isOwn ? 'text-slate-700' : 'text-slate-300')}>
                   {message.username}
                 </div>
-                <p className="whitespace-pre-line text-sm leading-relaxed">{message.content}</p>
-                <div className="mt-2 text-[10px] uppercase tracking-wider text-white/40">
+                <p className={cn('whitespace-pre-line text-sm leading-relaxed', isOwn ? 'text-slate-800' : 'text-slate-100')}>
+                  {message.content}
+                </p>
+                <div className={cn('mt-2 text-xs uppercase tracking-wider', isOwn ? 'text-slate-600' : 'text-slate-400')}>
                   {formatRelative(new Date(message.inserted_at), new Date(), { locale: ptBR })}
                 </div>
               </div>
@@ -312,18 +369,18 @@ export function TeamChat() {
 
   const renderOnlineUsers = () => {
     if (!onlineUsers.length) {
-      return <span className="text-xs uppercase tracking-widest text-white/30">Ninguém online</span>
+      return <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Ninguém online</span>
     }
 
     return (
       <div className="flex items-center gap-3">
-        <span className="text-xs uppercase tracking-widest text-white/40">Online agora</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Online agora</span>
         <div className="flex items-center gap-2">
           {onlineUsers.map((user) => (
-            <div key={user.id} className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-xs text-white/80">
-              <Avatar className="h-6 w-6 border border-white/10">
+            <div key={user.id} className="flex items-center gap-2 rounded-full bg-slate-800/50 px-3 py-1 text-xs font-medium text-slate-200">
+              <Avatar className="h-6 w-6 border border-slate-600/50">
                 {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                <AvatarFallback className="bg-white/10 text-[10px] uppercase text-white">
+                <AvatarFallback className="bg-primary/20 text-[10px] font-semibold uppercase text-primary">
                   {user.name
                     .split(' ')
                     .map((piece) => piece[0]?.toUpperCase() ?? '')
@@ -349,16 +406,16 @@ export function TeamChat() {
         {renderMessages()}
       </div>
 
-      <div className="border-t border-white/5 px-6 py-5">
+      <div className="border-t border-slate-700/50 px-6 py-5">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Textarea
             value={pendingMessage}
             onChange={(event) => setPendingMessage(event.target.value)}
             maxLength={MAX_MESSAGE_LENGTH}
             placeholder="Escreva uma mensagem para sua equipe..."
-            className="min-h-[100px] resize-none border-white/10 bg-black/30 text-white placeholder-white/40"
+            className="min-h-[100px] resize-none border-slate-600/50 bg-slate-900/60 text-slate-100 placeholder-slate-500"
           />
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/40">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-slate-400">
             <span>
               {pendingMessage.trim().length}/{MAX_MESSAGE_LENGTH} caracteres
             </span>
@@ -366,7 +423,7 @@ export function TeamChat() {
               <Button
                 type="button"
                 variant="outline"
-                className="border-white/20 text-white"
+                className="border-slate-600/50 text-slate-300 hover:text-slate-100 hover:bg-slate-800/50"
                 onClick={() => {
                   setPendingMessage('')
                 }}
@@ -376,7 +433,7 @@ export function TeamChat() {
               <Button
                 type="submit"
                 disabled={!pendingMessage.trim() || sending || !identity}
-                className="bg-primary px-6 text-white hover:bg-primary/90"
+                className="bg-white/90 text-slate-900 hover:bg-white font-semibold disabled:opacity-50 disabled:bg-white/50 disabled:text-slate-500"
               >
                 {sending ? 'Enviando...' : 'Enviar mensagem'}
               </Button>

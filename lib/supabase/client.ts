@@ -9,7 +9,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase environment variables are not configured.')
 }
 
-const createTypedBrowserClient = () => createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+const createTypedBrowserClient = () => 
+  createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+
 export type SupabaseBrowserClient = ReturnType<typeof createTypedBrowserClient>
 
 let browserClient: SupabaseBrowserClient | null = null
