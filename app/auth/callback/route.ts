@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get('code')
 
   if (code) {
-    const cookieStore = cookies()
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    const cookieStore = await cookies()
+    const supabase = createServerClient(supabaseUrl!, supabaseAnonKey!, {
       cookies: {
         getAll() {
           return cookieStore.getAll()

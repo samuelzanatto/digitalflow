@@ -8,8 +8,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase environment variables are not configured.')
 }
 
-export const createSupabaseServerClient = () => {
-  const cookieStore = cookies()
+export const createSupabaseServerClient = async () => {
+  const cookieStore = await cookies()
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

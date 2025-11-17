@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Editor, Frame, Element, SerializedNodes } from '@craftjs/core'
+import { Editor, Frame, Element, SerializedNodes, SerializedNode } from '@craftjs/core'
 import {
   Container,
   TextBlock,
@@ -31,22 +31,34 @@ const isSerializedLayout = (data: LayoutData): data is SerializedNodes => {
   return Object.prototype.hasOwnProperty.call(data, 'ROOT')
 }
 
+const getSerializedNodeType = (node?: SerializedNode): string | undefined => {
+  if (!node) return undefined
+  const nodeData = node as unknown as { data?: { type?: string } }
+  return nodeData?.data?.type
+}
+
 /**
  * Extrai o componente Footer do layout se existir
  */
 function extractFooter(layout: SerializedNodes): SerializedNodes | null {
   if (!layout.ROOT) return null
 
-  const root = layout.ROOT as Record<string, unknown>
-  const nodes = root.nodes as string[] | undefined
+  const rootNode = layout.ROOT as SerializedNode
+  const nodes = rootNode.nodes as string[] | undefined
 
   if (!nodes || nodes.length === 0) return null
 
   // Procurar por um nó Footer nos filhos diretos do ROOT
   for (const nodeId of nodes) {
-    const node = layout[nodeId] as Record<string, unknown> | undefined
-    if (node && (node.data as Record<string, unknown>)?.type === 'Footer') {
-      return { [nodeId]: node }
+    const node = layout[nodeId] as SerializedNode | undefined
+    if (getSerializedNodeType(node) === 'Footer') {
+      return {
+        ...layout,
+        ROOT: {
+          ...rootNode,
+          nodes: [nodeId],
+        },
+      }
     }
   }
 
@@ -59,12 +71,12 @@ function extractFooter(layout: SerializedNodes): SerializedNodes | null {
 function removeFooterFromLayout(layout: SerializedNodes): SerializedNodes {
   if (!layout.ROOT) return layout
 
-  const root = layout.ROOT as Record<string, unknown>
-  const nodes = (root.nodes as string[]) || []
+  const root = layout.ROOT as SerializedNode
+  const nodes = root.nodes || []
 
   const filteredNodes = nodes.filter((nodeId) => {
-    const node = layout[nodeId] as Record<string, unknown> | undefined
-    return !(node && (node.data as Record<string, unknown>)?.type === 'Footer')
+    const node = layout[nodeId] as SerializedNode | undefined
+    return getSerializedNodeType(node) !== 'Footer'
   })
 
   return {
@@ -89,6 +101,8 @@ export function PageRenderer({ layout }: PageRendererProps) {
     mainLayout = removeFooterFromLayout(layout as SerializedNodes)
   }
 
+  const serializedMainLayout = isValid && hasNodes ? (mainLayout as SerializedNodes) : undefined
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <Editor
@@ -112,13 +126,21 @@ export function PageRenderer({ layout }: PageRendererProps) {
         }}
       >
         <div className="flex-1">
-          {isValid && hasNodes ? (
-            <Frame data={mainLayout}>
+          {serializedMainLayout ? (
+            <Frame data={serializedMainLayout}>
               {/* Layout already rendered from data */}
             </Frame>
           ) : (
             <Frame>
-              <Element is={Container} canvas padding={40} backgroundColor="#ffffff">
+              <Element
+                is={Container}
+                canvas
+                paddingTop={40}
+                paddingBottom={40}
+                paddingLeft={40}
+                paddingRight={40}
+                backgroundColor="#ffffff"
+              >
                 <TextBlock content="Arraste componentes e publique a página para visualizar aqui." alignment="center" />
               </Element>
             </Frame>

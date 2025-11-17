@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import { LoginForm } from "@/components/login-form"
 import { BackButton } from "@/components/back-button"
 import { motion } from "framer-motion"
@@ -17,20 +18,30 @@ export default function LoginPage() {
       transition={{ duration: 0.5, ease: "easeInOut" }}
     >
       {/* Conteúdo - precisa estar ANTES do grid no DOM para estar acima */}
-      <motion.div
-        className="w-full max-w-sm relative z-20"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: isExiting ? 0 : 1, scale: isExiting ? 0.95 : 1 }}
-        transition={{ duration: 0.6, delay: 0.2 }}
+      <Suspense
+        fallback={
+          <div className="w-full max-w-sm relative z-20">
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-8 py-10 text-center text-white/70">
+              Carregando formulário...
+            </div>
+          </div>
+        }
       >
-        {/* Card translúcido com blur imediato */}
-        <div className="absolute inset-0 -z-10 bg-black/60 rounded-2xl" style={{ backdropFilter: 'blur(50px)' }} />
-        <div className="absolute inset-0 -z-10 bg-white/10 border border-white/20 rounded-2xl" />
-        
-        <div className="relative z-10 px-8 py-10 rounded-2xl">
-          <LoginForm />
-        </div>
-      </motion.div>
+        <motion.div
+          className="w-full max-w-sm relative z-20"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: isExiting ? 0 : 1, scale: isExiting ? 0.95 : 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          {/* Card translúcido com blur imediato */}
+          <div className="absolute inset-0 -z-10 bg-black/60 rounded-2xl" style={{ backdropFilter: 'blur(50px)' }} />
+          <div className="absolute inset-0 -z-10 bg-white/10 border border-white/20 rounded-2xl" />
+          
+          <div className="relative z-10 px-8 py-10 rounded-2xl">
+            <LoginForm />
+          </div>
+        </motion.div>
+      </Suspense>
 
       {/* Gradientes de fundo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">

@@ -4,8 +4,11 @@ import { generatePreviewImage } from '@/lib/preview/page-preview'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(_request: NextRequest, context: { params: { pageId: string } }) {
-  const { pageId } = context.params
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ pageId: string }> },
+) {
+  const { pageId } = await context.params
 
   if (!pageId) {
     return new Response('Missing pageId', { status: 400 })

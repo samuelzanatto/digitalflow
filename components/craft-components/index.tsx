@@ -36,11 +36,12 @@ const HeroSectionComponent = React.forwardRef<HTMLDivElement, HeroSectionProps>(
       <div
         ref={(el) => {
           if (el) {
-            connect(drag(el))
+            const element = el as HTMLDivElement
+            connect(drag(element))
             if (typeof ref === 'function') {
-              ref(el)
+              ref(element)
             } else if (ref) {
-              ref.current = el
+              ref.current = element
             }
           }
         }}
@@ -707,6 +708,7 @@ export const Footer = FooterComponent
   },
   displayName: 'Footer',
 }
+
 
 // Export sales-specific components
 export {
