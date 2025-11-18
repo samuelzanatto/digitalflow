@@ -101,7 +101,12 @@ interface TextBlockProps {
   height?: string | number
   padding?: number
   fontFamily?: string
-  fontWeight?: 'normal' | 'bold' | '400' | '500' | '600' | '700' | '800' | '900'
+  fontWeight?: React.CSSProperties['fontWeight']
+  marginTop?: number
+  marginBottom?: number
+  marginLeft?: number
+  marginRight?: number
+  marginLinked?: boolean
 }
 
 const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
@@ -116,6 +121,10 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
       padding = 20,
       fontFamily = 'var(--font-poppins), sans-serif',
       fontWeight = 'normal',
+      marginTop = 0,
+      marginBottom = 0,
+      marginLeft = 0,
+      marginRight = 0,
     },
     ref
   ) => {
@@ -142,6 +151,10 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
           boxSizing: 'border-box' as const,
+          marginTop: `${marginTop}px`,
+          marginBottom: `${marginBottom}px`,
+          marginLeft: `${marginLeft}px`,
+          marginRight: `${marginRight}px`,
         }}
         className="w-full"
       >
@@ -153,7 +166,8 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
             margin: '0',
             lineHeight: '1.6',
             fontFamily,
-            fontWeight: fontWeight as unknown as number,
+            fontWeight,
+            whiteSpace: 'pre-line',
           }}
         >
           {content}
@@ -178,8 +192,201 @@ export const TextBlock = TextBlockComponent
     padding: 20,
     fontFamily: 'var(--font-poppins), sans-serif',
     fontWeight: 'normal',
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    marginLinked: true,
   },
   displayName: 'Bloco de Texto',
+}
+
+interface RotatingTextProps {
+  rotatingWords?: string
+  fontSize?: number
+  color?: string
+  backgroundColor?: string
+  rotationSpeed?: number
+  alignment?: 'left' | 'center' | 'right'
+  width?: string | number
+  padding?: number
+  borderRadius?: number
+  fontFamily?: string
+  fontWeight?: React.CSSProperties['fontWeight']
+  marginTop?: number
+  marginBottom?: number
+  marginLeft?: number
+  marginRight?: number
+  marginLinked?: boolean
+}
+
+const RotatingTextComponent = React.forwardRef<HTMLDivElement, RotatingTextProps>(
+  (
+    {
+      rotatingWords = 'Nós aceleramos lançamentos\nfunis inteligentes\npáginas que convertem',
+      fontSize = 42,
+      color = '#0f172a',
+      backgroundColor = 'transparent',
+      rotationSpeed = 8000,
+      alignment = 'center',
+      width = '100%',
+      padding = 24,
+      borderRadius = 0,
+      fontFamily = 'var(--font-poppins), sans-serif',
+      fontWeight = 600,
+      marginTop = 0,
+      marginBottom = 0,
+      marginLeft = 0,
+      marginRight = 0,
+    },
+    ref
+  ) => {
+    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+      isSelected: node.events.selected,
+    }))
+
+    const animationId = React.useId().replace(/[:]/g, '')
+    const animationName = `rotating-text-loop-${animationId}`
+    const animationDuration = Math.max(rotationSpeed, 2000) / 1000
+
+    const words = React.useMemo(() => {
+      if (!rotatingWords) {
+        return ['texto incrível']
+      }
+
+      const candidates = rotatingWords
+        .split(/\r?\n|\||,/)
+        .map((word) => word.trim())
+        .filter(Boolean)
+
+      return candidates.length > 0 ? candidates : ['texto incrível']
+    }, [rotatingWords])
+
+    const justifyContent = alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start'
+    const lineHeight = 1.1
+    const wordSpacing = 28
+    const loopGap = 16
+
+    return (
+      <div
+        ref={(el) => {
+          if (el) {
+            connect(drag(el))
+            if (typeof ref === 'function') {
+              ref(el)
+            } else if (ref) {
+              ref.current = el
+            }
+          }
+        }}
+        style={{
+          padding: `${padding}px`,
+          width: typeof width === 'number' ? `${width}px` : width,
+          borderRadius: `${borderRadius}px`,
+          backgroundColor,
+          border: isSelected ? '2px solid #3b82f6' : 'none',
+          cursor: 'move',
+          boxSizing: 'border-box' as const,
+          marginTop: `${marginTop}px`,
+          marginBottom: `${marginBottom}px`,
+          marginLeft: `${marginLeft}px`,
+          marginRight: `${marginRight}px`,
+        }}
+        className="w-full"
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent,
+            textAlign: alignment,
+            width: '100%',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              alignItems: 'center',
+              fontSize: `${fontSize}px`,
+              fontFamily,
+              fontWeight,
+              color,
+              lineHeight,
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                flex: '1 1 auto',
+                minWidth: '160px',
+              }}
+            >
+              <style>{`
+                @keyframes ${animationName} {
+                  0% { transform: translateX(0); }
+                  100% { transform: translateX(-33.333%); }
+                }
+              `}</style>
+              <div
+                style={{
+                  display: 'flex',
+                  width: 'max-content',
+                  animation: `${animationName} ${animationDuration}s linear infinite`,
+                  color: color,
+                }}
+              >
+                {[0, 1, 2].map((loopIndex) => (
+                  <div
+                    key={`loop-${loopIndex}`}
+                    style={{
+                      display: 'flex',
+                      gap: `${wordSpacing}px`,
+                      alignItems: 'center',
+                      paddingRight: `${loopGap}px`,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {words.map((word, index) => (
+                      <span key={`${loopIndex}-${word}-${index}`}>{word}</span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+)
+
+RotatingTextComponent.displayName = 'RotatingText'
+
+export const RotatingText = RotatingTextComponent
+
+;(RotatingText as unknown as Record<string, unknown>).craft = {
+  props: {
+    rotatingWords: 'Nós aceleramos lançamentos\nfunis inteligentes\npáginas que convertem',
+    fontSize: 42,
+    color: '#0f172a',
+    backgroundColor: 'transparent',
+    rotationSpeed: 8000,
+    alignment: 'center',
+    width: '100%',
+    padding: 24,
+    borderRadius: 0,
+    fontFamily: 'var(--font-poppins), sans-serif',
+    fontWeight: 600,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    marginLinked: true,
+  },
+  displayName: 'Texto Rotativo',
 }
 
 interface CTAButtonProps {

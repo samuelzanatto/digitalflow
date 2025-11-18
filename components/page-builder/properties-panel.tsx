@@ -61,8 +61,19 @@ function categorizeProps(props: Record<string, unknown>) {
   const paddingKeys = ['padding', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingLinked']
   const marginKeys = ['marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginLinked']
   const layoutKeys = ['display', 'flexDirection', 'gap', 'justifyContent', 'alignItems']
-  const colorKeys = ['backgroundColor', 'textColor', 'color', 'borderColor']
-  const contentKeys = ['text', 'content', 'title', 'subtitle', 'link', 'linkType', 'linkUrl', 'linkPageSlug', 'openInNewTab']
+  const colorKeys = ['backgroundColor', 'textColor', 'color', 'borderColor', 'highlightColor']
+  const contentKeys = [
+    'text',
+    'content',
+    'title',
+    'subtitle',
+    'link',
+    'linkType',
+    'linkUrl',
+    'linkPageSlug',
+    'openInNewTab',
+    'rotatingWords',
+  ]
   const styleKeys = ['fontSize', 'borderRadius', 'borderWidth', 'alignment', 'fontFamily', 'fontWeight']
 
   Object.entries(props).forEach(([key, value]) => {
@@ -571,12 +582,26 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     }
     
     // Propriedades de texto que devem ser renderizadas como textarea/input text
-    const textProperties = ['content', 'text', 'title', 'subtitle', 'link', 'placeholder', 'label', 'youtubeUrl', 'thumbnailUrl']
+    const textProperties = [
+      'content',
+      'text',
+      'title',
+      'subtitle',
+      'link',
+      'placeholder',
+      'label',
+      'youtubeUrl',
+      'thumbnailUrl',
+      'rotatingWords',
+    ]
     
     if (textProperties.includes(key)) {
+      const labelText = key === 'rotatingWords' ? 'Textos (um por linha)' : key.replace(/([A-Z])/g, ' $1')
+      const placeholder = key === 'rotatingWords' ? 'Texto 1\nTexto 2\nTexto 3' : `${key}...`
+
       return (
         <div key={key} className="space-y-2">
-          <Label className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
+          <Label className="text-xs font-medium capitalize">{labelText}</Label>
           <textarea
             value={String(value) || ''}
             onChange={(e) =>
@@ -585,7 +610,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
               })
             }
             className="text-xs w-full p-2 rounded border bg-background min-h-20 resize-none"
-            placeholder={`${key}...`}
+            placeholder={placeholder}
           />
         </div>
       )
@@ -595,7 +620,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     let processedValue = value
     if (typeof value === 'string') {
       // Se é um número como string, converte
-      if (!isNaN(Number(value))) {
+      if (key !== 'fontWeight' && !isNaN(Number(value))) {
         processedValue = Number(value)
       }
       // Se é "auto" ou "100%", trata como height/width especial
@@ -610,15 +635,17 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       }
     }
     
-    // Cores
-    if (typeof processedValue === 'string' && processedValue.startsWith('#')) {
+    // Cores (incluindo transparent para backgroundColor)
+    if (typeof processedValue === 'string' && (processedValue.startsWith('#') || (key === 'backgroundColor' && processedValue === 'transparent'))) {
+      const colorValue = processedValue === 'transparent' ? '#ffffff' : processedValue
+      
       return (
         <div key={key} className="space-y-2">
           <Label className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
           <div className="flex gap-2">
             <input
               type="color"
-              value={processedValue || '#000000'}
+              value={colorValue || '#000000'}
               onChange={(e) =>
                 setProp(nodeId, (pr: Record<string, unknown>) => {
                   pr[key] = e.target.value
@@ -627,12 +654,13 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
               className="w-12 h-8 rounded border cursor-pointer"
             />
             <Input
-              value={processedValue || '#000000'}
-              onChange={(e) =>
+              value={processedValue === 'transparent' ? 'transparent' : (colorValue || '#000000')}
+              onChange={(e) => {
+                const val = e.target.value
                 setProp(nodeId, (pr: Record<string, unknown>) => {
-                  pr[key] = e.target.value
+                  pr[key] = val === 'transparent' ? 'transparent' : val
                 })
-              }
+              }}
               className="flex-1 text-xs"
               placeholder="#000000"
             />
@@ -642,7 +670,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     }
 
     // Números (sliders para propriedades específicas)
-    if (typeof processedValue === 'number') {
+    if (typeof processedValue === 'number' && key !== 'fontWeight') {
       const isSlider = [
         'fontSize',
         'padding',
@@ -835,7 +863,6 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
         justifyContent: ['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'],
         alignItems: ['flex-start', 'center', 'flex-end', 'stretch'],
         fontFamily: AVAILABLE_FONTS.map(f => `${f.variable}|${f.label}`),
-        fontWeight: ['normal', 'bold', '400', '500', '600', '700', '800', '900'],
         videoSource: ['youtube', 'upload'],
         aspectRatio: ['16 / 9', '4 / 3', '1 / 1', '9 / 16', '21 / 9'],
       }
@@ -861,6 +888,56 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
                 {AVAILABLE_FONTS.map((font) => (
                   <SelectItem key={font.id} value={font.variable}>
                     <span style={{ fontFamily: font.fontFamily }}>{font.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      }
+
+      if (key === 'fontWeight') {
+        const fontWeightOptions = [
+          { value: '100', label: 'Thin · 100' },
+          { value: '200', label: 'Extra Light · 200' },
+          { value: '300', label: 'Light · 300' },
+          { value: '400', label: 'Regular · 400' },
+          { value: '500', label: 'Medium · 500' },
+          { value: '600', label: 'Semi Bold · 600' },
+          { value: '700', label: 'Bold · 700' },
+          { value: '800', label: 'Extra Bold · 800' },
+          { value: '900', label: 'Black · 900' },
+        ]
+
+        const normalizeFontWeightValue = (raw: unknown) => {
+          if (raw === 'normal') return '400'
+          if (raw === 'bold') return '700'
+          if (typeof raw === 'number') return String(raw)
+          if (typeof raw === 'string' && raw.length > 0) return raw
+          return '400'
+        }
+
+        const normalizedValue = normalizeFontWeightValue(processedValue)
+        const selectedLabel = fontWeightOptions.find((opt) => opt.value === normalizedValue)?.label || 'Selecionar peso'
+
+        return (
+          <div key={key} className="space-y-2">
+            <Label className="text-xs font-medium">Peso da Fonte</Label>
+            <Select
+              value={normalizedValue}
+              onValueChange={(v) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr[key] = v
+                })
+              }
+            >
+              <SelectTrigger className="text-xs">
+                <SelectValue>{selectedLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {fontWeightOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
                   </SelectItem>
                 ))}
               </SelectContent>

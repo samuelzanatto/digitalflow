@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { 
   Layers,
   Type,
+  RefreshCw,
   Square,
   Zap,
   Minus,
@@ -21,6 +22,7 @@ import {
 import { 
   Container, 
   TextBlock, 
+  RotatingText,
   HeroSection, 
   CTAButton, 
   Divider,
@@ -59,6 +61,13 @@ const COMPONENTS: ComponentItem[] = [
     icon: <Type className="w-5 h-5" />,
     description: 'Texto editável',
     component: TextBlock,
+  },
+  {
+    id: 'rotating-text',
+    name: 'Texto Rotativo',
+    icon: <RefreshCw className="w-5 h-5" />,
+    description: 'Headline com palavras animadas',
+    component: RotatingText,
   },
   {
     id: 'cta-button',
@@ -168,6 +177,12 @@ export function ComponentsToolbox() {
         )
       case 'text-block':
         return <TextBlock content="Novo texto" fontSize={16} color="#000000" />
+      case 'rotating-text':
+        return (
+          <RotatingText
+            rotatingWords={['Nós aceleramos lançamentos', 'funis inteligentes', 'páginas de alta conversão'].join('\n')}
+          />
+        )
       case 'cta-button':
         return <CTAButton text="Clique aqui" link="#" backgroundColor="#0070f3" />
       case 'container':

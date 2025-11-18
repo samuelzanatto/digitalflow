@@ -14,6 +14,7 @@ import Link from 'next/link'
 import {
   Container,
   TextBlock,
+  RotatingText,
   HeroSection,
   CTAButton,
   Divider,
@@ -117,6 +118,7 @@ export function EditorLayout({
         resolver={{
           Container,
           TextBlock,
+          RotatingText,
           HeroSection,
           CTAButton,
           Divider,

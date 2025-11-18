@@ -57,6 +57,15 @@ interface TextBlockProps {
   fontSize?: number
   color?: string
   alignment?: 'left' | 'center' | 'right'
+  width?: string | number
+  height?: string | number
+  padding?: number
+  fontFamily?: string
+  fontWeight?: React.CSSProperties['fontWeight']
+  marginTop?: number
+  marginBottom?: number
+  marginLeft?: number
+  marginRight?: number
 }
 
 export const TextBlockRender = React.forwardRef<HTMLDivElement, TextBlockProps>(
@@ -66,6 +75,15 @@ export const TextBlockRender = React.forwardRef<HTMLDivElement, TextBlockProps>(
       fontSize = 16,
       color = '#000000',
       alignment = 'left',
+      width = '100%',
+      height = 'auto',
+      padding = 20,
+      fontFamily = 'var(--font-poppins), sans-serif',
+      fontWeight = 'normal',
+      marginTop = 0,
+      marginBottom = 0,
+      marginLeft = 0,
+      marginRight = 0,
     },
     ref
   ) => {
@@ -73,19 +91,178 @@ export const TextBlockRender = React.forwardRef<HTMLDivElement, TextBlockProps>(
       <div
         ref={ref}
         style={{
-          padding: '20px',
-          fontSize: `${fontSize}px`,
-          color,
-          textAlign: alignment,
-          width: '100%',
+          padding: `${padding}px`,
+          width: typeof width === 'number' ? `${width}px` : width,
+          height: typeof height === 'number' ? `${height}px` : height,
+          boxSizing: 'border-box',
+          marginTop: `${marginTop}px`,
+          marginBottom: `${marginBottom}px`,
+          marginLeft: `${marginLeft}px`,
+          marginRight: `${marginRight}px`,
         }}
       >
-        {content}
+        <p
+          style={{
+            fontSize: `${fontSize}px`,
+            color,
+            textAlign: alignment,
+            margin: 0,
+            lineHeight: '1.6',
+            fontFamily,
+            fontWeight,
+            whiteSpace: 'pre-line',
+          }}
+        >
+          {content}
+        </p>
       </div>
     )
   }
 )
 TextBlockRender.displayName = 'TextBlockRender'
+
+interface RotatingTextProps {
+  rotatingWords?: string
+  fontSize?: number
+  color?: string
+  backgroundColor?: string
+  rotationSpeed?: number
+  alignment?: 'left' | 'center' | 'right'
+  width?: string | number
+  padding?: number
+  borderRadius?: number
+  fontFamily?: string
+  fontWeight?: React.CSSProperties['fontWeight']
+  marginTop?: number
+  marginBottom?: number
+  marginLeft?: number
+  marginRight?: number
+}
+
+export const RotatingTextRender = React.forwardRef<HTMLDivElement, RotatingTextProps>(
+  (
+    {
+      rotatingWords = 'Nós aceleramos lançamentos\nfunis inteligentes\npáginas que convertem',
+      fontSize = 42,
+      color = '#0f172a',
+      backgroundColor = 'transparent',
+      rotationSpeed = 8000,
+      alignment = 'center',
+      width = '100%',
+      padding = 24,
+      borderRadius = 0,
+      fontFamily = 'var(--font-poppins), sans-serif',
+      fontWeight = 600,
+      marginTop = 0,
+      marginBottom = 0,
+      marginLeft = 0,
+      marginRight = 0,
+    },
+    ref
+  ) => {
+    const animationId = React.useId().replace(/[:]/g, '')
+    const animationName = `rotating-text-loop-${animationId}`
+    const animationDuration = Math.max(rotationSpeed, 2000) / 1000
+
+    const words = React.useMemo(() => {
+      if (!rotatingWords) return ['texto incrível']
+      const parsed = rotatingWords
+        .split(/\r?\n|\||,/)
+        .map((word) => word.trim())
+        .filter(Boolean)
+      return parsed.length > 0 ? parsed : ['texto incrível']
+    }, [rotatingWords])
+
+    const justifyContent = alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start'
+    const lineHeight = 1.1
+    const wordSpacing = 28
+    const loopGap = 16
+
+    return (
+      <div
+        ref={ref}
+        style={{
+          padding: `${padding}px`,
+          width: typeof width === 'number' ? `${width}px` : width,
+          borderRadius: `${borderRadius}px`,
+          backgroundColor,
+          boxSizing: 'border-box',
+          marginTop: `${marginTop}px`,
+          marginBottom: `${marginBottom}px`,
+          marginLeft: `${marginLeft}px`,
+          marginRight: `${marginRight}px`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent,
+            textAlign: alignment,
+            width: '100%',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              alignItems: 'center',
+              fontSize: `${fontSize}px`,
+              fontFamily,
+              fontWeight,
+              color,
+              lineHeight,
+            }}
+          >
+            <div
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                flex: '1 1 auto',
+                minWidth: '160px',
+              }}
+            >
+              <style>{`
+                @keyframes ${animationName} {
+                  0% { transform: translateX(0); }
+                  100% { transform: translateX(-33.333%); }
+                }
+              `}</style>
+              <div
+                style={{
+                  display: 'flex',
+                  width: 'max-content',
+                  animation: `${animationName} ${animationDuration}s linear infinite`,
+                  color: color,
+                }}
+              >
+                {[0, 1, 2].map((loopIndex) => (
+                  <div
+                    key={`loop-${loopIndex}`}
+                    style={{
+                      display: 'flex',
+                      gap: `${wordSpacing}px`,
+                      alignItems: 'center',
+                      paddingRight: `${loopGap}px`,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {words.map((word, index) => (
+                      <span key={`${loopIndex}-${word}-${index}`}>{word}</span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+)
+
+RotatingTextRender.displayName = 'RotatingTextRender'
 
 // CTA Button - Render Only
 interface CTAButtonProps {

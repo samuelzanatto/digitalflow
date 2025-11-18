@@ -5,6 +5,7 @@ import { Editor, Frame, Element, SerializedNodes, SerializedNode } from '@craftj
 import {
   Container,
   TextBlock,
+  RotatingText,
   HeroSection,
   CTAButton,
   Divider,
@@ -110,6 +111,7 @@ export function PageRenderer({ layout }: PageRendererProps) {
         resolver={{
           Container,
           TextBlock,
+          RotatingText,
           HeroSection,
           CTAButton,
           Divider,
