@@ -99,6 +99,8 @@ interface TextBlockProps {
   alignment?: 'left' | 'center' | 'right'
   width?: string | number
   height?: string | number
+  fullWidth?: boolean
+  autoHeight?: boolean
   padding?: number
   fontFamily?: string
   fontWeight?: React.CSSProperties['fontWeight']
@@ -118,6 +120,8 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
       alignment = 'left',
       width = '100%',
       height = 'auto',
+      fullWidth = true,
+      autoHeight = true,
       padding = 20,
       fontFamily = 'var(--font-poppins), sans-serif',
       fontWeight = 'normal',
@@ -146,8 +150,8 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
         }}
         style={{
           padding: `${padding}px`,
-          width: typeof width === 'number' ? `${width}px` : width,
-          height: typeof height === 'number' ? `${height}px` : height,
+          width: fullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
+          height: autoHeight ? 'auto' : (typeof height === 'number' ? `${height}px` : height),
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
           boxSizing: 'border-box' as const,
@@ -187,8 +191,10 @@ export const TextBlock = TextBlockComponent
     fontSize: 16,
     color: '#000000',
     alignment: 'left',
-    width: '100%',
+    width: 300,
     height: 'auto',
+    fullWidth: true,
+    autoHeight: true,
     padding: 20,
     fontFamily: 'var(--font-poppins), sans-serif',
     fontWeight: 'normal',
@@ -201,193 +207,6 @@ export const TextBlock = TextBlockComponent
   displayName: 'Bloco de Texto',
 }
 
-interface RotatingTextProps {
-  rotatingWords?: string
-  fontSize?: number
-  color?: string
-  backgroundColor?: string
-  rotationSpeed?: number
-  alignment?: 'left' | 'center' | 'right'
-  width?: string | number
-  padding?: number
-  borderRadius?: number
-  fontFamily?: string
-  fontWeight?: React.CSSProperties['fontWeight']
-  marginTop?: number
-  marginBottom?: number
-  marginLeft?: number
-  marginRight?: number
-  marginLinked?: boolean
-}
-
-const RotatingTextComponent = React.forwardRef<HTMLDivElement, RotatingTextProps>(
-  (
-    {
-      rotatingWords = 'Nós aceleramos lançamentos\nfunis inteligentes\npáginas que convertem',
-      fontSize = 42,
-      color = '#0f172a',
-      backgroundColor = 'transparent',
-      rotationSpeed = 8000,
-      alignment = 'center',
-      width = '100%',
-      padding = 24,
-      borderRadius = 0,
-      fontFamily = 'var(--font-poppins), sans-serif',
-      fontWeight = 600,
-      marginTop = 0,
-      marginBottom = 0,
-      marginLeft = 0,
-      marginRight = 0,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
-      isSelected: node.events.selected,
-    }))
-
-    const animationId = React.useId().replace(/[:]/g, '')
-    const animationName = `rotating-text-loop-${animationId}`
-    const animationDuration = Math.max(rotationSpeed, 2000) / 1000
-
-    const words = React.useMemo(() => {
-      if (!rotatingWords) {
-        return ['texto incrível']
-      }
-
-      const candidates = rotatingWords
-        .split(/\r?\n|\||,/)
-        .map((word) => word.trim())
-        .filter(Boolean)
-
-      return candidates.length > 0 ? candidates : ['texto incrível']
-    }, [rotatingWords])
-
-    const justifyContent = alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start'
-    const lineHeight = 1.1
-    const wordSpacing = 28
-    const loopGap = 16
-
-    return (
-      <div
-        ref={(el) => {
-          if (el) {
-            connect(drag(el))
-            if (typeof ref === 'function') {
-              ref(el)
-            } else if (ref) {
-              ref.current = el
-            }
-          }
-        }}
-        style={{
-          padding: `${padding}px`,
-          width: typeof width === 'number' ? `${width}px` : width,
-          borderRadius: `${borderRadius}px`,
-          backgroundColor,
-          border: isSelected ? '2px solid #3b82f6' : 'none',
-          cursor: 'move',
-          boxSizing: 'border-box' as const,
-          marginTop: `${marginTop}px`,
-          marginBottom: `${marginBottom}px`,
-          marginLeft: `${marginLeft}px`,
-          marginRight: `${marginRight}px`,
-        }}
-        className="w-full"
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent,
-            textAlign: alignment,
-            width: '100%',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '12px',
-              alignItems: 'center',
-              fontSize: `${fontSize}px`,
-              fontFamily,
-              fontWeight,
-              color,
-              lineHeight,
-            }}
-          >
-            <div
-              style={{
-                position: 'relative',
-                overflow: 'hidden',
-                flex: '1 1 auto',
-                minWidth: '160px',
-              }}
-            >
-              <style>{`
-                @keyframes ${animationName} {
-                  0% { transform: translateX(0); }
-                  100% { transform: translateX(-33.333%); }
-                }
-              `}</style>
-              <div
-                style={{
-                  display: 'flex',
-                  width: 'max-content',
-                  animation: `${animationName} ${animationDuration}s linear infinite`,
-                  color: color,
-                }}
-              >
-                {[0, 1, 2].map((loopIndex) => (
-                  <div
-                    key={`loop-${loopIndex}`}
-                    style={{
-                      display: 'flex',
-                      gap: `${wordSpacing}px`,
-                      alignItems: 'center',
-                      paddingRight: `${loopGap}px`,
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {words.map((word, index) => (
-                      <span key={`${loopIndex}-${word}-${index}`}>{word}</span>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-)
-
-RotatingTextComponent.displayName = 'RotatingText'
-
-export const RotatingText = RotatingTextComponent
-
-;(RotatingText as unknown as Record<string, unknown>).craft = {
-  props: {
-    rotatingWords: 'Nós aceleramos lançamentos\nfunis inteligentes\npáginas que convertem',
-    fontSize: 42,
-    color: '#0f172a',
-    backgroundColor: 'transparent',
-    rotationSpeed: 8000,
-    alignment: 'center',
-    width: '100%',
-    padding: 24,
-    borderRadius: 0,
-    fontFamily: 'var(--font-poppins), sans-serif',
-    fontWeight: 600,
-    marginTop: 0,
-    marginBottom: 0,
-    marginLeft: 0,
-    marginRight: 0,
-    marginLinked: true,
-  },
-  displayName: 'Texto Rotativo',
-}
 
 interface CTAButtonProps {
   text?: string
@@ -396,9 +215,10 @@ interface CTAButtonProps {
   padding?: number
   borderRadius?: number
   link?: string // legado
-  linkType?: 'url' | 'page'
+  linkType?: 'url' | 'page' | 'section'
   linkUrl?: string
   linkPageSlug?: string
+  linkSectionId?: string
   openInNewTab?: boolean
   width?: string | number
   height?: string | number
@@ -416,6 +236,7 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
       linkType = 'url',
       linkUrl = '',
       linkPageSlug = '',
+      linkSectionId = '',
       openInNewTab = false,
       width = 'auto',
       height = 'auto',
@@ -427,6 +248,9 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
     }))
 
     const resolvedHref = React.useMemo(() => {
+      if (linkType === 'section' && linkSectionId) {
+        return `#${linkSectionId}`
+      }
       if (linkType === 'page' && linkPageSlug) {
         return `/page/${linkPageSlug}`
       }
@@ -434,7 +258,7 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
         return linkUrl
       }
       return link
-    }, [linkType, linkUrl, linkPageSlug, link])
+    }, [linkType, linkUrl, linkPageSlug, linkSectionId, link])
 
     const target = openInNewTab ? '_blank' : undefined
     const rel = openInNewTab ? 'noopener noreferrer' : undefined
@@ -503,6 +327,7 @@ export const CTAButton = CTAButtonComponent
     linkType: 'url',
     linkUrl: '',
     linkPageSlug: '',
+    linkSectionId: '',
     openInNewTab: false,
     width: 'auto',
     height: 'auto',
@@ -512,6 +337,7 @@ export const CTAButton = CTAButtonComponent
 
 interface ContainerProps {
   backgroundColor?: string
+  backgroundImage?: string
   paddingTop?: number
   paddingBottom?: number
   paddingLeft?: number
@@ -534,15 +360,22 @@ interface ContainerProps {
   justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly'
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch'
   borderRadius?: number
+  borderRadiusTopLeft?: number
+  borderRadiusTopRight?: number
+  borderRadiusBottomRight?: number
+  borderRadiusBottomLeft?: number
+  borderRadiusLinked?: boolean
   borderColor?: string
   borderWidth?: number
   minHeight?: number
+  sectionId: string
 }
 
 const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
   (
     {
       backgroundColor = '#ffffff',
+      backgroundImage = '',
       paddingTop = 20,
       paddingBottom = 20,
       paddingLeft = 20,
@@ -562,9 +395,15 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       justifyContent = 'flex-start',
       alignItems = 'stretch',
       borderRadius = 0,
+      borderRadiusTopLeft = 0,
+      borderRadiusTopRight = 0,
+      borderRadiusBottomRight = 0,
+      borderRadiusBottomLeft = 0,
+      borderRadiusLinked = true,
       borderColor = '#e5e7eb',
       borderWidth = 2,
       minHeight = 200,
+      sectionId = '',
       children,
     },
     ref
@@ -575,6 +414,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       parentId: node.data.parent,
       // Subscrever a todas as props para forçar re-render quando mudam
       backgroundColor: node.data.props.backgroundColor,
+      backgroundImage: node.data.props.backgroundImage,
       paddingTop: node.data.props.paddingTop,
       paddingBottom: node.data.props.paddingBottom,
       paddingLeft: node.data.props.paddingLeft,
@@ -596,16 +436,20 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       justifyContent: node.data.props.justifyContent,
       alignItems: node.data.props.alignItems,
       borderRadius: node.data.props.borderRadius,
+      borderRadiusTopLeft: node.data.props.borderRadiusTopLeft,
+      borderRadiusTopRight: node.data.props.borderRadiusTopRight,
+      borderRadiusBottomRight: node.data.props.borderRadiusBottomRight,
+      borderRadiusBottomLeft: node.data.props.borderRadiusBottomLeft,
+      borderRadiusLinked: node.data.props.borderRadiusLinked,
       borderColor: node.data.props.borderColor,
       borderWidth: node.data.props.borderWidth,
       minHeight: node.data.props.minHeight,
     }))
     
-    const { enabled, parentSpacing } = useEditor((state) => {
+    const { parentSpacing } = useEditor((state) => {
       const parentNode = parentId ? state.nodes[parentId] : undefined
       const parentProps = parentNode?.data?.props as Record<string, number | undefined> | undefined
       return {
-        enabled: state.options.enabled,
         parentSpacing: {
           paddingTop: parentProps?.paddingTop ?? 0,
           paddingBottom: parentProps?.paddingBottom ?? 0,
@@ -648,8 +492,15 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
         ? resolvedHeight
         : resolvedMinHeight ?? (isRootLevel ? 'auto' : undefined)
 
+    // Calcular borderRadius: usar individual se desvinculado, senão usar o vinculado
+    const effectiveBorderRadius = borderRadiusLinked
+      ? borderRadius
+      : `${borderRadiusTopLeft}px ${borderRadiusTopRight}px ${borderRadiusBottomRight}px ${borderRadiusBottomLeft}px`
+
     const baseStyle: React.CSSProperties = {
-      backgroundColor,
+      background: backgroundImage ? `url(${backgroundImage})` : backgroundColor,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
       padding: paddingStyle,
       marginTop: marginTopValue,
       marginBottom: marginBottomValue,
@@ -658,12 +509,12 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       width: resolvedWidth,
       height: resolvedHeight,
       minHeight: effectiveMinHeight,
-      border: isSelected
-        ? `${borderWidth}px solid #3b82f6`
-        : enabled
-          ? `${borderWidth}px dashed ${borderColor}`
-          : 'none',
-      borderRadius: `${borderRadius}px`,
+      border: borderWidth > 0
+        ? `${borderWidth}px solid ${borderColor}`
+        : 'none',
+      outline: isSelected ? '2px solid #3b82f6' : 'none',
+      outlineOffset: isSelected ? '2px' : '0px',
+      borderRadius: typeof effectiveBorderRadius === 'number' ? `${effectiveBorderRadius}px` : effectiveBorderRadius,
       cursor: 'move',
       boxSizing: 'border-box' as const,
       display,
@@ -696,6 +547,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
             }
           }
         }}
+        id={sectionId || undefined}
         style={{ ...baseStyle, ...flexStyle }}
       >
         {children}
@@ -711,6 +563,7 @@ export const Container = ContainerComponent
 ;(Container as unknown as Record<string, unknown>).craft = {
   props: {
     backgroundColor: '#ffffff',
+    backgroundImage: '',
     paddingTop: 20,
     paddingBottom: 20,
     paddingLeft: 20,
@@ -732,9 +585,15 @@ export const Container = ContainerComponent
     justifyContent: 'flex-start',
     alignItems: 'stretch',
     borderRadius: 0,
+    borderRadiusTopLeft: 0,
+    borderRadiusTopRight: 0,
+    borderRadiusBottomRight: 0,
+    borderRadiusBottomLeft: 0,
+    borderRadiusLinked: true,
     borderColor: '#e5e7eb',
     borderWidth: 2,
     minHeight: 200,
+    sectionId: '',
   },
   displayName: 'Container',
   rules: {
@@ -801,6 +660,19 @@ interface FooterProps {
   copyrightText?: string
   padding?: number
   backgroundColor?: string
+  showLinks?: boolean
+  textAlignment?: 'left' | 'center' | 'right'
+  brandNameFontSize?: number
+  brandNameColor?: string
+  descriptionFontSize?: number
+  descriptionColor?: string
+  linksFontSize?: number
+  linksColor?: string
+  linksHoverColor?: string
+  copyrightFontSize?: number
+  copyrightColor?: string
+  headingFontSize?: number
+  headingColor?: string
 }
 
 const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
@@ -814,12 +686,27 @@ const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
       copyrightText = '© 2025 DigitalFlow. Todos os direitos reservados.',
       padding = 48,
       backgroundColor = '#1a1a1a',
+      showLinks = true,
+      textAlignment = 'left',
+      brandNameFontSize = 16,
+      brandNameColor = '#ffffff',
+      descriptionFontSize = 14,
+      descriptionColor = '#9ca3af',
+      linksFontSize = 14,
+      linksColor = '#9ca3af',
+      linksHoverColor = '#ffffff',
+      copyrightFontSize = 12,
+      copyrightColor = '#9ca3af',
+      headingFontSize = 14,
+      headingColor = '#ffffff',
     },
     ref
   ) => {
     const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
+
+    const [hoveredLink, setHoveredLink] = React.useState<number | null>(null)
 
     return (
       <div
@@ -844,50 +731,80 @@ const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
         className="w-full"
       >
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: showLinks ? '1fr 1fr 1fr' : '1fr',
+            gap: '32px',
+            marginBottom: '32px',
+            textAlign: textAlignment as React.CSSProperties['textAlign'],
+          }}>
             {/* Brand */}
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 8px 0' }}>
+              <h3 style={{ 
+                fontSize: `${brandNameFontSize}px`, 
+                fontWeight: 'bold', 
+                color: brandNameColor, 
+                margin: '0 0 8px 0' 
+              }}>
                 {brandName}
               </h3>
-              <p style={{ fontSize: '14px', color: '#9ca3af', margin: '0', lineHeight: '1.6' }}>
+              <p style={{ 
+                fontSize: `${descriptionFontSize}px`, 
+                color: descriptionColor, 
+                margin: '0', 
+                lineHeight: '1.6' 
+              }}>
                 {brandDescription}
               </p>
             </div>
 
-            {/* Page Info */}
-            <div>
-              <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff', margin: '0 0 8px 0' }}>
-                Links
-              </h4>
-              <ul style={{ margin: '0', padding: '0', listStyle: 'none' }}>
-                <li style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
-                  <a href="#" style={{ color: '#9ca3af', textDecoration: 'none', cursor: 'pointer' }}>
-                    {link1}
-                  </a>
-                </li>
-                <li style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '4px' }}>
-                  <a href="#" style={{ color: '#9ca3af', textDecoration: 'none', cursor: 'pointer' }}>
-                    {link2}
-                  </a>
-                </li>
-                <li style={{ fontSize: '14px', color: '#9ca3af' }}>
-                  <a href="#" style={{ color: '#9ca3af', textDecoration: 'none', cursor: 'pointer' }}>
-                    {link3}
-                  </a>
-                </li>
-              </ul>
-            </div>
+            {/* Links - conditionally rendered */}
+            {showLinks && (
+              <div>
+                <h4 style={{ 
+                  fontSize: `${headingFontSize}px`, 
+                  fontWeight: '600', 
+                  color: headingColor, 
+                  margin: '0 0 8px 0' 
+                }}>
+                  Links
+                </h4>
+                <ul style={{ margin: '0', padding: '0', listStyle: 'none' }}>
+                  {[link1, link2, link3].map((link, idx) => (
+                    <li key={idx} style={{ fontSize: `${linksFontSize}px`, marginBottom: '4px' }}>
+                      <a 
+                        href="#" 
+                        onMouseEnter={() => setHoveredLink(idx)}
+                        onMouseLeave={() => setHoveredLink(null)}
+                        style={{ 
+                          color: hoveredLink === idx ? linksHoverColor : linksColor, 
+                          textDecoration: 'none', 
+                          cursor: 'pointer',
+                          transition: 'color 0.2s ease'
+                        }}
+                      >
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            {/* Empty space for 3rd column */}
-            <div />
+            {/* Empty space for alignment when links are shown */}
+            {showLinks && <div />}
           </div>
 
           {/* Divider */}
           <div style={{ borderTop: '1px solid #374151', paddingTop: '24px', paddingBottom: '24px' }}>
             {/* Bottom Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
-              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center' }}>
+              <p style={{ 
+                fontSize: `${copyrightFontSize}px`, 
+                color: copyrightColor, 
+                margin: '0',
+                textAlign: textAlignment as React.CSSProperties['textAlign'],
+              }}>
                 {copyrightText}
               </p>
             </div>
@@ -912,6 +829,19 @@ export const Footer = FooterComponent
     copyrightText: '© 2025 DigitalFlow. Todos os direitos reservados.',
     padding: 48,
     backgroundColor: '#1a1a1a',
+    showLinks: true,
+    textAlignment: 'left',
+    brandNameFontSize: 16,
+    brandNameColor: '#ffffff',
+    descriptionFontSize: 14,
+    descriptionColor: '#9ca3af',
+    linksFontSize: 14,
+    linksColor: '#9ca3af',
+    linksHoverColor: '#ffffff',
+    copyrightFontSize: 12,
+    copyrightColor: '#9ca3af',
+    headingFontSize: 14,
+    headingColor: '#ffffff',
   },
   displayName: 'Footer',
 }
@@ -928,4 +858,5 @@ export {
   TrustBadges,
   ImageComponent,
   VSL,
+  CountdownTimer,
 } from './sales-components'

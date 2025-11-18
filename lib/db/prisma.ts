@@ -2,6 +2,35 @@ import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 
+const {
+  POSTGRES_PRISMA_URL,
+  POSTGRES_URL_NON_POOLING,
+  PRISMA_FORCE_DIRECT,
+  NODE_ENV,
+} = process.env
+
+const normalizedNodeEnv = NODE_ENV ?? 'development'
+
+const shouldPreferDirectUrl =
+  PRISMA_FORCE_DIRECT === 'true' ||
+  (PRISMA_FORCE_DIRECT !== 'false' && normalizedNodeEnv !== 'production')
+
+const resolvedDatabaseUrl = shouldPreferDirectUrl
+  ? POSTGRES_URL_NON_POOLING || POSTGRES_PRISMA_URL
+  : POSTGRES_PRISMA_URL || POSTGRES_URL_NON_POOLING
+
+if (!resolvedDatabaseUrl) {
+  throw new Error(
+    'Missing database connection string. Set POSTGRES_PRISMA_URL or POSTGRES_URL_NON_POOLING in your environment.',
+  )
+}
+
+if (resolvedDatabaseUrl !== POSTGRES_PRISMA_URL) {
+  const modeLabel = shouldPreferDirectUrl ? 'direct (5432)' : 'pooler (6543)'
+  console.info(`[prisma] Usando conexão ${modeLabel} para ambiente ${normalizedNodeEnv}`)
+  process.env.POSTGRES_PRISMA_URL = resolvedDatabaseUrl
+}
+
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({

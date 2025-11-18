@@ -5,7 +5,6 @@ import { Editor, Frame, Element, SerializedNodes, SerializedNode } from '@craftj
 import {
   Container,
   TextBlock,
-  RotatingText,
   HeroSection,
   CTAButton,
   Divider,
@@ -19,6 +18,7 @@ import {
   TrustBadges,
   ImageComponent,
   VSL,
+  CountdownTimer,
 } from '@/components/craft-components'
 
 type LayoutData = Record<string, unknown> | SerializedNodes | null | undefined
@@ -111,7 +111,6 @@ export function PageRenderer({ layout }: PageRendererProps) {
         resolver={{
           Container,
           TextBlock,
-          RotatingText,
           HeroSection,
           CTAButton,
           Divider,
@@ -125,6 +124,7 @@ export function PageRenderer({ layout }: PageRendererProps) {
           TrustBadges,
           ImageComponent,
           VSL,
+          CountdownTimer,
         }}
       >
         <div className="flex-1">
@@ -142,6 +142,7 @@ export function PageRenderer({ layout }: PageRendererProps) {
                 paddingLeft={40}
                 paddingRight={40}
                 backgroundColor="#ffffff"
+                sectionId=""
               >
                 <TextBlock content="Arraste componentes e publique a página para visualizar aqui." alignment="center" />
               </Element>

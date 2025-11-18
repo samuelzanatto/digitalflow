@@ -2,11 +2,29 @@ import React from 'react'
 import { notFound } from 'next/navigation'
 import { PageRenderer } from '@/components/page-builder/page-renderer'
 import { getSalesPageBySlug } from '@/lib/actions/pages'
+import { prisma } from '@/lib/db/prisma'
 
 interface PublicPageProps {
   params: Promise<{
     slug: string
   }>
+}
+
+export const revalidate = 60 // Revalidar a cada 60 segundos (ISR)
+
+// Gerar parâmetros estáticos para páginas publicadas
+export async function generateStaticParams() {
+  try {
+    const pages = await prisma.salesPage.findMany({
+      where: { published: true },
+      select: { slug: true },
+      take: 100, // Limitar para evitar build muito longo
+    })
+    return pages.map((page) => ({ slug: page.slug }))
+  } catch (error) {
+    console.error('Erro ao gerar parâmetros estáticos:', error)
+    return []
+  }
 }
 
 export default async function PublicPage({ params }: PublicPageProps) {

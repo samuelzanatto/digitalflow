@@ -1,30 +1,83 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import { useNode } from '@craftjs/core'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 
 /**
  * PricingCard - Para tabelas de preço
  * Componente essencial em landing pages de vendas
+ * Suporta dois modos: plano (com features) e preço único
  */
 interface PricingCardProps {
+  mode?: 'plan' | 'single'
   title?: string
   price?: string | number
   period?: string
   description?: string
   features?: string[]
   buttonText?: string
-  buttonColor?: 'default' | 'primary' | 'secondary'
   isPopular?: boolean
+  
+  // Dimensões
+  width?: string | number
+  height?: string | number
+  cardFullWidth?: boolean
+  cardAutoHeight?: boolean
+  
+  // Desconto (modo single)
+  originalPrice?: string | number
+  discountPercentage?: number
+  showDiscount?: boolean
+  
+  // Personalizações de texto
+  titleFontSize?: number
+  titleFontWeight?: 'normal' | 'bold' | '600' | '700'
+  titleColor?: string
+  titleAlignment?: 'left' | 'center' | 'right'
+  
+  descriptionFontSize?: number
+  descriptionColor?: string
+  descriptionAlignment?: 'left' | 'center' | 'right'
+  
+  priceFontSize?: number
+  priceColor?: string
+  priceAlignment?: 'left' | 'center' | 'right' | 'column' | 'column-reverse'
+  
+  periodFontSize?: number
+  periodColor?: string
+  
+  originalPriceFontSize?: number
+  originalPriceColor?: string
+  
+  discountPercentageFontSize?: number
+  discountPercentageColor?: string
+  discountPercentageBackgroundColor?: string
+  
+  featuresFontSize?: number
+  featuresColor?: string
+  featuresCheckColor?: string
+  
+  // Personalização de cores e espaçamento
   backgroundColor?: string
+  borderColor?: string
+  borderWidth?: number
+  borderRadius?: number
+  padding?: number
+  
+  // CTA Button
+  buttonBackgroundColor?: string
+  buttonTextColor?: string
+  buttonBorderRadius?: number
+  buttonPadding?: number
+  buttonFontSize?: number
 }
 
 const PricingCardComponent = React.forwardRef<HTMLDivElement, PricingCardProps>(
   (
     {
+      mode = 'plan',
       title = 'Plan Name',
       price = '99',
       period = '/month',
@@ -32,13 +85,152 @@ const PricingCardComponent = React.forwardRef<HTMLDivElement, PricingCardProps>(
       features = ['Feature 1', 'Feature 2', 'Feature 3'],
       buttonText = 'Get Started',
       isPopular = false,
+      
+      width = '100%',
+      height = 'auto',
+      
+      originalPrice = '149',
+      discountPercentage = 33,
+      showDiscount = false,
+      
+      titleFontSize = 24,
+      titleFontWeight = 'bold',
+      titleColor = '#000000',
+      titleAlignment = 'center',
+      
+      descriptionFontSize = 14,
+      descriptionColor = '#666666',
+      descriptionAlignment = 'center',
+      
+      priceFontSize = 48,
+      priceColor = '#000000',
+      priceAlignment = 'center',
+      
+      periodFontSize = 14,
+      periodColor = '#666666',
+      
+      originalPriceFontSize = 16,
+      originalPriceColor = '#999999',
+      
+      discountPercentageFontSize = 14,
+      discountPercentageColor = '#ffffff',
+      discountPercentageBackgroundColor = '#ef4444',
+      
+      featuresFontSize = 14,
+      featuresColor = '#333333',
+      featuresCheckColor = '#7c3aed',
+      
       backgroundColor = '#ffffff',
+      borderColor = '#e5e7eb',
+      borderWidth = 1,
+      borderRadius = 8,
+      padding = 24,
+      
+      buttonBackgroundColor = '#7c3aed',
+      buttonTextColor = '#ffffff',
+      buttonBorderRadius = 6,
+      buttonPadding = 12,
+      buttonFontSize = 14,
     },
     ref
   ) => {
     const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
+
+    const cardStyle: React.CSSProperties = {
+      backgroundColor,
+      border: `${borderWidth}px solid ${borderColor}`,
+      borderRadius: `${borderRadius}px`,
+      padding: `${padding}px`,
+      width: typeof width === 'number' ? `${width}px` : width,
+      height: typeof height === 'number' ? `${height}px` : height,
+      boxShadow: isPopular ? '0 20px 25px -5px rgba(124, 58, 237, 0.1)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+      minHeight: '300px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+    }
+
+    const titleStyle: React.CSSProperties = {
+      fontSize: `${titleFontSize}px`,
+      fontWeight: titleFontWeight as React.CSSProperties['fontWeight'],
+      color: titleColor,
+      textAlign: titleAlignment as React.CSSProperties['textAlign'],
+      margin: '0 0 12px 0',
+    }
+
+    const descriptionStyle: React.CSSProperties = {
+      fontSize: `${descriptionFontSize}px`,
+      color: descriptionColor,
+      textAlign: descriptionAlignment as React.CSSProperties['textAlign'],
+      margin: '0 0 20px 0',
+      lineHeight: '1.5',
+    }
+
+    const getPriceFlexDirection = () => {
+      if (priceAlignment === 'column') return 'column' as const
+      if (priceAlignment === 'column-reverse') return 'column-reverse' as const
+      return 'row' as const
+    }
+
+    const getPriceJustify = () => {
+      if (priceAlignment === 'column' || priceAlignment === 'column-reverse') return 'center'
+      if (priceAlignment === 'center') return 'center'
+      if (priceAlignment === 'right') return 'flex-end'
+      return 'flex-start'
+    }
+
+    const priceContainerStyle: React.CSSProperties = {
+      display: 'flex',
+      flexDirection: getPriceFlexDirection(),
+      alignItems: 'center',
+      justifyContent: getPriceJustify(),
+      gap: '8px',
+      margin: '20px 0',
+      flexWrap: 'wrap',
+    }
+
+    const priceStyle: React.CSSProperties = {
+      fontSize: `${priceFontSize}px`,
+      fontWeight: 'bold',
+      color: priceColor,
+    }
+
+    const periodStyle: React.CSSProperties = {
+      fontSize: `${periodFontSize}px`,
+      color: periodColor,
+    }
+
+    const originalPriceStyle: React.CSSProperties = {
+      fontSize: `${originalPriceFontSize}px`,
+      color: originalPriceColor,
+      textDecoration: 'line-through',
+      marginRight: '8px',
+    }
+
+    const discountBadgeStyle: React.CSSProperties = {
+      backgroundColor: discountPercentageBackgroundColor,
+      color: discountPercentageColor,
+      fontSize: `${discountPercentageFontSize}px`,
+      padding: '4px 8px',
+      borderRadius: '4px',
+      fontWeight: '600',
+      marginLeft: '8px',
+    }
+
+    const buttonStyle: React.CSSProperties = {
+      backgroundColor: buttonBackgroundColor,
+      color: buttonTextColor,
+      border: 'none',
+      borderRadius: `${buttonBorderRadius}px`,
+      padding: `${buttonPadding}px ${buttonPadding * 2}px`,
+      fontSize: `${buttonFontSize}px`,
+      fontWeight: '500',
+      cursor: 'pointer',
+      width: '100%',
+      transition: 'all 0.3s ease',
+    }
 
     return (
       <div
@@ -53,51 +245,104 @@ const PricingCardComponent = React.forwardRef<HTMLDivElement, PricingCardProps>(
           }
         }}
         style={{
-          minHeight: '400px',
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
           position: 'relative',
+          minHeight: mode === 'plan' ? '500px' : '350px',
         }}
       >
-        <Card
-          style={{
-            backgroundColor,
-            border: isPopular ? '2px solid #7c3aed' : undefined,
-            boxShadow: isPopular ? '0 20px 25px -5px rgba(124, 58, 237, 0.1)' : undefined,
-            height: '100%',
-          }}
-        >
-          {isPopular && (
-            <div style={{ padding: '16px', textAlign: 'center' }}>
-              <Badge variant="default">Most Popular</Badge>
+        {isPopular && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: '#7c3aed',
+              color: 'white',
+              padding: '4px 12px',
+              borderRadius: '12px',
+              fontSize: '12px',
+              fontWeight: '600',
+              zIndex: 10,
+            }}
+          >
+            Mais Popular
+          </div>
+        )}
+
+        <div style={cardStyle}>
+          {/* Header */}
+          <div>
+            <h3 style={titleStyle}>{title}</h3>
+            {description && <p style={descriptionStyle}>{description}</p>}
+
+            {/* Preço */}
+            <div style={priceContainerStyle}>
+              {/* Preço original com desconto (modo single) */}
+              {mode === 'single' && showDiscount && originalPrice && (
+                <span style={originalPriceStyle}>${originalPrice}</span>
+              )}
+              
+              <span style={priceStyle}>${price}</span>
+              
+              {/* Badge de desconto (modo single) */}
+              {mode === 'single' && showDiscount && discountPercentage && (
+                <span style={discountBadgeStyle}>{discountPercentage}% OFF</span>
+              )}
+              
+              {mode === 'plan' && period && <span style={periodStyle}>{period}</span>}
             </div>
-          )}
-          <CardHeader>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-            <div style={{ marginTop: '16px' }}>
-              <span style={{ fontSize: '32px', fontWeight: 'bold' }}>${price}</span>
-              <span style={{ fontSize: '14px', color: '#666' }}>{period}</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul style={{ listStyle: 'none', padding: '0', marginBottom: '20px' }}>
+          </div>
+
+          {/* Features (modo plano) */}
+          {mode === 'plan' && features.length > 0 && (
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: '0',
+                margin: '20px 0',
+                flex: 1,
+              }}
+            >
               {features.map((feature, idx) => (
-                <li key={idx} style={{ padding: '8px 0', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ color: '#7c3aed', marginRight: '8px' }}>✓</span>
+                <li
+                  key={idx}
+                  style={{
+                    padding: '10px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    fontSize: `${featuresFontSize}px`,
+                    color: featuresColor,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: featuresCheckColor,
+                      marginRight: '12px',
+                      fontWeight: 'bold',
+                      fontSize: '18px',
+                    }}
+                  >
+                    ✓
+                  </span>
                   <span>{feature}</span>
                 </li>
               ))}
             </ul>
-            <Button
-              variant={isPopular ? 'default' : 'outline'}
-              className="w-full"
-              style={{ cursor: 'pointer' }}
-            >
-              {buttonText}
-            </Button>
-          </CardContent>
-        </Card>
+          )}
+
+          {/* Botão CTA */}
+          <button style={buttonStyle} onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '0.9';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
+          }} onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)'
+          }}>
+            {buttonText}
+          </button>
+        </div>
       </div>
     )
   }
@@ -108,15 +353,62 @@ export const PricingCard = PricingCardComponent
 
 ;(PricingCard as unknown as Record<string, unknown>).craft = {
   props: {
+    mode: 'plan',
     title: 'Plan Name',
     price: '99',
     period: '/month',
     description: 'Plan description',
     features: ['Feature 1', 'Feature 2', 'Feature 3'],
     buttonText: 'Get Started',
-    buttonColor: 'default',
     isPopular: false,
+    
+    width: '100%',
+    height: 'auto',
+    cardFullWidth: false,
+    cardAutoHeight: true,
+    
+    originalPrice: '149',
+    discountPercentage: 33,
+    showDiscount: false,
+    
+    titleFontSize: 24,
+    titleFontWeight: 'bold',
+    titleColor: '#000000',
+    titleAlignment: 'center',
+    
+    descriptionFontSize: 14,
+    descriptionColor: '#666666',
+    descriptionAlignment: 'center',
+    
+    priceFontSize: 48,
+    priceColor: '#000000',
+    priceAlignment: 'center',
+    
+    periodFontSize: 14,
+    periodColor: '#666666',
+    
+    originalPriceFontSize: 16,
+    originalPriceColor: '#999999',
+    
+    discountPercentageFontSize: 14,
+    discountPercentageColor: '#ffffff',
+    discountPercentageBackgroundColor: '#ef4444',
+    
+    featuresFontSize: 14,
+    featuresColor: '#333333',
+    featuresCheckColor: '#7c3aed',
+    
     backgroundColor: '#ffffff',
+    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 24,
+    
+    buttonBackgroundColor: '#7c3aed',
+    buttonTextColor: '#ffffff',
+    buttonBorderRadius: 6,
+    buttonPadding: 12,
+    buttonFontSize: 14,
   },
   displayName: 'Pricing Card',
 }
@@ -236,6 +528,19 @@ interface FeatureCardProps {
   description?: string
   backgroundColor?: string
   iconBackgroundColor?: string
+  
+  // Dimensões
+  width?: string | number
+  height?: string | number
+  cardFullWidth?: boolean
+  cardAutoHeight?: boolean
+  
+  // Personalizações de texto
+  titleFontSize?: number
+  titleColor?: string
+  descriptionFontSize?: number
+  descriptionColor?: string
+  iconFontSize?: number
 }
 
 const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
@@ -246,12 +551,31 @@ const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
       description = 'Feature description goes here',
       backgroundColor = '#ffffff',
       iconBackgroundColor = '#e0e7ff',
+      width = '100%',
+      height = 'auto',
+      cardFullWidth = false,
+      cardAutoHeight = true,
+      titleFontSize = 18,
+      titleColor = '#000000',
+      descriptionFontSize = 14,
+      descriptionColor = '#666666',
+      iconFontSize = 28,
     },
     ref
   ) => {
     const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
+
+    // Helper para renderizar quebras de linha
+    const renderTextWithLineBreaks = (text: string) => {
+      return text.split('\n').map((line, index) => (
+        <React.Fragment key={index}>
+          {line}
+          {index < text.split('\n').length - 1 && <br />}
+        </React.Fragment>
+      ))
+    }
 
     return (
       <div
@@ -266,6 +590,8 @@ const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
           }
         }}
         style={{
+          width: cardFullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
+          height: cardAutoHeight ? 'auto' : (typeof height === 'number' ? `${height}px` : height),
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
         }}
@@ -281,14 +607,18 @@ const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '28px',
+                fontSize: `${iconFontSize}px`,
                 margin: '0 auto 16px',
               }}
             >
               {icon}
             </div>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>{title}</h3>
-            <p style={{ fontSize: '14px', color: '#666', lineHeight: '1.6' }}>{description}</p>
+            <h3 style={{ fontSize: `${titleFontSize}px`, fontWeight: 'bold', marginBottom: '8px', color: titleColor, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {renderTextWithLineBreaks(title)}
+            </h3>
+            <p style={{ fontSize: `${descriptionFontSize}px`, color: descriptionColor, lineHeight: '1.6', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {renderTextWithLineBreaks(description)}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -306,6 +636,15 @@ export const FeatureCard = FeatureCardComponent
     description: 'Feature description goes here',
     backgroundColor: '#ffffff',
     iconBackgroundColor: '#e0e7ff',
+    width: 300,
+    height: 'auto',
+    cardFullWidth: false,
+    cardAutoHeight: true,
+    titleFontSize: 18,
+    titleColor: '#000000',
+    descriptionFontSize: 14,
+    descriptionColor: '#666666',
+    iconFontSize: 28,
   },
   displayName: 'Feature Card',
 }
@@ -488,6 +827,18 @@ interface FAQItemProps {
   question?: string
   answer?: string
   backgroundColor?: string
+  borderColor?: string
+  borderWidth?: number
+  borderRadius?: number
+  padding?: number
+  questionFontSize?: number
+  questionColor?: string
+  questionFontWeight?: 'normal' | 'bold' | '500' | '600' | '700'
+  answerFontSize?: number
+  answerColor?: string
+  answerLineHeight?: number
+  iconColor?: string
+  iconSize?: number
 }
 
 const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
@@ -496,6 +847,18 @@ const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
       question = 'What is this product?',
       answer = 'This is a great product that solves your problems.',
       backgroundColor = '#ffffff',
+      borderColor = '#e5e7eb',
+      borderWidth = 1,
+      borderRadius = 8,
+      padding = 16,
+      questionFontSize = 16,
+      questionColor = '#1a1a1a',
+      questionFontWeight = 'bold',
+      answerFontSize = 14,
+      answerColor = '#666666',
+      answerLineHeight = 1.6,
+      iconColor = '#1a1a1a',
+      iconSize = 16,
     },
     ref
   ) => {
@@ -519,12 +882,10 @@ const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
         }}
         style={{
           backgroundColor,
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
+          border: isSelected ? `2px solid #3b82f6` : `${borderWidth}px solid ${borderColor}`,
+          borderRadius: `${borderRadius}px`,
           overflow: 'hidden',
           marginBottom: '12px',
-          borderTopColor: isSelected ? '#3b82f6' : '#e5e7eb',
-          borderTopWidth: isSelected ? '2px' : '1px',
           cursor: 'move',
         }}
       >
@@ -532,12 +893,13 @@ const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
           onClick={() => setIsOpen(!isOpen)}
           style={{
             width: '100%',
-            padding: '16px',
+            padding: `${padding}px`,
             backgroundColor: 'transparent',
             border: 'none',
             textAlign: 'left',
-            fontWeight: 'bold',
-            fontSize: '16px',
+            fontWeight: questionFontWeight as React.CSSProperties['fontWeight'],
+            fontSize: `${questionFontSize}px`,
+            color: questionColor,
             cursor: 'pointer',
             display: 'flex',
             justifyContent: 'space-between',
@@ -545,12 +907,24 @@ const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
           }}
         >
           {question}
-          <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+          <span style={{ 
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
+            transition: 'transform 0.2s',
+            fontSize: `${iconSize}px`,
+            color: iconColor,
+            display: 'flex',
+            alignItems: 'center',
+          }}>
             ▼
           </span>
         </button>
         {isOpen && (
-          <div style={{ padding: '0 16px 16px 16px', color: '#666', lineHeight: '1.6' }}>
+          <div style={{ 
+            padding: `0 ${padding}px ${padding}px ${padding}px`, 
+            color: answerColor, 
+            lineHeight: answerLineHeight,
+            fontSize: `${answerFontSize}px`,
+          }}>
             {answer}
           </div>
         )}
@@ -567,6 +941,18 @@ export const FAQItem = FAQItemComponent
     question: 'What is this product?',
     answer: 'This is a great product that solves your problems.',
     backgroundColor: '#ffffff',
+    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+    questionFontSize: 16,
+    questionColor: '#1a1a1a',
+    questionFontWeight: 'bold',
+    answerFontSize: 14,
+    answerColor: '#666666',
+    answerLineHeight: 1.6,
+    iconColor: '#1a1a1a',
+    iconSize: 16,
   },
   displayName: 'FAQ Item',
 }
@@ -657,6 +1043,7 @@ export const TrustBadges = TrustBadgesComponent
 /**
  * ImageComponent - Para exibir imagens responsivas
  * Essencial para fotografias de produtos, screenshots, etc
+ * Utiliza Next.js Image para otimização automática
  */
 interface ImageComponentProps {
   src?: string
@@ -696,6 +1083,8 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
     const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
+    
+    const [imageError, setImageError] = React.useState(false)
 
     const shadowStyles: Record<string, string> = {
       none: 'none',
@@ -703,6 +1092,9 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
       md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
       lg: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
     }
+
+    // Converter dimensões para números se necessário
+    const numericWidth = typeof width === 'string' && width.endsWith('%') ? 600 : (typeof width === 'string' ? parseInt(width) : width)
 
     return (
       <div
@@ -751,41 +1143,50 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
             backgroundColor: '#f0f0f0',
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit,
-              objectPosition: 'center',
-              display: 'block',
-            }}
-            onError={(e) => {
-              const img = e.target as HTMLImageElement
-              img.style.display = 'none'
-            }}
-          />
-          {/* Placeholder quando não consegue carregar a imagem */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#f0f0f0',
-              color: '#999',
-              fontSize: '14px',
-              zIndex: -1,
-            }}
-          >
-            [Imagem não carregou]
-          </div>
+          {!imageError ? (
+            <Image
+              src={src}
+              alt={alt}
+              fill
+              sizes={typeof width === 'string' && width.endsWith('%') ? '100vw' : `${numericWidth}px`}
+              style={{
+                objectFit: objectFit as React.CSSProperties['objectFit'],
+                objectPosition: 'center',
+              }}
+              onError={() => setImageError(true)}
+              priority={false}
+              quality={85}
+            />
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#f0f0f0',
+                color: '#999',
+                fontSize: '14px',
+                zIndex: 1,
+                padding: '20px',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ marginBottom: '8px', fontSize: '24px' }}>⚠️</div>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>Erro ao carregar imagem</div>
+              <div style={{ fontSize: '12px', marginTop: '8px', color: '#aaa', maxHeight: '60px', overflow: 'auto' }}>
+                URL: {src ? (src.length > 50 ? src.substring(0, 50) + '...' : src) : 'sem URL'}
+              </div>
+              <div style={{ fontSize: '11px', marginTop: '8px', color: '#bbb' }}>
+                Verifique se a URL está correta
+              </div>
+            </div>
+          )}
         </div>
 
         {caption && captionPosition === 'bottom' && (
@@ -1098,3 +1499,238 @@ export const VSL = VSLComponent
     toolbar: [],
   },
 }
+
+/**
+ * CountdownTimer - Para criar urgência com contagem regressiva
+ * Essencial para sales pages com oferta por tempo limitado
+ */
+interface CountdownTimerProps {
+  targetDate?: string // ISO date string
+  title?: string
+  titleFontSize?: number
+  titleColor?: string
+  
+  // Exibição
+  showDays?: boolean
+  showHours?: boolean
+  showMinutes?: boolean
+  showSeconds?: boolean
+  
+  // Estilos dos dígitos
+  digitFontSize?: number
+  digitColor?: string
+  digitBackgroundColor?: string
+  digitBorderRadius?: number
+  digitPadding?: number
+  
+  // Estilos dos labels
+  labelFontSize?: number
+  labelColor?: string
+  
+  // Dimensões
+  width?: string | number
+  height?: string | number
+  cardFullWidth?: boolean
+  cardAutoHeight?: boolean
+  
+  // Layout
+  alignment?: 'left' | 'center' | 'right'
+  gapBetweenUnits?: number
+  backgroundColor?: string
+  borderRadius?: number
+  padding?: number
+}
+
+const CountdownTimerComponent = React.forwardRef<HTMLDivElement, CountdownTimerProps>(
+  (
+    {
+      targetDate = new Date(Date.now() + 86400000).toISOString(), // 24 horas a partir de agora
+      title = 'Oferta termina em:',
+      titleFontSize = 20,
+      titleColor = '#000000',
+      
+      showDays = true,
+      showHours = true,
+      showMinutes = true,
+      showSeconds = true,
+      
+      digitFontSize = 32,
+      digitColor = '#ffffff',
+      digitBackgroundColor = '#ff6b35',
+      digitBorderRadius = 8,
+      digitPadding = 12,
+      
+      labelFontSize = 12,
+      labelColor = '#666666',
+      
+      width = '100%',
+      height = 'auto',
+      cardFullWidth = true,
+      cardAutoHeight = true,
+      
+      alignment = 'center',
+      gapBetweenUnits = 16,
+      backgroundColor = '#ffffff',
+      borderRadius = 12,
+      padding = 24,
+    },
+    ref
+  ) => {
+    const [timeLeft, setTimeLeft] = React.useState({
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+    })
+
+    const [isExpired, setIsExpired] = React.useState(false)
+
+    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+      isSelected: node.events.selected,
+    }))
+
+    React.useEffect(() => {
+      const calculateTimeLeft = () => {
+        const targetTime = new Date(targetDate).getTime()
+        const currentTime = new Date().getTime()
+        const difference = targetTime - currentTime
+
+        if (difference <= 0) {
+          setIsExpired(true)
+          setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+          return
+        }
+
+        setIsExpired(false)
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        })
+      }
+
+      calculateTimeLeft()
+      const timer = setInterval(calculateTimeLeft, 1000)
+      return () => clearInterval(timer)
+    }, [targetDate])
+
+    const TimeUnit = ({ value, label }: { value: number; label: string }) => (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+        <div
+          style={{
+            backgroundColor: digitBackgroundColor,
+            color: digitColor,
+            padding: `${digitPadding}px`,
+            borderRadius: `${digitBorderRadius}px`,
+            fontSize: `${digitFontSize}px`,
+            fontWeight: 'bold',
+            minWidth: `${digitFontSize * 1.5}px`,
+            textAlign: 'center',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {String(value).padStart(2, '0')}
+        </div>
+        <span style={{ fontSize: `${labelFontSize}px`, color: labelColor, fontWeight: '500' }}>
+          {label}
+        </span>
+      </div>
+    )
+
+    return (
+      <div
+        ref={(el) => {
+          if (el) {
+            connect(drag(el))
+            if (typeof ref === 'function') {
+              ref(el)
+            } else if (ref) {
+              ref.current = el
+            }
+          }
+        }}
+        style={{
+          width: cardFullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
+          height: cardAutoHeight ? 'auto' : (typeof height === 'number' ? `${height}px` : height),
+          border: isSelected ? '2px solid #3b82f6' : 'none',
+          cursor: 'move',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor,
+            borderRadius: `${borderRadius}px`,
+            padding: `${padding}px`,
+            textAlign: alignment,
+          }}
+        >
+          {title && (
+            <h3 style={{ fontSize: `${titleFontSize}px`, color: titleColor, marginBottom: '24px', margin: '0 0 24px 0' }}>
+              {title}
+            </h3>
+          )}
+
+          {isExpired ? (
+            <div style={{ fontSize: `${digitFontSize}px`, color: digitColor, fontWeight: 'bold' }}>
+              Oferta expirada
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start',
+                gap: `${gapBetweenUnits}px`,
+                flexWrap: 'wrap',
+              }}
+            >
+              {showDays && <TimeUnit value={timeLeft.days} label="dias" />}
+              {showHours && <TimeUnit value={timeLeft.hours} label="horas" />}
+              {showMinutes && <TimeUnit value={timeLeft.minutes} label="min" />}
+              {showSeconds && <TimeUnit value={timeLeft.seconds} label="seg" />}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+)
+
+CountdownTimerComponent.displayName = 'CountdownTimer'
+export const CountdownTimer = CountdownTimerComponent
+
+;(CountdownTimer as unknown as Record<string, unknown>).craft = {
+  props: {
+    targetDate: new Date(Date.now() + 86400000).toISOString(),
+    title: 'Oferta termina em:',
+    titleFontSize: 20,
+    titleColor: '#000000',
+    
+    showDays: true,
+    showHours: true,
+    showMinutes: true,
+    showSeconds: true,
+    
+    digitFontSize: 32,
+    digitColor: '#ffffff',
+    digitBackgroundColor: '#ff6b35',
+    digitBorderRadius: 8,
+    digitPadding: 12,
+    
+    labelFontSize: 12,
+    labelColor: '#666666',
+    
+    width: '100%',
+    height: 'auto',
+    cardFullWidth: true,
+    cardAutoHeight: true,
+    
+    alignment: 'center',
+    gapBetweenUnits: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+  },
+  displayName: 'Contagem Regressiva',
+}
+

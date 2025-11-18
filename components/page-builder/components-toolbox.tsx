@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card'
 import { 
   Layers,
   Type,
-  RefreshCw,
   Square,
   Zap,
   Minus,
@@ -18,11 +17,11 @@ import {
   TrendingUp,
   HelpCircle,
   Shield,
+  Clock,
 } from 'lucide-react'
 import { 
   Container, 
   TextBlock, 
-  RotatingText,
   HeroSection, 
   CTAButton, 
   Divider,
@@ -36,6 +35,7 @@ import {
   TrustBadges,
   ImageComponent,
   VSL,
+  CountdownTimer,
 } from '@/components/craft-components'
 
 interface ComponentItem {
@@ -61,13 +61,6 @@ const COMPONENTS: ComponentItem[] = [
     icon: <Type className="w-5 h-5" />,
     description: 'Texto editável',
     component: TextBlock,
-  },
-  {
-    id: 'rotating-text',
-    name: 'Texto Rotativo',
-    icon: <RefreshCw className="w-5 h-5" />,
-    description: 'Headline com palavras animadas',
-    component: RotatingText,
   },
   {
     id: 'cta-button',
@@ -160,6 +153,13 @@ const COMPONENTS: ComponentItem[] = [
     description: 'Video Sales Letter com player personalizável',
     component: VSL,
   },
+  {
+    id: 'countdown-timer',
+    name: 'Contagem Regressiva',
+    icon: <Clock className="w-5 h-5" />,
+    description: 'Timer com urgência',
+    component: CountdownTimer,
+  },
 ]
 
 export function ComponentsToolbox() {
@@ -177,17 +177,11 @@ export function ComponentsToolbox() {
         )
       case 'text-block':
         return <TextBlock content="Novo texto" fontSize={16} color="#000000" />
-      case 'rotating-text':
-        return (
-          <RotatingText
-            rotatingWords={['Nós aceleramos lançamentos', 'funis inteligentes', 'páginas de alta conversão'].join('\n')}
-          />
-        )
       case 'cta-button':
         return <CTAButton text="Clique aqui" link="#" backgroundColor="#0070f3" />
       case 'container':
         return (
-          <Element is={Container} canvas backgroundColor="#ffffff" paddingTop={20} paddingBottom={20} paddingLeft={20} paddingRight={20} />
+          <Element is={Container} canvas backgroundColor="#ffffff" paddingTop={20} paddingBottom={20} paddingLeft={20} paddingRight={20} sectionId="" />
         )
       case 'divider':
         return <Divider height={2} color="#e0e0e0" margin={20} />
@@ -287,6 +281,30 @@ export function ComponentsToolbox() {
             playButtonSize={80}
             showThumbnail={false}
             videoUrl=""
+          />
+        )
+      case 'countdown-timer':
+        return (
+          <CountdownTimer
+            targetDate="2025-11-19T18:00:00Z"
+            title="Oferta termina em:"
+            titleFontSize={20}
+            titleColor="#000000"
+            showDays={true}
+            showHours={true}
+            showMinutes={true}
+            showSeconds={true}
+            digitFontSize={32}
+            digitColor="#ffffff"
+            digitBackgroundColor="#ff6b35"
+            digitBorderRadius={8}
+            digitPadding={12}
+            labelFontSize={12}
+            labelColor="#666666"
+            alignment="center"
+            backgroundColor="#ffffff"
+            borderRadius={12}
+            padding={24}
           />
         )
       default:

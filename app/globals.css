@@ -227,7 +227,6 @@ html {
   display: none !important;
 }
 
-
 /* @craftjs/layers styling overrides - sobrescrever styled-components inline styles */
 @layer components {
   /* Normal state - com fundo card */

@@ -14,7 +14,6 @@ import Link from 'next/link'
 import {
   Container,
   TextBlock,
-  RotatingText,
   HeroSection,
   CTAButton,
   Divider,
@@ -28,6 +27,7 @@ import {
   TrustBadges,
   ImageComponent,
   VSL,
+  CountdownTimer,
 } from '@/components/craft-components'
 
 interface EditorLayoutProps {
@@ -118,7 +118,6 @@ export function EditorLayout({
         resolver={{
           Container,
           TextBlock,
-          RotatingText,
           HeroSection,
           CTAButton,
           Divider,
@@ -132,6 +131,7 @@ export function EditorLayout({
           TrustBadges,
           ImageComponent,
           VSL,
+          CountdownTimer,
           ...components,
         }}
         onNodesChange={() => {
@@ -198,6 +198,7 @@ export function EditorLayout({
                   backgroundColor="#ffffff"
                   height={0}
                   minHeight={800}
+                  sectionId=""
                 >
                   {!parsedLayout && (
                     <TextBlock content="Arraste componentes da esquerda para começar" alignment="center" />

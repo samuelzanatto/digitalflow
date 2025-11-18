@@ -29,6 +29,7 @@ import {
   deleteSalesPage,
   getUserPages,
   refreshPagePreviewImage,
+  togglePagePublish,
 } from '@/lib/actions/pages'
 import { cn } from '@/lib/utils'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
@@ -279,11 +280,28 @@ export default function PaginasPage() {
     [],
   )
 
-  const handleTogglePublish = useCallback((id: string) => {
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, published: !p.published } : p)),
-    )
-  }, [])
+  const handleTogglePublish = useCallback(
+    async (id: string) => {
+      try {
+        const result = await togglePagePublish(id)
+        if (result.success && result.data) {
+          setPages((prev) =>
+            prev.map((p) =>
+              p.id === id ? { ...p, published: (result.data as unknown as SalesPage).published } : p,
+            ),
+          )
+          const published = (result.data as unknown as SalesPage).published
+          toast.success(published ? 'Página publicada!' : 'Página despublicada')
+        } else {
+          toast.error(result.error || 'Falha ao publicar página')
+        }
+      } catch (error) {
+        console.error('Erro ao publicar página:', error)
+        toast.error('Erro ao publicar página')
+      }
+    },
+    [],
+  )
 
   const handleRefreshPreview = useCallback(async (id: string) => {
     setRefreshingPageId(id)

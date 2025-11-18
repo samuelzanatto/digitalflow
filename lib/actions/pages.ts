@@ -208,7 +208,14 @@ export async function getSalesPageBySlug(slug: string) {
     })
 
     if (!page) {
+      console.log(`Página com slug "${slug}" não encontrada`)
       return { success: false, error: 'Página não encontrada' }
+    }
+
+    // Verifica se a página está publicada
+    if (!page.published) {
+      console.log(`Página com slug "${slug}" não está publicada`)
+      return { success: false, error: 'Página não publicada' }
     }
 
     return { success: true, data: page }
@@ -329,7 +336,7 @@ export async function togglePagePublish(pageId: string) {
   try {
     const page = await prisma.salesPage.findUnique({
       where: { id: pageId },
-      select: { published: true },
+      select: { published: true, slug: true },
     })
 
     if (!page) {
@@ -341,7 +348,12 @@ export async function togglePagePublish(pageId: string) {
       data: { published: !page.published },
     })
 
+    // Revalidar a rota da página quando publicada/despublicada
     revalidatePath('/dashboard/paginas')
+    if (page.slug) {
+      revalidatePath(`/page/${page.slug}`)
+    }
+    
     return { success: true, data: updated }
   } catch (error) {
     console.error('Error toggling publish:', error)
