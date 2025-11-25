@@ -190,7 +190,7 @@ export function ComponentsToolbox() {
           <Footer
             brandName="DigitalFlow"
             brandDescription="Transformando ideias em experiências digitais"
-            link1="Home"
+            link1="Início"
             link2="Sobre"
             link3="Contato"
             copyrightText="© 2025 DigitalFlow. Todos os direitos reservados."
@@ -230,7 +230,6 @@ export function ComponentsToolbox() {
           <CaptureForm
             title="Comece Hoje"
             subtitle="Inscreva-se agora"
-            inputPlaceholder="seu@email.com"
             buttonText="Inscrever"
           />
         )

@@ -10,7 +10,7 @@ import { TransitionLink } from "@/components/transition-link";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Home", href: "#home" },
+  { label: "Início", href: "#home" },
   { label: "Serviços", href: "#servicos" },
   { label: "Sobre", href: "#sobre" },
   { label: "Cases", href: "#cases" },
@@ -20,7 +20,7 @@ const navItems = [
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("Home");
+  const [activeSection, setActiveSection] = useState("Início");
   const { scrollY } = useScroll();
 
   // Função para scroll suave com offset
@@ -137,7 +137,7 @@ export function Navbar() {
                     alt="Flow Logo"
                     width={40}
                     height={40}
-                    className="w-8 h-8 md:w-10 md:h-10 object-contain"
+                    className="w-8 h-8 md:w-8 md:h-8 object-contain"
                   />
                   <div className="flex gap-1">
                     <span className="text-white font-extralight text-lg md:text-3xl font-poppins whitespace-nowrap">

@@ -11,9 +11,146 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ChevronDown, Calendar as CalendarIcon } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { ChevronDown, Calendar as CalendarIcon, Monitor, Tablet, Smartphone, Link2, Link2Off } from 'lucide-react'
 import { AVAILABLE_FONTS } from '@/lib/fonts'
 import { getUserPages } from '@/lib/actions/pages'
+import { useViewport, ViewportMode, isResponsiveValue, ResponsiveValue, ResponsiveProp } from '@/contexts/viewport-context'
+import { setResponsiveValue, getViewportValue, hasViewportOverride, RESPONSIVE_PROPS, isResponsivePropName } from '@/lib/responsive-props'
+import { cn } from '@/lib/utils'
+
+/**
+ * Indicador do viewport atual no painel de propriedades
+ */
+function ViewportIndicator() {
+  const { currentViewport, config } = useViewport()
+  
+  const icons = {
+    desktop: Monitor,
+    tablet: Tablet,
+    mobile: Smartphone,
+  }
+  
+  const Icon = icons[currentViewport]
+  
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md text-xs">
+      <Icon className="w-3.5 h-3.5 text-primary" />
+      <span className="text-muted-foreground">
+        Editando para <span className="font-medium text-foreground">{config.label}</span>
+      </span>
+    </div>
+  )
+}
+
+/**
+ * Componente de input numérico responsivo
+ * Permite editar valores diferentes para cada viewport
+ */
+interface ResponsiveNumberInputProps {
+  label: string
+  value: ResponsiveProp<number> | undefined
+  onChange: (newValue: ResponsiveProp<number>) => void
+  min?: number
+  max?: number
+  step?: number
+  unit?: string
+  showSlider?: boolean
+}
+
+function ResponsiveNumberInput({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+  step = 1,
+  unit = 'px',
+  showSlider = true,
+}: ResponsiveNumberInputProps) {
+  const { currentViewport } = useViewport()
+  
+  // Obtém o valor atual para o viewport selecionado
+  const currentValue = getViewportValue(value, currentViewport, 0)
+  
+  // Verifica quais viewports têm valores customizados
+  const hasDesktopOverride = hasViewportOverride(value, 'desktop')
+  const hasTabletOverride = hasViewportOverride(value, 'tablet')
+  const hasMobileOverride = hasViewportOverride(value, 'mobile')
+  
+  // Ícones para indicação
+  const viewportIcons = {
+    desktop: Monitor,
+    tablet: Tablet,
+    mobile: Smartphone,
+  }
+  
+  const handleValueChange = (newValue: number) => {
+    const updated = setResponsiveValue(value, newValue, currentViewport)
+    onChange(updated)
+  }
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <Label className="text-xs font-medium">{label}</Label>
+        <div className="flex items-center gap-1">
+          {/* Indicadores de viewports com valores customizados */}
+          <TooltipProvider delayDuration={300}>
+            <div className="flex gap-0.5 mr-2">
+              {(['desktop', 'tablet', 'mobile'] as ViewportMode[]).map((vp) => {
+                const Icon = viewportIcons[vp]
+                const hasOverride = vp === 'desktop' ? hasDesktopOverride : vp === 'tablet' ? hasTabletOverride : hasMobileOverride
+                const vpValue = getViewportValue(value, vp, 0)
+                
+                return (
+                  <Tooltip key={vp}>
+                    <TooltipTrigger asChild>
+                      <div 
+                        className={cn(
+                          "p-0.5 rounded cursor-pointer transition-colors",
+                          hasOverride 
+                            ? "bg-primary/20 text-primary" 
+                            : "text-muted-foreground/40 hover:text-muted-foreground/60",
+                          currentViewport === vp && "ring-1 ring-primary"
+                        )}
+                      >
+                        <Icon className="w-3 h-3" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      <p className="capitalize">{vp}: {hasOverride ? `${vpValue}${unit}` : 'herda'}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )
+              })}
+            </div>
+          </TooltipProvider>
+          
+          <Input
+            type="number"
+            value={currentValue}
+            onChange={(e) => handleValueChange(parseInt(e.target.value) || 0)}
+            className="text-xs w-16 px-2 py-1"
+            min={min}
+            max={max}
+          />
+          <span className="text-xs text-muted-foreground">{unit}</span>
+        </div>
+      </div>
+      
+      {showSlider && (
+        <Slider
+          min={min}
+          max={max}
+          step={step}
+          value={[currentValue]}
+          onValueChange={(v) => handleValueChange(v[0])}
+        />
+      )}
+    </div>
+  )
+}
 
 export function PropertiesPanel() {
   const { selectedNodeId } = useEditor((state) => {
@@ -238,17 +375,18 @@ function categorizeProps(props: Record<string, unknown>) {
     'Layout': {},
     'Cores & Estilos': {},
     'Visibilidade': {},
+    'Campos de Formulário': {},
     'Outro': {},
   }
 
   const dimensionKeys = ['width', 'height', 'minHeight', 'margin', 'flex', 'playerWidth', 'cardFullWidth', 'cardAutoHeight', 'fullWidth', 'autoHeight']
-  const paddingKeys = ['padding', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingLinked']
+  const paddingKeys = ['padding', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingLinked', 'formPaddingTop', 'formPaddingBottom', 'formPaddingLeft', 'formPaddingRight']
   const marginKeys = ['marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginLinked']
-  const borderRadiusKeys = ['borderRadius', 'borderRadiusTopLeft', 'borderRadiusTopRight', 'borderRadiusBottomRight', 'borderRadiusBottomLeft', 'borderRadiusLinked']
+  const borderRadiusKeys = ['borderRadius', 'borderRadiusTopLeft', 'borderRadiusTopRight', 'borderRadiusBottomRight', 'borderRadiusBottomLeft', 'borderRadiusLinked', 'formContainerBorderRadius', 'buttonBorderRadius']
   const discountKeys = ['showDiscount', 'originalPrice', 'discountPercentage', 'originalPriceFontSize', 'originalPriceColor', 'discountPercentageFontSize', 'discountPercentageColor', 'discountPercentageBackgroundColor']
   const imageKeys = ['objectFit', 'shadow', 'captionPosition', 'backgroundImage']
-  const layoutKeys = ['display', 'flexDirection', 'gap', 'justifyContent', 'alignItems', 'textAlignment']
-  const colorKeys = ['backgroundColor', 'textColor', 'color', 'borderColor', 'highlightColor', 'titleColor', 'descriptionColor', 'brandNameColor', 'descriptionColor', 'linksColor', 'linksHoverColor', 'copyrightColor', 'headingColor', 'questionColor', 'answerColor', 'iconColor']
+  const layoutKeys = ['display', 'flexDirection', 'gap', 'justifyContent', 'alignItems', 'textAlignment', 'inputsDirection', 'inputGap']
+  const colorKeys = ['backgroundColor', 'textColor', 'color', 'borderColor', 'highlightColor', 'titleColor', 'descriptionColor', 'brandNameColor', 'descriptionColor', 'linksColor', 'linksHoverColor', 'copyrightColor', 'headingColor', 'questionColor', 'answerColor', 'iconColor', 'subtitleColor', 'buttonColor', 'formContainerBorderColor']
   const contentKeys = [
     'text',
     'content',
@@ -270,12 +408,15 @@ function categorizeProps(props: Record<string, unknown>) {
     'question',
     'answer',
     'sectionId',
+    'buttonText',
   ]
   const visibilityKeys = ['showLinks', 'showDays', 'showHours', 'showMinutes', 'showSeconds']
-  const styleKeys = ['fontSize', 'borderWidth', 'alignment', 'fontFamily', 'fontWeight', 'titleFontSize', 'titleColor', 'descriptionFontSize', 'descriptionColor', 'iconFontSize', 'brandNameFontSize', 'brandNameColor', 'descriptionFontSize', 'descriptionColor', 'linksFontSize', 'linksColor', 'linksHoverColor', 'copyrightFontSize', 'copyrightColor', 'headingFontSize', 'headingColor', 'questionFontSize', 'questionFontWeight', 'answerFontSize', 'answerLineHeight', 'iconSize']
+  const styleKeys = ['fontSize', 'borderWidth', 'alignment', 'fontFamily', 'fontWeight', 'titleFontSize', 'titleColor', 'descriptionFontSize', 'descriptionColor', 'iconFontSize', 'brandNameFontSize', 'brandNameColor', 'descriptionFontSize', 'descriptionColor', 'linksFontSize', 'linksColor', 'linksHoverColor', 'copyrightFontSize', 'copyrightColor', 'headingFontSize', 'headingColor', 'questionFontSize', 'questionFontWeight', 'answerFontSize', 'answerLineHeight', 'iconSize', 'subtitleFontSize', 'buttonFontSize', 'formContainerBorderWidth', 'buttonPadding']
+  const formKeys = ['inputFields']
 
   Object.entries(props).forEach(([key, value]) => {
-    if (contentKeys.includes(key)) sections['Conteúdo'][key] = value
+    if (formKeys.includes(key)) sections['Campos de Formulário'][key] = value
+    else if (contentKeys.includes(key)) sections['Conteúdo'][key] = value
     else if (paddingKeys.includes(key)) sections['Padding'][key] = value
     else if (marginKeys.includes(key)) sections['Margens'][key] = value
     else if (borderRadiusKeys.includes(key)) sections['Border Radius'][key] = value
@@ -297,6 +438,9 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
   const [availablePages, setAvailablePages] = useState<PageOption[]>([])
   const [isLoadingPages, setIsLoadingPages] = useState(false)
   const hasLoadedPagesRef = useRef(false)
+  
+  // Mover useViewport para o nível do componente (hooks não podem ser chamados condicionalmente)
+  const { currentViewport } = useViewport()
 
   const { actions: { setProp }, nodes } = useEditor((state) => ({
     nodes: state.nodes,
@@ -338,29 +482,35 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }))
   }
 
-  // Renderizar seção de Padding com UI visual
+  // Renderizar seção de Padding com UI visual - COM SUPORTE A VALORES RESPONSIVOS
   const renderPaddingSection = (paddingProps: Record<string, unknown>) => {
-    const paddingTop = (paddingProps.paddingTop as number) || 0
-    const paddingBottom = (paddingProps.paddingBottom as number) || 0
-    const paddingLeft = (paddingProps.paddingLeft as number) || 0
-    const paddingRight = (paddingProps.paddingRight as number) || 0
+    // Resolver valores para o viewport atual (suporta valores simples ou responsivos)
+    const paddingTopRaw = paddingProps.paddingTop
+    const paddingBottomRaw = paddingProps.paddingBottom
+    const paddingLeftRaw = paddingProps.paddingLeft
+    const paddingRightRaw = paddingProps.paddingRight
+    
+    const paddingTop = getViewportValue(paddingTopRaw as ResponsiveProp<number>, currentViewport, 0)
+    const paddingBottom = getViewportValue(paddingBottomRaw as ResponsiveProp<number>, currentViewport, 0)
+    const paddingLeft = getViewportValue(paddingLeftRaw as ResponsiveProp<number>, currentViewport, 0)
+    const paddingRight = getViewportValue(paddingRightRaw as ResponsiveProp<number>, currentViewport, 0)
     const paddingLinked = (paddingProps.paddingLinked as boolean) ?? true
 
+    // Handler que atualiza o valor para o viewport atual
     const handlePaddingChange = (side: 'Top' | 'Bottom' | 'Left' | 'Right', value: number) => {
-      // Sempre ler o valor atual de paddingLinked do props para evitar stale closure
       const currentLinked = (paddingProps.paddingLinked as boolean) ?? true
       const key = `padding${side}`
       
       setProp(nodeId, (pr: Record<string, unknown>) => {
         if (currentLinked) {
-          // Se vinculado, muda todos os 4
-          pr.paddingTop = value
-          pr.paddingBottom = value
-          pr.paddingLeft = value
-          pr.paddingRight = value
+          // Se vinculado, muda todos os 4 para o viewport atual
+          pr.paddingTop = setResponsiveValue(pr.paddingTop as ResponsiveProp<number>, value, currentViewport)
+          pr.paddingBottom = setResponsiveValue(pr.paddingBottom as ResponsiveProp<number>, value, currentViewport)
+          pr.paddingLeft = setResponsiveValue(pr.paddingLeft as ResponsiveProp<number>, value, currentViewport)
+          pr.paddingRight = setResponsiveValue(pr.paddingRight as ResponsiveProp<number>, value, currentViewport)
         } else {
-          // Se desvinculado, muda apenas o lado específico
-          pr[key] = value
+          // Se desvinculado, muda apenas o lado específico para o viewport atual
+          pr[key] = setResponsiveValue(pr[key] as ResponsiveProp<number>, value, currentViewport)
         }
       })
     }
@@ -529,10 +679,16 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
   }
 
   const renderMarginSection = (marginProps: Record<string, unknown>) => {
-    const marginTop = (marginProps.marginTop as number) || 0
-    const marginBottom = (marginProps.marginBottom as number) || 0
-    const marginLeft = (marginProps.marginLeft as number) || 0
-    const marginRight = (marginProps.marginRight as number) || 0
+    // Resolver valores para o viewport atual (suporta valores simples ou responsivos)
+    const marginTopRaw = marginProps.marginTop
+    const marginBottomRaw = marginProps.marginBottom
+    const marginLeftRaw = marginProps.marginLeft
+    const marginRightRaw = marginProps.marginRight
+    
+    const marginTop = getViewportValue(marginTopRaw as ResponsiveProp<number>, currentViewport, 0)
+    const marginBottom = getViewportValue(marginBottomRaw as ResponsiveProp<number>, currentViewport, 0)
+    const marginLeft = getViewportValue(marginLeftRaw as ResponsiveProp<number>, currentViewport, 0)
+    const marginRight = getViewportValue(marginRightRaw as ResponsiveProp<number>, currentViewport, 0)
     const marginLinked = (marginProps.marginLinked as boolean) ?? true
 
     const handleMarginChange = (side: 'Top' | 'Bottom' | 'Left' | 'Right', value: number) => {
@@ -541,12 +697,12 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
 
       setProp(nodeId, (pr: Record<string, unknown>) => {
         if (currentLinked) {
-          pr.marginTop = value
-          pr.marginBottom = value
-          pr.marginLeft = value
-          pr.marginRight = value
+          pr.marginTop = setResponsiveValue(pr.marginTop as ResponsiveProp<number>, value, currentViewport)
+          pr.marginBottom = setResponsiveValue(pr.marginBottom as ResponsiveProp<number>, value, currentViewport)
+          pr.marginLeft = setResponsiveValue(pr.marginLeft as ResponsiveProp<number>, value, currentViewport)
+          pr.marginRight = setResponsiveValue(pr.marginRight as ResponsiveProp<number>, value, currentViewport)
         } else {
-          pr[key] = value
+          pr[key] = setResponsiveValue(pr[key] as ResponsiveProp<number>, value, currentViewport)
         }
       })
     }
@@ -954,6 +1110,435 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     )
   }
 
+  // Renderizar seção de Dimensões (Width, Height, etc) - COM SUPORTE A VALORES RESPONSIVOS
+  const renderDimensionsSection = (dimensionProps: Record<string, unknown>) => {
+    // Resolver valores para o viewport atual (suporta valores simples ou responsivos)
+    const widthRaw = dimensionProps.width
+    const heightRaw = dimensionProps.height
+    const minHeightRaw = dimensionProps.minHeight
+    
+    const widthValue = getViewportValue(widthRaw as ResponsiveProp<number>, currentViewport, 400)
+    
+    // Suporte especial para height que pode ser string 'auto' ou número
+    const isHeightAuto = heightRaw === 'auto' || heightRaw === undefined
+    const heightValue = isHeightAuto ? 0 : (typeof heightRaw === 'number' ? heightRaw : getViewportValue(heightRaw as ResponsiveProp<number>, currentViewport, 0))
+    
+    const minHeightValue = getViewportValue(minHeightRaw as ResponsiveProp<number>, currentViewport, 200)
+    
+    // Suportar tanto fullWidth/fullBleed (Container) quanto cardFullWidth/cardAutoHeight (FeatureCard)
+    const fullWidth = (dimensionProps.fullWidth as boolean) ?? (dimensionProps.cardFullWidth as boolean) ?? false
+    const fullBleed = (dimensionProps.fullBleed as boolean) ?? false
+    const cardAutoHeight = (dimensionProps.cardAutoHeight as boolean) ?? false
+    const autoHeight = cardAutoHeight || isHeightAuto || heightValue === 0
+    
+    // Determinar quais props de fullWidth usar
+    const hasContainerFullWidth = dimensionProps.fullWidth !== undefined
+    const hasCardFullWidth = dimensionProps.cardFullWidth !== undefined
+    
+    // Verificar quais viewports têm valores customizados
+    const hasWidthDesktop = hasViewportOverride(widthRaw, 'desktop')
+    const hasWidthTablet = hasViewportOverride(widthRaw, 'tablet')
+    const hasWidthMobile = hasViewportOverride(widthRaw, 'mobile')
+    const hasHeightDesktop = hasViewportOverride(heightRaw, 'desktop')
+    const hasHeightTablet = hasViewportOverride(heightRaw, 'tablet')
+    const hasHeightMobile = hasViewportOverride(heightRaw, 'mobile')
+    const hasMinHeightDesktop = hasViewportOverride(minHeightRaw, 'desktop')
+    const hasMinHeightTablet = hasViewportOverride(minHeightRaw, 'tablet')
+    const hasMinHeightMobile = hasViewportOverride(minHeightRaw, 'mobile')
+    
+    const viewportIcons = {
+      desktop: Monitor,
+      tablet: Tablet,
+      mobile: Smartphone,
+    }
+    
+    // Handler que atualiza o valor para o viewport atual
+    const handleWidthChange = (value: number) => {
+      setProp(nodeId, (pr: Record<string, unknown>) => {
+        // Para componentes que usam width como string (ex: '100%'), setar diretamente como número
+        if (typeof pr.width === 'string' || pr.width === undefined) {
+          pr.width = value
+        } else {
+          pr.width = setResponsiveValue(pr.width as ResponsiveProp<number>, value, currentViewport)
+        }
+      })
+    }
+    
+    const handleHeightChange = (value: number) => {
+      setProp(nodeId, (pr: Record<string, unknown>) => {
+        // Para componentes que usam height como string (CaptureForm), setar diretamente como número
+        if (typeof pr.height === 'string' || pr.height === undefined) {
+          pr.height = value
+        } else {
+          pr.height = setResponsiveValue(pr.height as ResponsiveProp<number>, value, currentViewport)
+        }
+      })
+    }
+    
+    const handleMinHeightChange = (value: number) => {
+      setProp(nodeId, (pr: Record<string, unknown>) => {
+        pr.minHeight = setResponsiveValue(pr.minHeight as ResponsiveProp<number>, value, currentViewport)
+      })
+    }
+    
+    const isWidthLocked = fullWidth || fullBleed
+    
+    // Componente para renderizar indicadores de viewport
+    const ViewportIndicators = ({ hasDesktop, hasTablet, hasMobile, getValue }: {
+      hasDesktop: boolean
+      hasTablet: boolean
+      hasMobile: boolean
+      getValue: (vp: ViewportMode) => number
+    }) => (
+      <TooltipProvider delayDuration={300}>
+        <div className="flex gap-0.5 mr-2">
+          {(['desktop', 'tablet', 'mobile'] as ViewportMode[]).map((vp) => {
+            const Icon = viewportIcons[vp]
+            const hasOverride = vp === 'desktop' ? hasDesktop : vp === 'tablet' ? hasTablet : hasMobile
+            const vpValue = getValue(vp)
+            
+            return (
+              <Tooltip key={vp}>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={cn(
+                      "p-0.5 rounded cursor-pointer transition-colors",
+                      hasOverride 
+                        ? "bg-primary/20 text-primary" 
+                        : "text-muted-foreground/40 hover:text-muted-foreground/60",
+                      currentViewport === vp && "ring-1 ring-primary"
+                    )}
+                  >
+                    <Icon className="w-3 h-3" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  <p className="capitalize">{vp}: {hasOverride ? `${vpValue}px` : 'herda'}</p>
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </div>
+      </TooltipProvider>
+    )
+    
+    return (
+      <div className="space-y-4">
+        {/* Width */}
+        {dimensionProps.width !== undefined && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Largura</Label>
+              <div className="flex items-center gap-1">
+                <ViewportIndicators
+                  hasDesktop={hasWidthDesktop}
+                  hasTablet={hasWidthTablet}
+                  hasMobile={hasWidthMobile}
+                  getValue={(vp) => getViewportValue(widthRaw as ResponsiveProp<number>, vp, 400)}
+                />
+                <Input
+                  type="number"
+                  value={widthValue}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 400
+                    handleWidthChange(Math.min(Math.max(newValue, 100), 1400))
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={100}
+                  max={1400}
+                  disabled={isWidthLocked}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            {!isWidthLocked && (
+              <Slider
+                min={100}
+                max={1400}
+                step={10}
+                value={[widthValue]}
+                onValueChange={(v) => handleWidthChange(v[0])}
+              />
+            )}
+            {isWidthLocked && (
+              <p className="text-xs text-muted-foreground italic">
+                {fullBleed ? 'Full Bleed ativado' : 'Full Width ativado'}
+              </p>
+            )}
+            
+            {/* Checkboxes Full Width e Full Bleed - adaptativo para Container ou FeatureCard */}
+            {(hasContainerFullWidth || hasCardFullWidth) && (
+              <div className="space-y-2 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Full Width</Label>
+                  <input
+                    type="checkbox"
+                    checked={fullWidth}
+                    onChange={(e) =>
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        // Usar a prop correta dependendo do componente
+                        if (hasContainerFullWidth) {
+                          pr.fullWidth = e.target.checked
+                          if (e.target.checked) {
+                            pr.fullBleed = false
+                          }
+                        } else {
+                          pr.cardFullWidth = e.target.checked
+                          if (e.target.checked) {
+                            pr.width = '100%'
+                          }
+                        }
+                      })
+                    }
+                    className="w-4 h-4 rounded cursor-pointer"
+                  />
+                </div>
+                {dimensionProps.fullBleed !== undefined && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Full Bleed</Label>
+                      <input
+                        type="checkbox"
+                        checked={fullBleed}
+                        onChange={(e) =>
+                          setProp(nodeId, (pr: Record<string, unknown>) => {
+                            pr.fullBleed = e.target.checked
+                            if (e.target.checked) {
+                              pr.fullWidth = false
+                            }
+                          })
+                        }
+                        className="w-4 h-4 rounded cursor-pointer"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Full Bleed força o container a ocupar 100% da viewport e ignora o padding lateral do container raiz.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Height */}
+        {dimensionProps.height !== undefined && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Altura</Label>
+              <div className="flex items-center gap-1">
+                <ViewportIndicators
+                  hasDesktop={hasHeightDesktop}
+                  hasTablet={hasHeightTablet}
+                  hasMobile={hasHeightMobile}
+                  getValue={(vp) => getViewportValue(heightRaw as ResponsiveProp<number>, vp, 0)}
+                />
+                <Input
+                  type="number"
+                  value={autoHeight ? '' : heightValue}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 0
+                    handleHeightChange(Math.min(Math.max(newValue, 0), 1200))
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={0}
+                  max={1200}
+                  disabled={autoHeight}
+                  placeholder={autoHeight ? 'auto' : ''}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            {!autoHeight && (
+              <Slider
+                min={0}
+                max={1200}
+                step={10}
+                value={[heightValue]}
+                onValueChange={(v) => handleHeightChange(v[0])}
+              />
+            )}
+            
+            {/* Checkbox Auto Height - adaptativo para Container, FeatureCard ou CaptureForm */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <Label className="text-xs font-medium">Auto Height</Label>
+              <input
+                type="checkbox"
+                checked={autoHeight}
+                onChange={(e) =>
+                  setProp(nodeId, (pr: Record<string, unknown>) => {
+                    // Usar a prop correta dependendo do componente
+                    if (dimensionProps.cardAutoHeight !== undefined) {
+                      pr.cardAutoHeight = e.target.checked
+                      if (e.target.checked) {
+                        pr.height = 'auto'
+                      } else {
+                        pr.height = 300
+                      }
+                    } else if (typeof heightRaw === 'string' || heightRaw === undefined) {
+                      // Para CaptureForm e outros que usam height como string
+                      pr.height = e.target.checked ? 'auto' : 300
+                    } else {
+                      pr.height = e.target.checked ? 0 : 200
+                    }
+                  })
+                }
+                className="w-4 h-4 rounded cursor-pointer"
+              />
+            </div>
+          </div>
+        )}
+        
+        {/* Min Height */}
+        {dimensionProps.minHeight !== undefined && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Altura Mínima</Label>
+              <div className="flex items-center gap-1">
+                <ViewportIndicators
+                  hasDesktop={hasMinHeightDesktop}
+                  hasTablet={hasMinHeightTablet}
+                  hasMobile={hasMinHeightMobile}
+                  getValue={(vp) => getViewportValue(minHeightRaw as ResponsiveProp<number>, vp, 200)}
+                />
+                <Input
+                  type="number"
+                  value={minHeightValue}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 200
+                    handleMinHeightChange(Math.min(Math.max(newValue, 0), 1600))
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={0}
+                  max={1600}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            <Slider
+              min={0}
+              max={1600}
+              step={10}
+              value={[minHeightValue]}
+              onValueChange={(v) => handleMinHeightChange(v[0])}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Define o espaço mínimo, mas cresce automaticamente se o conteúdo for maior.
+            </p>
+          </div>
+        )}
+        
+        {/* Flex */}
+        {dimensionProps.flex !== undefined && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Flex</Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  value={(dimensionProps.flex as number) ?? 1}
+                  onChange={(e) => {
+                    const newValue = parseFloat(e.target.value) || 1
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.flex = Math.min(Math.max(newValue, 0), 10)
+                    })
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={0}
+                  max={10}
+                  step={0.1}
+                />
+              </div>
+            </div>
+            <Slider
+              min={0}
+              max={10}
+              step={0.1}
+              value={[(dimensionProps.flex as number) ?? 1]}
+              onValueChange={(v) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.flex = v[0]
+                })
+              }
+            />
+          </div>
+        )}
+        
+        {/* Player Width (para VideoPlayer) */}
+        {dimensionProps.playerWidth !== undefined && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Largura do Player</Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  value={(dimensionProps.playerWidth as number) ?? 640}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 640
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.playerWidth = Math.min(Math.max(newValue, 200), 2000)
+                    })
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={200}
+                  max={2000}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            <Slider
+              min={200}
+              max={2000}
+              step={10}
+              value={[(dimensionProps.playerWidth as number) ?? 640]}
+              onValueChange={(v) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.playerWidth = v[0]
+                })
+              }
+            />
+          </div>
+        )}
+        
+        {/* Margin (para Divider e outros componentes simples) */}
+        {dimensionProps.margin !== undefined && (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Margem</Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  value={(dimensionProps.margin as number) ?? 20}
+                  onChange={(e) => {
+                    const newValue = parseInt(e.target.value) || 20
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.margin = Math.min(Math.max(newValue, 0), 500)
+                    })
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={0}
+                  max={500}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            <Slider
+              min={0}
+              max={500}
+              step={1}
+              value={[(dimensionProps.margin as number) ?? 20]}
+              onValueChange={(v) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.margin = v[0]
+                })
+              }
+            />
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const renderPropertyInput = (key: string, value: unknown, allProps: Record<string, unknown>) => {
     // Pular renderização de paddings individuais (já renderizados na seção especial)
     if (['paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingLinked'].includes(key)) {
@@ -972,7 +1557,12 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       return null
     }
 
-    if (['showDiscount', 'originalPrice', 'discountPercentage', 'originalPriceFontSize', 'originalPriceColor', 'discountPercentageFontSize', 'discountPercentageColor', 'discountPercentageBackgroundColor', 'cardFullWidth', 'cardAutoHeight', 'fullWidth', 'autoHeight'].includes(key)) {
+    if (['showDiscount', 'originalPrice', 'discountPercentage', 'originalPriceFontSize', 'originalPriceColor', 'discountPercentageFontSize', 'discountPercentageColor', 'discountPercentageBackgroundColor', 'cardFullWidth', 'cardAutoHeight', 'fullWidth', 'fullBleed', 'autoHeight'].includes(key)) {
+      return null
+    }
+    
+    // Pular renderização de dimensões individuais (já renderizados na seção especial)
+    if (['width', 'height', 'minHeight', 'flex', 'playerWidth', 'margin'].includes(key)) {
       return null
     }
 
@@ -1703,6 +2293,45 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
 
     if (key === 'width') {
       const widthValue = value as string | number
+      const isNumeric = typeof widthValue === 'number'
+      
+      if (isNumeric) {
+        // Renderizar slider para width numérico
+        return (
+          <div key="width" className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Largura</Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  value={widthValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.width = Math.min(Math.max(val, 0), 1200)
+                    })
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={0}
+                  max={1200}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            <Slider
+              min={0}
+              max={1200}
+              step={1}
+              value={[widthValue as number]}
+              onValueChange={(v) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.width = v[0]
+                })
+              }
+            />
+          </div>
+        )
+      }
       
       return (
         <div key="width" className="space-y-2">
@@ -1738,6 +2367,45 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
 
     if (key === 'height') {
       const heightValue = value as string | number
+      const isNumeric = typeof heightValue === 'number'
+      
+      if (isNumeric) {
+        // Renderizar slider para height numérico
+        return (
+          <div key="height" className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium">Altura</Label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  value={heightValue}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 0
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.height = Math.min(Math.max(val, 0), 1600)
+                    })
+                  }}
+                  className="text-xs w-16 px-2 py-1"
+                  min={0}
+                  max={1600}
+                />
+                <span className="text-xs text-muted-foreground">px</span>
+              </div>
+            </div>
+            <Slider
+              min={0}
+              max={1600}
+              step={1}
+              value={[heightValue as number]}
+              onValueChange={(v) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.height = v[0]
+                })
+              }
+            />
+          </div>
+        )
+      }
       
       return (
         <div key="height" className="space-y-2">
@@ -1915,6 +2583,257 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     // Também pular padding geral se estiver na seção de Padding
     if (key === 'padding') {
       return null
+    }
+
+    // Handler especial para inputFields do CaptureForm
+    if (key === 'inputFields') {
+      const inputFields = (value as Array<{
+        id: string
+        type: 'email' | 'text' | 'number' | 'phone'
+        label: string
+        placeholder: string
+        placeholderColor: string
+        borderRadius: number
+        borderColor: string
+        borderWidth: number
+      }>) || []
+
+      return (
+        <div key={key} className="space-y-3 border p-3 rounded bg-muted/50">
+          <div className="flex justify-between items-center">
+            <Label className="text-xs font-medium">Campos do Formulário</Label>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs"
+              onClick={() => {
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  const fields = (pr.inputFields as typeof inputFields) || []
+                  const newId = String(Date.now())
+                  fields.push({
+                    id: newId,
+                    type: 'text',
+                    label: `Campo ${fields.length + 1}`,
+                    placeholder: 'Digite aqui...',
+                    placeholderColor: '#9ca3af',
+                    borderRadius: 6,
+                    borderColor: '#d1d5db',
+                    borderWidth: 1,
+                  })
+                })
+              }}
+            >
+              + Adicionar
+            </Button>
+          </div>
+
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {inputFields.map((field, idx) => (
+              <div key={field.id} className="border rounded p-2 bg-background space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Campo {idx + 1}</span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-5 text-xs px-2"
+                    onClick={() => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        pr.inputFields = fields.filter(f => f.id !== field.id)
+                      })
+                    }}
+                  >
+                    Remover
+                  </Button>
+                </div>
+
+                {/* Type */}
+                <div>
+                  <Label className="text-xs font-medium">Tipo</Label>
+                  <Select
+                    value={field.type}
+                    onValueChange={(newType) => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        const fieldIdx = fields.findIndex(f => f.id === field.id)
+                        if (fieldIdx !== -1) {
+                          fields[fieldIdx].type = newType as typeof field.type
+                        }
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="text-xs h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="text">Texto</SelectItem>
+                      <SelectItem value="number">Número</SelectItem>
+                      <SelectItem value="phone">Telefone</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Label */}
+                <div>
+                  <Label className="text-xs font-medium">Label</Label>
+                  <Input
+                    type="text"
+                    value={field.label}
+                    onChange={(e) => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        const fieldIdx = fields.findIndex(f => f.id === field.id)
+                        if (fieldIdx !== -1) {
+                          fields[fieldIdx].label = e.target.value
+                        }
+                      })
+                    }}
+                    className="text-xs h-7"
+                    placeholder="Ex: Email"
+                  />
+                </div>
+
+                {/* Placeholder */}
+                <div>
+                  <Label className="text-xs font-medium">Placeholder</Label>
+                  <Input
+                    type="text"
+                    value={field.placeholder}
+                    onChange={(e) => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        const fieldIdx = fields.findIndex(f => f.id === field.id)
+                        if (fieldIdx !== -1) {
+                          fields[fieldIdx].placeholder = e.target.value
+                        }
+                      })
+                    }}
+                    className="text-xs h-7"
+                    placeholder="Digite um placeholder..."
+                  />
+                </div>
+
+                {/* Border Radius */}
+                <div className="flex gap-2 items-center">
+                  <Label className="text-xs font-medium min-w-fit">Arred.</Label>
+                  <Input
+                    type="number"
+                    value={field.borderRadius}
+                    onChange={(e) => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        const fieldIdx = fields.findIndex(f => f.id === field.id)
+                        if (fieldIdx !== -1) {
+                          fields[fieldIdx].borderRadius = Math.max(0, parseInt(e.target.value) || 0)
+                        }
+                      })
+                    }}
+                    min="0"
+                    max="50"
+                    className="text-xs h-7 w-16"
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                </div>
+
+                {/* Border Width */}
+                <div className="flex gap-2 items-center">
+                  <Label className="text-xs font-medium min-w-fit">Borda</Label>
+                  <Input
+                    type="number"
+                    value={field.borderWidth}
+                    onChange={(e) => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        const fieldIdx = fields.findIndex(f => f.id === field.id)
+                        if (fieldIdx !== -1) {
+                          fields[fieldIdx].borderWidth = Math.max(0, parseInt(e.target.value) || 0)
+                        }
+                      })
+                    }}
+                    min="0"
+                    max="10"
+                    className="text-xs h-7 w-16"
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                </div>
+
+                {/* Border Color */}
+                <div className="flex gap-2 items-center">
+                  <Label className="text-xs font-medium">Cor Borda</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={field.borderColor}
+                      onChange={(e) => {
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          const fields = (pr.inputFields as typeof inputFields) || []
+                          const fieldIdx = fields.findIndex(f => f.id === field.id)
+                          if (fieldIdx !== -1) {
+                            fields[fieldIdx].borderColor = e.target.value
+                          }
+                        })
+                      }}
+                      className="w-8 h-8 rounded cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={field.borderColor}
+                      onChange={(e) => {
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          const fields = (pr.inputFields as typeof inputFields) || []
+                          const fieldIdx = fields.findIndex(f => f.id === field.id)
+                          if (fieldIdx !== -1) {
+                            fields[fieldIdx].borderColor = e.target.value
+                          }
+                        })
+                      }}
+                      className="text-xs h-7 flex-1"
+                      placeholder="#d1d5db"
+                    />
+                  </div>
+                </div>
+
+                {/* Placeholder Color */}
+                <div className="flex gap-2 items-center">
+                  <Label className="text-xs font-medium">Cor Placeholder</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={field.placeholderColor || '#9ca3af'}
+                      onChange={(e) => {
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          const fields = (pr.inputFields as typeof inputFields) || []
+                          const fieldIdx = fields.findIndex(f => f.id === field.id)
+                          if (fieldIdx !== -1) {
+                            fields[fieldIdx].placeholderColor = e.target.value
+                          }
+                        })
+                      }}
+                      className="w-8 h-8 rounded cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={field.placeholderColor || '#9ca3af'}
+                      onChange={(e) => {
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          const fields = (pr.inputFields as typeof inputFields) || []
+                          const fieldIdx = fields.findIndex(f => f.id === field.id)
+                          if (fieldIdx !== -1) {
+                            fields[fieldIdx].placeholderColor = e.target.value
+                          }
+                        })
+                      }}
+                      className="text-xs h-7 flex-1"
+                      placeholder="#9ca3af"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
     }
 
     // Criar uma cópia mutável das props para evitar "read only property" error
@@ -2430,9 +3349,12 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
 
   return (
     <div className="h-full flex flex-col border-l bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b bg-background sticky top-0">
-        <h2 className="text-sm font-semibold">Propriedades</h2>
+      <div className="px-4 py-3 border-b bg-background sticky top-0 space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Propriedades</h2>
+        </div>
         <p className="text-xs text-muted-foreground">{String(finalDisplayName)}</p>
+        <ViewportIndicator />
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
@@ -2461,6 +3383,8 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
                     renderBorderRadiusSection(sectionProps as Record<string, unknown>)
                   ) : sectionName === 'Desconto' ? (
                     renderDiscountSection(sectionProps as Record<string, unknown>, props as Record<string, unknown>)
+                  ) : sectionName === 'Dimensões' ? (
+                    renderDimensionsSection(sectionProps as Record<string, unknown>)
                   ) : sectionName === 'Imagem' ? (
                     Object.entries(sectionProps).map(([key, value]) => renderPropertyInput(key, value, props as Record<string, unknown>))
                   ) : (

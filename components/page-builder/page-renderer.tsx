@@ -20,6 +20,7 @@ import {
   VSL,
   CountdownTimer,
 } from '@/components/craft-components'
+import { EditorViewportProvider } from '@/lib/responsive-props'
 
 type LayoutData = Record<string, unknown> | SerializedNodes | null | undefined
 
@@ -105,61 +106,63 @@ export function PageRenderer({ layout }: PageRendererProps) {
   const serializedMainLayout = isValid && hasNodes ? (mainLayout as SerializedNodes) : undefined
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <Editor
-        enabled={false}
-        resolver={{
-          Container,
-          TextBlock,
-          HeroSection,
-          CTAButton,
-          Divider,
-          Footer,
-          PricingCard,
-          TestimonialCard,
-          FeatureCard,
-          CaptureForm,
-          StatsCounter,
-          FAQItem,
-          TrustBadges,
-          ImageComponent,
-          VSL,
-          CountdownTimer,
-        }}
-      >
-        <div className="flex-1">
-          {serializedMainLayout ? (
-            <Frame data={serializedMainLayout}>
-              {/* Layout already rendered from data */}
-            </Frame>
-          ) : (
-            <Frame>
-              <Element
-                is={Container}
-                canvas
-                paddingTop={40}
-                paddingBottom={40}
-                paddingLeft={40}
-                paddingRight={40}
-                backgroundColor="#ffffff"
-                sectionId=""
-              >
-                <TextBlock content="Arraste componentes e publique a página para visualizar aqui." alignment="center" />
-              </Element>
-            </Frame>
-          )}
-        </div>
-
-        {/* Footer fixo no final */}
-        {footerNode && (
-          <div className="w-full mt-auto">
-            <Frame data={footerNode}>
-              {/* Footer already rendered from data */}
-            </Frame>
+    <EditorViewportProvider autoDetect>
+      <div className="flex flex-col min-h-screen bg-white">
+        <Editor
+          enabled={false}
+          resolver={{
+            Container,
+            TextBlock,
+            HeroSection,
+            CTAButton,
+            Divider,
+            Footer,
+            PricingCard,
+            TestimonialCard,
+            FeatureCard,
+            CaptureForm,
+            StatsCounter,
+            FAQItem,
+            TrustBadges,
+            ImageComponent,
+            VSL,
+            CountdownTimer,
+          }}
+        >
+          <div className="flex-1">
+            {serializedMainLayout ? (
+              <Frame data={serializedMainLayout}>
+                {/* Layout already rendered from data */}
+              </Frame>
+            ) : (
+              <Frame>
+                <Element
+                  is={Container}
+                  canvas
+                  paddingTop={40}
+                  paddingBottom={40}
+                  paddingLeft={40}
+                  paddingRight={40}
+                  backgroundColor="#ffffff"
+                  sectionId=""
+                >
+                  <TextBlock content="Arraste componentes e publique a página para visualizar aqui." alignment="center" />
+                </Element>
+              </Frame>
+            )}
           </div>
-        )}
-      </Editor>
-    </div>
+
+          {/* Footer fixo no final */}
+          {footerNode && (
+            <div className="w-full mt-auto">
+              <Frame data={footerNode}>
+                {/* Footer already rendered from data */}
+              </Frame>
+            </div>
+          )}
+        </Editor>
+      </div>
+    </EditorViewportProvider>
   )
 }
 

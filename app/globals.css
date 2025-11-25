@@ -257,3 +257,91 @@ html {
     background: hsl(var(--card)) !important;
   }
 }
+
+/* ==========================================================
+   SISTEMA RESPONSIVO GLOBAL - Page Builder Components
+   ========================================================== */
+
+/* Garantir que containers com width: 100% ocupem toda a largura */
+.craftjs-frame {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden;
+}
+
+/* Mobile-first responsive overrides para componentes do Page Builder */
+@media (max-width: 639px) {
+  /* Garantir que containers não excedam a largura da tela */
+  .craftjs-frame > div,
+  .craftjs-frame > div > div {
+    max-width: 100% !important;
+    overflow-x: hidden;
+  }
+  
+  /* Forçar inputs a ocuparem 100% no mobile */
+  .craftjs-frame input,
+  .craftjs-frame textarea,
+  .craftjs-frame select {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Ajustar tamanho de texto para mobile */
+  .craftjs-frame h1 {
+    font-size: clamp(1.5rem, 5vw, 2.5rem) !important;
+    word-wrap: break-word !important;
+  }
+  
+  .craftjs-frame h2 {
+    font-size: clamp(1.25rem, 4vw, 2rem) !important;
+    word-wrap: break-word !important;
+  }
+  
+  .craftjs-frame p {
+    word-wrap: break-word !important;
+  }
+}
+
+/* Tablet responsive overrides */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .craftjs-frame > div,
+  .craftjs-frame > div > div {
+    max-width: 100% !important;
+  }
+}
+
+/* Garantir que imagens são responsivas */
+.craftjs-frame img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Evitar overflow horizontal em qualquer elemento */
+.craftjs-frame * {
+  max-width: 100%;
+}
+
+/* ==========================================================
+   CaptureForm - Placeholder Color Support
+   ========================================================== */
+
+/* Suporte a cor de placeholder customizável via CSS variable */
+.capture-form-input::placeholder {
+  color: var(--placeholder-color, #9ca3af);
+  opacity: 1;
+}
+
+.capture-form-input::-webkit-input-placeholder {
+  color: var(--placeholder-color, #9ca3af);
+  opacity: 1;
+}
+
+.capture-form-input::-moz-placeholder {
+  color: var(--placeholder-color, #9ca3af);
+  opacity: 1;
+}
+
+.capture-form-input:-ms-input-placeholder {
+  color: var(--placeholder-color, #9ca3af);
+  opacity: 1;
+}

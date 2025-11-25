@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/usePageHeader"
-import { Plus, Trash2, ArrowLeft, Save } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, Save, Maximize2, Minimize2 } from "lucide-react"
 import { toast } from "sonner"
 import { saveFlowNodes } from "@/lib/actions/flows"
 import { useSupabaseUser } from "@/hooks/useSupabaseUser"
@@ -275,6 +275,7 @@ export default function FlowEditor() {
   )
   const [nodeLabel, setNodeLabel] = useState("")
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 })
+  const [isFullscreen, setIsFullscreen] = useState(false)
   useEffect(() => {
     let cancelled = false
 
@@ -512,6 +513,15 @@ export default function FlowEditor() {
   useEffect(() => {
     const actions = (
       <div className="flex flex-wrap items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2"
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </Button>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleBack}>
           <ArrowLeft className="w-4 h-4" />
           Voltar
@@ -533,13 +543,19 @@ export default function FlowEditor() {
       `Configure o funil #${funnelId}`,
       actions
     )
-  }, [canSave, funnelId, handleBack, handleSave, isHydrating, isSaving, setPageHeader])
+  }, [canSave, funnelId, handleBack, handleSave, isHydrating, isSaving, setPageHeader, isFullscreen])
 
   return (
     <div className="flex flex-1 overflow-hidden rounded-b-2xl bg-black">
-      <div className="flex w-full max-h-[calc(100vh-5rem)] overflow-hidden">
+      <div className={cn(
+        "flex w-full max-h-[calc(100vh-5rem)] overflow-hidden",
+        isFullscreen && "fixed inset-0 z-50 max-h-full"
+      )}>
         {/* Sidebar - Node Builder */}
-        <div className="w-80 bg-black/40 p-4 overflow-y-auto space-y-4 shrink-0">
+        <div className={cn(
+          "w-80 bg-black/40 p-4 overflow-y-auto space-y-4 shrink-0",
+          isFullscreen && "hidden"
+        )}>
           <div>
             <h2 className="font-semibold mb-4">Adicionar Nó</h2>
             <div className="space-y-3">
@@ -722,6 +738,19 @@ export default function FlowEditor() {
               <Background variant={BackgroundVariant.Dots} />
               <Controls />
               <MiniMap />
+              {isFullscreen && (
+                <Panel position="top-left" className="bg-card border rounded-lg p-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setIsFullscreen(false)}
+                  >
+                    <Minimize2 className="w-4 h-4" />
+                    Sair de Tela Cheia
+                  </Button>
+                </Panel>
+              )}
               <Panel position="top-right" className="bg-card border rounded-lg p-3">
                 <div className="text-sm space-y-2">
                   <p className="font-semibold">Instruções</p>

@@ -2,6 +2,8 @@
 
 import React from 'react'
 import { useNode, useEditor } from '@craftjs/core'
+import { useEditorViewport } from '@/lib/responsive-props'
+import { ResponsiveProp } from '@/contexts/viewport-context'
 
 interface HeroSectionProps {
   title?: string
@@ -338,27 +340,30 @@ export const CTAButton = CTAButtonComponent
 interface ContainerProps {
   backgroundColor?: string
   backgroundImage?: string
-  paddingTop?: number
-  paddingBottom?: number
-  paddingLeft?: number
-  paddingRight?: number
+  // Propriedades de padding - suportam valores responsivos
+  paddingTop?: ResponsiveProp<number>
+  paddingBottom?: ResponsiveProp<number>
+  paddingLeft?: ResponsiveProp<number>
+  paddingRight?: ResponsiveProp<number>
   paddingLinked?: boolean
-  marginTop?: number
-  marginBottom?: number
-  marginLeft?: number
-  marginRight?: number
+  // Propriedades de margin - suportam valores responsivos
+  marginTop?: ResponsiveProp<number>
+  marginBottom?: ResponsiveProp<number>
+  marginLeft?: ResponsiveProp<number>
+  marginRight?: ResponsiveProp<number>
   marginLinked?: boolean
   fullBleed?: boolean
   children?: React.ReactNode
-  display?: 'block' | 'flex' | 'grid'
-  flexDirection?: 'row' | 'column'
-  gap?: number
-  width?: number
-  height?: number
+  // Layout - alguns suportam valores responsivos
+  display?: ResponsiveProp<'block' | 'flex' | 'grid'>
+  flexDirection?: ResponsiveProp<'row' | 'column'>
+  gap?: ResponsiveProp<number>
+  width?: ResponsiveProp<number>
+  height?: ResponsiveProp<number>
   fullWidth?: boolean
   flex?: string | number
-  justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly'
-  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch'
+  justifyContent?: ResponsiveProp<'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly'>
+  alignItems?: ResponsiveProp<'flex-start' | 'center' | 'flex-end' | 'stretch'>
   borderRadius?: number
   borderRadiusTopLeft?: number
   borderRadiusTopRight?: number
@@ -367,7 +372,7 @@ interface ContainerProps {
   borderRadiusLinked?: boolean
   borderColor?: string
   borderWidth?: number
-  minHeight?: number
+  minHeight?: ResponsiveProp<number>
   sectionId: string
 }
 
@@ -408,6 +413,27 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
     },
     ref
   ) => {
+    // Hook para resolver props responsivas baseado no viewport atual
+    const { resolveResponsiveProp } = useEditorViewport()
+    
+    // Resolver todas as props responsivas para o viewport atual
+    const resolvedPaddingTop = resolveResponsiveProp(paddingTop, 20)
+    const resolvedPaddingBottom = resolveResponsiveProp(paddingBottom, 20)
+    const resolvedPaddingLeft = resolveResponsiveProp(paddingLeft, 20)
+    const resolvedPaddingRight = resolveResponsiveProp(paddingRight, 20)
+    const resolvedMarginTop = resolveResponsiveProp(marginTop, 0)
+    const resolvedMarginBottom = resolveResponsiveProp(marginBottom, 0)
+    const resolvedMarginLeft = resolveResponsiveProp(marginLeft, 0)
+    const resolvedMarginRight = resolveResponsiveProp(marginRight, 0)
+    const resolvedDisplay = resolveResponsiveProp(display, 'block')
+    const resolvedFlexDirection = resolveResponsiveProp(flexDirection, 'column')
+    const resolvedGap = resolveResponsiveProp(gap, 0)
+    const resolvedWidthProp = resolveResponsiveProp(width, 400)
+    const resolvedHeightProp = resolveResponsiveProp(height, 200)
+    const resolvedJustifyContent = resolveResponsiveProp(justifyContent, 'flex-start')
+    const resolvedAlignItems = resolveResponsiveProp(alignItems, 'stretch')
+    const resolvedMinHeightProp = resolveResponsiveProp(minHeight, 200)
+    
     // Subscrever a TODAS as mudanças de props + eventos para garantir re-renderização em tempo real
     const { connectors: { connect, drag }, isSelected, parentId } = useNode((node) => ({
       isSelected: node.events.selected,
@@ -462,14 +488,14 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
     const isRootLevel = parentId === 'ROOT'
     const shouldFullWidth = isRootLevel ? true : fullWidth
 
-    // Calcular padding usando apenas valores individuais (sem fallback para geral)
-    const paddingStyle = `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`
-    const resolvedHeight = typeof height === 'number' && height > 0 ? `${height}px` : 'auto'
+    // Calcular padding usando valores resolvidos
+    const paddingStyle = `${resolvedPaddingTop}px ${resolvedPaddingRight}px ${resolvedPaddingBottom}px ${resolvedPaddingLeft}px`
+    const resolvedHeight = typeof resolvedHeightProp === 'number' && resolvedHeightProp > 0 ? `${resolvedHeightProp}px` : 'auto'
     const resolvedWidth: React.CSSProperties['width'] = fullBleed
       ? `calc(100% + ${parentSpacing.paddingLeft + parentSpacing.paddingRight}px)`
       : shouldFullWidth
         ? '100%'
-        : width
+        : resolvedWidthProp
 
     const bleedHorizontalMargin = (side: 'left' | 'right', value: number) => {
       const parentPad = side === 'left' ? parentSpacing.paddingLeft : parentSpacing.paddingRight
@@ -477,14 +503,14 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
     }
     const standardPx = (value: number) => `${value}px`
 
-    const marginTopValue = standardPx(marginTop)
-    const marginBottomValue = standardPx(marginBottom)
-    const marginLeftValue = fullBleed ? bleedHorizontalMargin('left', marginLeft) : standardPx(marginLeft)
-    const marginRightValue = fullBleed ? bleedHorizontalMargin('right', marginRight) : standardPx(marginRight)
+    const marginTopValue = standardPx(resolvedMarginTop)
+    const marginBottomValue = standardPx(resolvedMarginBottom)
+    const marginLeftValue = fullBleed ? bleedHorizontalMargin('left', resolvedMarginLeft) : standardPx(resolvedMarginLeft)
+    const marginRightValue = fullBleed ? bleedHorizontalMargin('right', resolvedMarginRight) : standardPx(resolvedMarginRight)
 
     const resolvedMinHeight =
-      typeof minHeight === 'number' && minHeight > 0
-        ? `${minHeight}px`
+      typeof resolvedMinHeightProp === 'number' && resolvedMinHeightProp > 0
+        ? `${resolvedMinHeightProp}px`
         : undefined
 
     const effectiveMinHeight =
@@ -498,15 +524,18 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       : `${borderRadiusTopLeft}px ${borderRadiusTopRight}px ${borderRadiusBottomRight}px ${borderRadiusBottomLeft}px`
 
     const baseStyle: React.CSSProperties = {
-      background: backgroundImage ? `url(${backgroundImage})` : backgroundColor,
+      backgroundColor: backgroundImage ? 'transparent' : backgroundColor,
+      backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
       backgroundSize: 'cover',
       backgroundPosition: 'center',
+      backgroundAttachment: 'scroll',
       padding: paddingStyle,
       marginTop: marginTopValue,
       marginBottom: marginBottomValue,
       marginLeft: marginLeftValue,
       marginRight: marginRightValue,
       width: resolvedWidth,
+      maxWidth: fullBleed ? 'none' : '100%',
       height: resolvedHeight,
       minHeight: effectiveMinHeight,
       border: borderWidth > 0
@@ -517,21 +546,18 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       borderRadius: typeof effectiveBorderRadius === 'number' ? `${effectiveBorderRadius}px` : effectiveBorderRadius,
       cursor: 'move',
       boxSizing: 'border-box' as const,
-      display,
+      display: resolvedDisplay,
+      overflowX: 'hidden',
       ...(flex && { flex: typeof flex === 'number' ? flex : flex }),
     }
 
-    if (fullBleed) {
-      baseStyle.maxWidth = 'none'
-    }
-
     const flexStyle: React.CSSProperties =
-      display === 'flex'
+      resolvedDisplay === 'flex'
         ? {
-            flexDirection,
-            gap: `${gap}px`,
-            justifyContent,
-            alignItems,
+            flexDirection: resolvedFlexDirection,
+            gap: `${resolvedGap}px`,
+            justifyContent: resolvedJustifyContent,
+            alignItems: resolvedAlignItems,
           }
         : {}
 
@@ -680,7 +706,7 @@ const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
     {
       brandName = 'DigitalFlow',
       brandDescription = 'Transformando ideias em experiências digitais',
-      link1 = 'Home',
+      link1 = 'Início',
       link2 = 'Sobre',
       link3 = 'Contato',
       copyrightText = '© 2025 DigitalFlow. Todos os direitos reservados.',
@@ -823,7 +849,7 @@ export const Footer = FooterComponent
   props: {
     brandName: 'DigitalFlow',
     brandDescription: 'Transformando ideias em experiências digitais',
-    link1: 'Home',
+    link1: 'Início',
     link2: 'Sobre',
     link3: 'Contato',
     copyrightText: '© 2025 DigitalFlow. Todos os direitos reservados.',

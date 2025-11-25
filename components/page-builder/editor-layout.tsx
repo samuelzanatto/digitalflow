@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Editor, Frame, Element, SerializedNodes } from '@craftjs/core'
 import { ComponentsToolbox } from './components-toolbox'
@@ -8,6 +8,15 @@ import { LayersPanel } from './layers-panel'
 import { PropertiesPanel } from './properties-panel'
 import { EditorToolbarArea } from './editor-toolbar-area'
 import { SaveButton } from './editor-header'
+import { 
+  DevicePreviewToolbar, 
+  DeviceFrame, 
+  useDevicePreviewState,
+  DEVICE_PRESETS,
+  DevicePresetKey,
+} from './device-preview'
+import { ViewportProvider, useViewport, ViewportMode } from '@/contexts/viewport-context'
+import { EditorViewportProvider } from '@/lib/responsive-props'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
@@ -92,6 +101,17 @@ function normalizeLayout(layout: Record<string, unknown> | null): SerializedNode
   return serialized
 }
 
+function ViewportSync({ targetViewport }: { targetViewport: ViewportMode }) {
+  const { currentViewport, setViewport } = useViewport()
+
+  useEffect(() => {
+    if (currentViewport !== targetViewport) {
+      setViewport(targetViewport)
+    }
+  }, [currentViewport, targetViewport, setViewport])
+
+  return null
+}
 export function EditorLayout({ 
   pageId, 
   pageTitle,
@@ -101,6 +121,8 @@ export function EditorLayout({
 }: EditorLayoutProps) {
   const [isDirty, setIsDirty] = useState(false)
   const hasHydratedRef = useRef(false)
+  const { state: deviceState, updateState: updateDeviceState, calculateFitZoom } = useDevicePreviewState('desktop-1440')
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
 
   const parsedLayout = useMemo<SerializedNodes | null>(() => {
     return normalizeLayout(initialLayout as Record<string, unknown> | null)
@@ -111,123 +133,171 @@ export function EditorLayout({
     onSavePage?.()
   }, [onSavePage])
 
+  // Auto-fit zoom quando o container muda de tamanho
+  useEffect(() => {
+    const updateFitZoom = () => {
+      if (!canvasContainerRef.current) return
+      const { clientWidth, clientHeight } = canvasContainerRef.current
+      const fitZoom = calculateFitZoom(clientWidth, clientHeight)
+      updateDeviceState({ zoom: fitZoom })
+    }
+
+    // Calcula zoom inicial
+    updateFitZoom()
+
+    const observer = new ResizeObserver(updateFitZoom)
+    if (canvasContainerRef.current) {
+      observer.observe(canvasContainerRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [calculateFitZoom, updateDeviceState])
+
+  const viewportMode = useMemo<ViewportMode>(() => {
+    if (deviceState.device === 'responsive') {
+      // Map custom responsive widths to the closest viewport bucket
+      if (deviceState.width <= 640) return 'mobile'
+      if (deviceState.width <= 1024) return 'tablet'
+      return 'desktop'
+    }
+    return deviceState.type
+  }, [deviceState.device, deviceState.type, deviceState.width])
+
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Craft.js Editor Provider - wraps entire layout */}
-      <Editor
-        resolver={{
-          Container,
-          TextBlock,
-          HeroSection,
-          CTAButton,
-          Divider,
-          Footer,
-          PricingCard,
-          TestimonialCard,
-          FeatureCard,
-          CaptureForm,
-          StatsCounter,
-          FAQItem,
-          TrustBadges,
-          ImageComponent,
-          VSL,
-          CountdownTimer,
-          ...components,
-        }}
-        onNodesChange={() => {
-          if (!hasHydratedRef.current) {
-            hasHydratedRef.current = true
-            return
-          }
-          setIsDirty(true)
-        }}
-      >
-        {/* Minimal Header - Page Builder Fullscreen (INSIDE Editor for useEditor context) */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b bg-card px-4 gap-2">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard/paginas">
-              <Button variant="ghost" size="sm" className="gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Voltar
-              </Button>
-            </Link>
-            <div className="hidden sm:flex flex-col">
-              <h1 className="text-sm font-semibold">{pageTitle}</h1>
-              <p className="text-xs text-muted-foreground">{pageId}</p>
-            </div>
-          </div>
-          <SaveButton pageId={pageId} isDirty={isDirty} onSaveSuccess={handleSaveSuccess} />
-        </header>
-        {/* Main Editor Area */}
-        <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
-          {/* Left Sidebar - Components */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <ComponentsToolbox />
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          {/* Center - Canvas */}
-          <ResizablePanel defaultSize={60} minSize={40} className="flex flex-col">
-            {/* Toolbar */}
-            <div className="bg-card border-b px-4 py-2 flex items-center gap-2 sticky top-0 z-20">
-              <EditorToolbarArea />
+    <ViewportProvider>
+      <ViewportSync targetViewport={viewportMode} />
+      <div className="h-screen flex flex-col bg-background">
+        {/* Craft.js Editor Provider - wraps entire layout */}
+        <Editor
+          resolver={{
+            Container,
+            TextBlock,
+            HeroSection,
+            CTAButton,
+            Divider,
+            Footer,
+            PricingCard,
+            TestimonialCard,
+            FeatureCard,
+            CaptureForm,
+            StatsCounter,
+            FAQItem,
+            TrustBadges,
+            ImageComponent,
+            VSL,
+            CountdownTimer,
+            ...components,
+          }}
+          onNodesChange={() => {
+            if (!hasHydratedRef.current) {
+              hasHydratedRef.current = true
+              return
+            }
+            setIsDirty(true)
+          }}
+        >
+          {/* Minimal Header - Page Builder */}
+          <header className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 gap-2">
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard/paginas">
+                <Button variant="ghost" size="sm" className="gap-2 h-8">
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Voltar</span>
+                </Button>
+              </Link>
+              <div className="hidden md:flex flex-col">
+                <h1 className="text-sm font-semibold leading-none">{pageTitle}</h1>
+              </div>
             </div>
 
-            {/* Canvas Area with Frame */}
-            <div className="flex-1 overflow-y-auto craftjs-frame bg-white min-h-auto">
-              <Frame data={parsedLayout ?? undefined}>
-                {/*
-                  IMPORTANTE: O Container com `canvas` prop garante que:
-                  1. O elemento é selecionável e editável via useNode
-                  2. Suas propriedades (height, width, padding, etc) podem ser alteradas no painel
-                  3. Quando data={parsedLayout} é fornecido, o Frame renderiza o estado salvo,
-                     mas os elementos filhos ainda podem ser adicionados/removidos
-                  
-                  O `id="root-container"` mantém referência consistente ao ROOT container.
-                  Documentação: https://craft.js.org/docs/concepts/nodes#canvas-node
-                */}
-                <Element
-                  is={Container}
-                  canvas
-                  id="root-container"
-                  paddingTop={40}
-                  paddingBottom={40}
-                  paddingLeft={40}
-                  paddingRight={40}
-                  backgroundColor="#ffffff"
-                  height={0}
-                  minHeight={800}
-                  sectionId=""
+            <SaveButton pageId={pageId} isDirty={isDirty} onSaveSuccess={handleSaveSuccess} />
+          </header>
+
+          {/* Main Editor Area */}
+          <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+            {/* Left Sidebar - Components */}
+            <ResizablePanel defaultSize={15} minSize={12} maxSize={25}>
+              <ComponentsToolbox />
+            </ResizablePanel>
+
+            <ResizableHandle />
+
+            {/* Center - Canvas with Device Preview */}
+            <ResizablePanel defaultSize={70} minSize={50} className="flex flex-col">
+              {/* Device Preview Toolbar (como Chrome DevTools) */}
+              <DevicePreviewToolbar 
+                state={deviceState} 
+                onChange={updateDeviceState}
+              />
+              
+              {/* Editor Toolbar */}
+              <div className="bg-card border-b px-4 py-1.5 flex items-center gap-2">
+                <EditorToolbarArea />
+              </div>
+
+              {/* Canvas Area with Device Frame */}
+              <div 
+                ref={canvasContainerRef}
+                className="flex-1 overflow-auto bg-[#525252] p-8 flex items-start justify-center"
+              >
+                <DeviceFrame
+                  width={deviceState.width}
+                  height={deviceState.height}
+                  zoom={deviceState.zoom}
+                  type={deviceState.type}
+                  touchSimulation={deviceState.touchSimulation}
                 >
-                  {!parsedLayout && (
-                    <TextBlock content="Arraste componentes da esquerda para começar" alignment="center" />
-                  )}
-                </Element>
-              </Frame>
-            </div>
-          </ResizablePanel>
+                  <EditorViewportProvider viewport={viewportMode}>
+                    <div 
+                      className="craftjs-frame bg-white min-h-full"
+                      style={{ width: '100%' }}
+                    >
+                      <Frame data={parsedLayout ?? undefined}>
+                        <Element
+                          is={Container}
+                          canvas
+                          id="root-container"
+                          paddingTop={deviceState.type === 'mobile' ? 16 : deviceState.type === 'tablet' ? 24 : 40}
+                          paddingBottom={deviceState.type === 'mobile' ? 16 : deviceState.type === 'tablet' ? 24 : 40}
+                          paddingLeft={deviceState.type === 'mobile' ? 16 : deviceState.type === 'tablet' ? 24 : 40}
+                          paddingRight={deviceState.type === 'mobile' ? 16 : deviceState.type === 'tablet' ? 24 : 40}
+                          backgroundColor="#ffffff"
+                          height={0}
+                          minHeight={deviceState.height - (deviceState.type === 'mobile' ? 48 : 0)}
+                          sectionId=""
+                        >
+                          {!parsedLayout && (
+                            <TextBlock content="Arraste componentes da esquerda para começar" alignment="center" />
+                          )}
+                        </Element>
+                      </Frame>
+                    </div>
+                  </EditorViewportProvider>
+                </DeviceFrame>
+              </div>
+            </ResizablePanel>
 
-          <ResizableHandle />
+            <ResizableHandle />
 
-          {/* Right Sidebar - Properties & Layers */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-            <ResizablePanelGroup direction="vertical">
-              {/* Properties */}
-              <ResizablePanel defaultSize={50} minSize={30}>
-                <PropertiesPanel />
-              </ResizablePanel>
+            {/* Right Sidebar - Properties & Layers */}
+            <ResizablePanel defaultSize={15} minSize={12} maxSize={25}>
+              <ResizablePanelGroup direction="vertical">
+                {/* Properties */}
+                <ResizablePanel defaultSize={50} minSize={30}>
+                  <PropertiesPanel />
+                </ResizablePanel>
 
-              <ResizableHandle />
+                <ResizableHandle />
 
-              {/* Layers */}
-              <ResizablePanel defaultSize={50} minSize={30}>
-                <LayersPanel />
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </Editor>
-    </div>
+                {/* Layers */}
+                <ResizablePanel defaultSize={50} minSize={30}>
+                  <LayersPanel />
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </Editor>
+      </div>
+    </ViewportProvider>
   )
 }

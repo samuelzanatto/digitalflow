@@ -2,8 +2,10 @@
 
 import React from 'react'
 import Image from 'next/image'
-import { useNode } from '@craftjs/core'
+import { useNode, useEditor } from '@craftjs/core'
 import { Card, CardContent } from '@/components/ui/card'
+import { useEditorViewport } from '@/lib/responsive-props'
+import { ResponsiveProp } from '@/contexts/viewport-context'
 
 /**
  * PricingCard - Para tabelas de preço
@@ -652,14 +654,47 @@ export const FeatureCard = FeatureCardComponent
 /**
  * CaptureForm - Para lead capture/email signup
  * Um dos componentes MAIS críticos para conversão
+ * Versão 2: Com suporte a múltiplos inputs, tipos customizáveis, sliders de width/height
  */
+interface InputFieldConfig {
+  id: string
+  type: 'email' | 'text' | 'number' | 'phone'
+  label: string
+  placeholder: string
+  placeholderColor: string
+  borderRadius: number
+  borderColor: string
+  borderWidth: number
+}
+
 interface CaptureFormProps {
   title?: string
   subtitle?: string
-  inputPlaceholder?: string
   buttonText?: string
   buttonColor?: string
   backgroundColor?: string
+  width?: ResponsiveProp<string | number>
+  height?: ResponsiveProp<string | number>
+  fullWidth?: boolean
+  formContainerBorderRadius?: number
+  formContainerBorderWidth?: number
+  formContainerBorderColor?: string
+  formPaddingTop?: ResponsiveProp<number>
+  formPaddingBottom?: ResponsiveProp<number>
+  formPaddingLeft?: ResponsiveProp<number>
+  formPaddingRight?: ResponsiveProp<number>
+  inputsDirection?: ResponsiveProp<'column' | 'row'>
+  inputGap?: ResponsiveProp<number>
+  inputFields?: InputFieldConfig[]
+  titleFontSize?: ResponsiveProp<number>
+  titleColor?: string
+  subtitleFontSize?: ResponsiveProp<number>
+  subtitleColor?: string
+  buttonBorderRadius?: number
+  buttonPadding?: number
+  buttonFontSize?: number
+  textColor?: string
+  inputPlaceholderColor?: string
 }
 
 const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
@@ -667,16 +702,90 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
     {
       title = 'Get Started Today',
       subtitle = 'Join thousands of happy customers',
-      inputPlaceholder = 'Enter your email',
       buttonText = 'Sign Up',
       buttonColor = '#7c3aed',
       backgroundColor = '#f3f4f6',
+      width = '100%',
+      height = 'auto',
+      fullWidth = true,
+      formContainerBorderRadius = 12,
+      formContainerBorderWidth = 1,
+      formContainerBorderColor = '#d1d5db',
+      formPaddingTop = 40,
+      formPaddingBottom = 40,
+      formPaddingLeft = 20,
+      formPaddingRight = 20,
+      inputsDirection = 'column',
+      inputGap = 12,
+      inputFields = [
+        {
+          id: '1',
+          type: 'email',
+          label: 'Email',
+          placeholder: 'Enter your email',
+          placeholderColor: '#9ca3af',
+          borderRadius: 6,
+          borderColor: '#d1d5db',
+          borderWidth: 1,
+        },
+      ],
+      inputPlaceholderColor = '#9ca3af',
+      titleFontSize = 28,
+      titleColor = '#000000',
+      subtitleFontSize = 16,
+      subtitleColor = '#666666',
+      buttonBorderRadius = 6,
+      buttonPadding = 12,
+      buttonFontSize = 14,
+      textColor = '#ffffff',
     },
     ref
   ) => {
     const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
+    const { enabled: isEditorEnabled } = useEditor((state) => ({
+      enabled: state.options.enabled,
+    }))
+    const { resolveResponsiveProp } = useEditorViewport()
+
+    // Resolver todas as props responsivas
+    const paddingTopValue = resolveResponsiveProp(formPaddingTop, 40)
+    const paddingBottomValue = resolveResponsiveProp(formPaddingBottom, 40)
+    const paddingLeftValue = resolveResponsiveProp(formPaddingLeft, 20)
+    const paddingRightValue = resolveResponsiveProp(formPaddingRight, 20)
+    const resolvedInputsDirection = resolveResponsiveProp(inputsDirection, 'column')
+    const resolvedInputGap = resolveResponsiveProp(inputGap, 12)
+    const resolvedTitleFontSize = resolveResponsiveProp(titleFontSize, 28)
+    const resolvedSubtitleFontSize = resolveResponsiveProp(subtitleFontSize, 16)
+    
+    // Para width, tratar número e string separadamente
+    const rawWidth = width ?? '100%'
+    const resolvedWidth = typeof rawWidth === 'number' 
+      ? rawWidth 
+      : resolveResponsiveProp(rawWidth, '100%')
+    
+    // Para height, precisamos tratar string 'auto' e números separadamente
+    const rawHeight = height ?? 'auto'
+    const resolvedHeight = typeof rawHeight === 'number' 
+      ? rawHeight 
+      : (rawHeight === 'auto' ? 'auto' : resolveResponsiveProp(rawHeight, 'auto'))
+
+    // Calcular width e height finais
+    // Width: fullWidth força 100%, senão usa o valor resolvido
+    const computedWidth: React.CSSProperties['width'] = fullWidth 
+      ? '100%' 
+      : (typeof resolvedWidth === 'number' ? `${resolvedWidth}px` : resolvedWidth)
+    
+    // Height: se for número > 0, usa px; se for 0 ou 'auto', usa auto
+    const computedHeight: React.CSSProperties['height'] = typeof resolvedHeight === 'number' 
+      ? (resolvedHeight > 0 ? `${resolvedHeight}px` : 'auto')
+      : resolvedHeight
+    
+    // MinHeight: só aplica se for número > 0
+    const computedMinHeight: React.CSSProperties['minHeight'] = typeof resolvedHeight === 'number' && resolvedHeight > 0
+      ? `${resolvedHeight}px`
+      : undefined
 
     return (
       <div
@@ -691,41 +800,108 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
           }
         }}
         style={{
+          width: computedWidth,
+          maxWidth: '100%',
+          height: computedHeight,
+          minHeight: computedMinHeight,
           backgroundColor,
-          padding: '40px 20px',
-          borderRadius: '12px',
+          padding: `${paddingTopValue}px ${paddingRightValue}px ${paddingBottomValue}px ${paddingLeftValue}px`,
+          borderRadius: `${formContainerBorderRadius}px`,
+          border: `${formContainerBorderWidth}px solid ${formContainerBorderColor}`,
           textAlign: 'center',
-          border: isSelected ? '2px solid #3b82f6' : 'none',
+          outline: isSelected ? '2px solid #3b82f6' : 'none',
+          outlineOffset: isSelected ? '2px' : '0px',
           cursor: 'move',
+          boxSizing: 'border-box' as const,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          gap: '24px',
         }}
       >
-        <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>{title}</h2>
-        <p style={{ fontSize: '16px', color: '#666', marginBottom: '24px' }}>{subtitle}</p>
-        <div style={{ display: 'flex', gap: '8px', maxWidth: '400px', margin: '0 auto' }}>
-          <input
-            type="email"
-            placeholder={inputPlaceholder}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-            }}
-            disabled
-          />
+        {/* Título */}
+        <div>
+          <h2 style={{
+            fontSize: `${resolvedTitleFontSize}px`,
+            fontWeight: 'bold',
+            marginBottom: '8px',
+            color: titleColor,
+            margin: 0,
+            wordWrap: 'break-word',
+          }}>
+            {title}
+          </h2>
+          {subtitle && (
+            <p style={{
+              fontSize: `${resolvedSubtitleFontSize}px`,
+              color: subtitleColor,
+              margin: '8px 0 0 0',
+              wordWrap: 'break-word',
+            }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {/* Formulário com inputs */}
+        <div style={{
+          display: 'flex',
+          flexDirection: resolvedInputsDirection,
+          gap: `${resolvedInputGap}px`,
+          width: '100%',
+        }}>
+          {inputFields && inputFields.map((field) => (
+            <div key={field.id} style={{ flex: resolvedInputsDirection === 'row' ? 1 : undefined, width: resolvedInputsDirection === 'column' ? '100%' : 'auto', minWidth: 0 }}>
+              {field.label && (
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  marginBottom: '4px',
+                  color: titleColor,
+                  textAlign: 'left',
+                }}>
+                  {field.label}
+                </label>
+              )}
+              <input
+                type={field.type === 'phone' ? 'tel' : field.type}
+                placeholder={field.placeholder}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  borderRadius: `${field.borderRadius}px`,
+                  border: `${field.borderWidth}px solid ${field.borderColor}`,
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box' as const,
+                  '--placeholder-color': field.placeholderColor || inputPlaceholderColor || '#9ca3af',
+                  pointerEvents: isEditorEnabled ? 'none' : 'auto',
+                } as React.CSSProperties}
+                className="capture-form-input"
+                disabled={isEditorEnabled}
+              />
+            </div>
+          ))}
+
+          {/* Botão */}
           <button
+            type={isEditorEnabled ? 'button' : 'submit'}
             style={{
               backgroundColor: buttonColor,
-              color: '#ffffff',
-              padding: '12px 24px',
-              borderRadius: '6px',
+              color: textColor,
+              padding: `${buttonPadding}px 24px`,
+              borderRadius: `${buttonBorderRadius}px`,
               border: 'none',
               fontWeight: 'bold',
-              cursor: 'pointer',
+              fontSize: `${buttonFontSize}px`,
+              cursor: isEditorEnabled ? 'default' : 'pointer',
+              width: resolvedInputsDirection === 'row' ? 'auto' : '100%',
+              minHeight: '44px',
+              flexShrink: 0,
+              pointerEvents: isEditorEnabled ? 'none' : 'auto',
             }}
-            disabled
+            disabled={isEditorEnabled}
           >
             {buttonText}
           </button>
@@ -742,10 +918,42 @@ export const CaptureForm = CaptureFormComponent
   props: {
     title: 'Get Started Today',
     subtitle: 'Join thousands of happy customers',
-    inputPlaceholder: 'Enter your email',
     buttonText: 'Sign Up',
     buttonColor: '#7c3aed',
     backgroundColor: '#f3f4f6',
+    width: '100%',
+    height: 'auto',
+    fullWidth: true,
+    formContainerBorderRadius: 12,
+    formContainerBorderWidth: 1,
+    formContainerBorderColor: '#d1d5db',
+    formPaddingTop: 40,
+    formPaddingBottom: 40,
+    formPaddingLeft: 20,
+    formPaddingRight: 20,
+    inputsDirection: 'column',
+    inputGap: 12,
+    inputFields: [
+      {
+        id: '1',
+        type: 'email',
+        label: 'Email',
+        placeholder: 'Enter your email',
+        placeholderColor: '#9ca3af',
+        borderRadius: 6,
+        borderColor: '#d1d5db',
+        borderWidth: 1,
+      },
+    ],
+    inputPlaceholderColor: '#9ca3af',
+    titleFontSize: 28,
+    titleColor: '#000000',
+    subtitleFontSize: 16,
+    subtitleColor: '#666666',
+    buttonBorderRadius: 6,
+    buttonPadding: 12,
+    buttonFontSize: 14,
+    textColor: '#ffffff',
   },
   displayName: 'Capture Form',
 }
