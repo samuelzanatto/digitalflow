@@ -57,7 +57,6 @@ export function TeamChat() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [identity, setIdentity] = useState<ChatIdentity | null>(null)
-  const [onlineUsers, setOnlineUsers] = useState<ChatIdentity[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
   const { resetUnread } = useUnreadMessages()
@@ -222,56 +221,6 @@ export function TeamChat() {
     listRef.current.scrollTop = listRef.current.scrollHeight
   }, [messages])
 
-  useEffect(() => {
-    if (!identity) return
-    const client = getSupabaseClient()
-    if (!client) return
-
-    const channel = client.channel('team_online_presence', {
-      config: {
-        presence: {
-          key: identity.id,
-        },
-      },
-    })
-
-    channel.on('presence', { event: 'sync' }, () => {
-      type PresencePayload = ChatIdentity & { presence_ref: string }
-      const state = channel.presenceState<PresencePayload>()
-      const unique = new Map<string, ChatIdentity>()
-
-      Object.values(state).forEach((entries) => {
-        entries.forEach((rest) => {
-          if (rest.id) {
-            unique.set(rest.id, {
-              id: rest.id,
-              name: rest.name,
-              email: rest.email,
-              avatarUrl: rest.avatarUrl,
-            })
-          }
-        })
-      })
-
-      setOnlineUsers(Array.from(unique.values()))
-    })
-
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        void channel.track({
-          id: identity.id,
-          name: identity.name,
-          email: identity.email,
-          avatarUrl: identity.avatarUrl ?? undefined,
-        })
-      }
-    })
-
-    return () => {
-      void client.removeChannel(channel)
-    }
-  }, [identity])
-
   const handleSend = async () => {
     if (!pendingMessage.trim() || sending) return
     if (!identity) {
@@ -389,41 +338,8 @@ export function TeamChat() {
     )
   }
 
-  const renderOnlineUsers = () => {
-    if (!onlineUsers.length) {
-      return <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Ninguém online</span>
-    }
-
-    return (
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Online agora</span>
-        <div className="flex items-center gap-2">
-          {onlineUsers.map((user) => (
-            <div key={user.id} className="flex items-center gap-2 rounded-full bg-slate-800/50 px-3 py-1 text-xs font-medium text-slate-200">
-              <Avatar className="h-6 w-6 border border-slate-600/50">
-                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                <AvatarFallback className="bg-primary/20 text-[10px] font-semibold uppercase text-primary">
-                  {user.name
-                    .split(' ')
-                    .map((piece) => piece[0]?.toUpperCase() ?? '')
-                    .join('')
-                    .slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              <span>{user.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex items-center justify-end border-b border-white/5 py-6 px-4">
-        {renderOnlineUsers()}
-      </div>
-
       <div ref={listRef} className="flex-1 overflow-y-auto px-6 py-8">
         {renderMessages()}
       </div>

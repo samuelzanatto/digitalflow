@@ -20,6 +20,459 @@ import { setResponsiveValue, getViewportValue, hasViewportOverride, RESPONSIVE_P
 import { cn } from '@/lib/utils'
 
 /**
+ * Componente para selecionar grupo de leads no CaptureForm
+ */
+interface LeadGroup {
+  id: string
+  name: string
+  color: string
+}
+
+interface LeadGroupSelectProps {
+  nodeId: string
+  value: string
+  setProp: (nodeId: string, callback: (props: Record<string, unknown>) => void) => void
+}
+
+function LeadGroupSelect({ nodeId, value, setProp }: LeadGroupSelectProps) {
+  const [groups, setGroups] = useState<LeadGroup[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await fetch('/api/lead-groups')
+        if (response.ok) {
+          const data = await response.json()
+          setGroups(data.groups || [])
+        }
+      } catch (error) {
+        console.error('Erro ao carregar grupos:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchGroups()
+  }, [])
+
+  const selectedGroup = groups.find(g => g.id === value)
+
+  return (
+    <div className="space-y-2 border p-3 rounded bg-primary/5">
+      <Label className="text-xs font-medium flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-primary"></span>
+        Grupo de Leads
+      </Label>
+      {loading ? (
+        <p className="text-xs text-muted-foreground">Carregando grupos...</p>
+      ) : groups.length === 0 ? (
+        <div className="text-xs text-muted-foreground space-y-2">
+          <p>Nenhum grupo de leads encontrado.</p>
+          <a 
+            href="/dashboard/leads" 
+            target="_blank" 
+            className="text-primary underline hover:no-underline"
+          >
+            Criar grupo de leads →
+          </a>
+        </div>
+      ) : (
+        <>
+          <Select
+            value={value || ''}
+            onValueChange={(newValue) =>
+              setProp(nodeId, (pr: Record<string, unknown>) => {
+                pr.leadGroupId = newValue
+              })
+            }
+          >
+            <SelectTrigger className="text-xs">
+              <SelectValue placeholder="Selecione um grupo">
+                {selectedGroup && (
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: selectedGroup.color }}
+                    />
+                    {selectedGroup.name}
+                  </div>
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {groups.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: group.color }}
+                    />
+                    {group.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!value && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              ⚠️ Selecione um grupo para receber os leads do formulário
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Componente para configurar automação no CaptureForm e CTAButton
+ */
+interface Automation {
+  id: string
+  name: string
+  type: string
+  enabled: boolean
+}
+
+interface AutomationSelectProps {
+  nodeId: string
+  enableAutomation: boolean
+  automationId: string
+  automationDelay: number
+  setProp: (nodeId: string, callback: (props: Record<string, unknown>) => void) => void
+}
+
+function AutomationSelect({ nodeId, enableAutomation, automationId, automationDelay, setProp }: AutomationSelectProps) {
+  const [automations, setAutomations] = useState<Automation[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAutomations = async () => {
+      try {
+        const response = await fetch('/api/automations')
+        if (response.ok) {
+          const data = await response.json()
+          // Filtrar apenas automações habilitadas
+          setAutomations((data.automations || []).filter((a: Automation) => a.enabled))
+        }
+      } catch (error) {
+        console.error('Erro ao carregar automações:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAutomations()
+  }, [])
+
+  const selectedAutomation = automations.find(a => a.id === automationId)
+
+  return (
+    <div className="space-y-3 border p-3 rounded bg-primary/5">
+      <Label className="text-xs font-medium flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+        Automação de Email
+      </Label>
+      
+      {/* Toggle para habilitar automação */}
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">Ativar Automação</Label>
+        <Switch
+          checked={enableAutomation}
+          onCheckedChange={(checked) =>
+            setProp(nodeId, (pr: Record<string, unknown>) => {
+              pr.enableAutomation = checked
+              if (!checked) {
+                pr.automationId = ''
+                pr.automationDelay = 0
+              }
+            })
+          }
+        />
+      </div>
+
+      {enableAutomation && (
+        <>
+          {loading ? (
+            <p className="text-xs text-muted-foreground">Carregando automações...</p>
+          ) : automations.length === 0 ? (
+            <div className="text-xs text-muted-foreground space-y-2">
+              <p>Nenhuma automação ativa encontrada.</p>
+              <a 
+                href="/dashboard/automacoes" 
+                target="_blank" 
+                className="text-primary underline hover:no-underline"
+              >
+                Criar automação →
+              </a>
+            </div>
+          ) : (
+            <>
+              {/* Select de automação */}
+              <div className="space-y-1">
+                <Label className="text-xs">Selecionar Automação</Label>
+                <Select
+                  value={automationId || ''}
+                  onValueChange={(newValue) =>
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.automationId = newValue
+                    })
+                  }
+                >
+                  <SelectTrigger className="text-xs">
+                    <SelectValue placeholder="Selecione uma automação">
+                      {selectedAutomation && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          {selectedAutomation.name}
+                        </div>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {automations.map((automation) => (
+                      <SelectItem key={automation.id} value={automation.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          {automation.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Input de delay */}
+              <div className="space-y-1">
+                <Label className="text-xs">Delay (segundos)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={3600}
+                    value={automationDelay || 0}
+                    onChange={(e) =>
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        pr.automationDelay = Math.max(0, parseInt(e.target.value) || 0)
+                      })
+                    }
+                    className="text-xs"
+                    placeholder="0"
+                  />
+                  <span className="text-xs text-muted-foreground">seg</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Tempo de espera antes de disparar o email (0 = imediato)
+                </p>
+              </div>
+
+              {!automationId && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ Selecione uma automação para ativar o envio de email
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Componente para configurar redirecionamento após envio do formulário
+ */
+interface RedirectSelectProps {
+  nodeId: string
+  enableRedirect: boolean
+  redirectUrl: string
+  redirectDelay: number
+  setProp: (nodeId: string, callback: (props: Record<string, unknown>) => void) => void
+}
+
+interface PageOption {
+  id: string
+  title: string
+  slug: string
+  published: boolean
+}
+
+function RedirectSelect({ nodeId, enableRedirect, redirectUrl, redirectDelay, setProp }: RedirectSelectProps) {
+  const [pages, setPages] = useState<PageOption[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isCustomUrl, setIsCustomUrl] = useState(false)
+
+  useEffect(() => {
+    const fetchPages = async () => {
+      try {
+        const response = await fetch('/api/pages', {
+          credentials: 'include',
+        })
+        if (response.ok) {
+          const data = await response.json()
+          // Filtrar apenas páginas publicadas
+          setPages((data.pages || []).filter((p: PageOption) => p.published))
+        }
+      } catch (error) {
+        // Silently fail
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPages()
+  }, [])
+
+  // Detectar se é URL customizada ou slug de página
+  useEffect(() => {
+    if (redirectUrl && (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://'))) {
+      setIsCustomUrl(true)
+    } else {
+      setIsCustomUrl(false)
+    }
+  }, [redirectUrl])
+
+  const selectedPage = pages.find(p => p.slug === redirectUrl)
+
+  return (
+    <div className="space-y-3 border p-3 rounded bg-green-500/5">
+      <Label className="text-xs font-medium flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+        Redirecionamento
+      </Label>
+      
+      {/* Toggle para habilitar redirecionamento */}
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">Redirecionar após envio</Label>
+        <Switch
+          checked={enableRedirect}
+          onCheckedChange={(checked) =>
+            setProp(nodeId, (pr: Record<string, unknown>) => {
+              pr.enableRedirect = checked
+              if (!checked) {
+                pr.redirectUrl = ''
+                pr.redirectDelay = 2
+              }
+            })
+          }
+        />
+      </div>
+
+      {enableRedirect && (
+        <>
+          {/* Toggle URL customizada */}
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">URL externa</Label>
+            <Switch
+              checked={isCustomUrl}
+              onCheckedChange={(checked) => {
+                setIsCustomUrl(checked)
+                if (checked) {
+                  setProp(nodeId, (pr: Record<string, unknown>) => {
+                    pr.redirectUrl = 'https://'
+                  })
+                } else {
+                  setProp(nodeId, (pr: Record<string, unknown>) => {
+                    pr.redirectUrl = ''
+                  })
+                }
+              }}
+            />
+          </div>
+
+          {isCustomUrl ? (
+            /* Input para URL customizada */
+            <div className="space-y-1">
+              <Label className="text-xs">URL de destino</Label>
+              <Input
+                type="url"
+                value={redirectUrl || ''}
+                onChange={(e) =>
+                  setProp(nodeId, (pr: Record<string, unknown>) => {
+                    pr.redirectUrl = e.target.value
+                  })
+                }
+                className="text-xs"
+                placeholder="https://exemplo.com/obrigado"
+              />
+            </div>
+          ) : (
+            /* Select de páginas */
+            <>
+              {loading ? (
+                <p className="text-xs text-muted-foreground">Carregando páginas...</p>
+              ) : pages.length === 0 ? (
+                <div className="text-xs text-muted-foreground space-y-2">
+                  <p>Nenhuma página publicada encontrada.</p>
+                  <a 
+                    href="/dashboard/paginas" 
+                    target="_blank" 
+                    className="text-primary underline hover:no-underline"
+                  >
+                    Criar página →
+                  </a>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-xs">Página de destino</Label>
+                  <Select
+                    value={redirectUrl || ''}
+                    onValueChange={(newValue) =>
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        pr.redirectUrl = newValue
+                      })
+                    }
+                  >
+                    <SelectTrigger className="text-xs">
+                      <SelectValue placeholder="Selecione uma página" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pages.map((page) => (
+                        <SelectItem key={page.id} value={page.slug}>
+                          {page.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Input de delay */}
+          <div className="space-y-1">
+            <Label className="text-xs">Delay (segundos)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={60}
+                value={redirectDelay || 2}
+                onChange={(e) =>
+                  setProp(nodeId, (pr: Record<string, unknown>) => {
+                    pr.redirectDelay = Math.max(0, parseInt(e.target.value) || 2)
+                  })
+                }
+                className="text-xs"
+                placeholder="2"
+              />
+              <span className="text-xs text-muted-foreground">seg</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Tempo de espera antes de redirecionar (recomendado: 2s)
+            </p>
+          </div>
+
+          {!redirectUrl && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              ⚠️ Selecione uma página ou insira uma URL para redirecionar
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
  * Indicador do viewport atual no painel de propriedades
  */
 function ViewportIndicator() {
@@ -379,14 +832,14 @@ function categorizeProps(props: Record<string, unknown>) {
     'Outro': {},
   }
 
-  const dimensionKeys = ['width', 'height', 'minHeight', 'margin', 'flex', 'playerWidth', 'cardFullWidth', 'cardAutoHeight', 'fullWidth', 'autoHeight']
+  const dimensionKeys = ['width', 'height', 'minHeight', 'margin', 'flex', 'playerWidth', 'cardFullWidth', 'cardAutoHeight', 'fullWidth', 'autoHeight', 'screenHeight']
   const paddingKeys = ['padding', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingLinked', 'formPaddingTop', 'formPaddingBottom', 'formPaddingLeft', 'formPaddingRight']
   const marginKeys = ['marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'marginLinked']
   const borderRadiusKeys = ['borderRadius', 'borderRadiusTopLeft', 'borderRadiusTopRight', 'borderRadiusBottomRight', 'borderRadiusBottomLeft', 'borderRadiusLinked', 'formContainerBorderRadius', 'buttonBorderRadius']
   const discountKeys = ['showDiscount', 'originalPrice', 'discountPercentage', 'originalPriceFontSize', 'originalPriceColor', 'discountPercentageFontSize', 'discountPercentageColor', 'discountPercentageBackgroundColor']
   const imageKeys = ['objectFit', 'shadow', 'captionPosition', 'backgroundImage']
   const layoutKeys = ['display', 'flexDirection', 'gap', 'justifyContent', 'alignItems', 'textAlignment', 'inputsDirection', 'inputGap']
-  const colorKeys = ['backgroundColor', 'textColor', 'color', 'borderColor', 'highlightColor', 'titleColor', 'descriptionColor', 'brandNameColor', 'descriptionColor', 'linksColor', 'linksHoverColor', 'copyrightColor', 'headingColor', 'questionColor', 'answerColor', 'iconColor', 'subtitleColor', 'buttonColor', 'formContainerBorderColor']
+  const colorKeys = ['backgroundColor', 'textColor', 'color', 'borderColor', 'highlightColor', 'titleColor', 'descriptionColor', 'brandNameColor', 'descriptionColor', 'linksColor', 'linksHoverColor', 'copyrightColor', 'headingColor', 'questionColor', 'answerColor', 'iconColor', 'subtitleColor', 'buttonColor', 'formContainerBorderColor', 'inputTextColor', 'inputPlaceholderColor']
   const contentKeys = [
     'text',
     'content',
@@ -484,30 +937,34 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
 
   // Renderizar seção de Padding com UI visual - COM SUPORTE A VALORES RESPONSIVOS
   const renderPaddingSection = (paddingProps: Record<string, unknown>) => {
-    // Resolver valores para o viewport atual (suporta valores simples ou responsivos)
-    const paddingTopRaw = paddingProps.paddingTop
-    const paddingBottomRaw = paddingProps.paddingBottom
-    const paddingLeftRaw = paddingProps.paddingLeft
-    const paddingRightRaw = paddingProps.paddingRight
+    // Detectar se estamos usando props de form (formPaddingTop) ou padrão (paddingTop)
+    const isFormPadding = 'formPaddingTop' in paddingProps || 'formPaddingBottom' in paddingProps
+    const prefix = isFormPadding ? 'formPadding' : 'padding'
     
-    const paddingTop = getViewportValue(paddingTopRaw as ResponsiveProp<number>, currentViewport, 0)
-    const paddingBottom = getViewportValue(paddingBottomRaw as ResponsiveProp<number>, currentViewport, 0)
-    const paddingLeft = getViewportValue(paddingLeftRaw as ResponsiveProp<number>, currentViewport, 0)
-    const paddingRight = getViewportValue(paddingRightRaw as ResponsiveProp<number>, currentViewport, 0)
+    // Resolver valores para o viewport atual (suporta valores simples ou responsivos)
+    const paddingTopRaw = paddingProps[`${prefix}Top`]
+    const paddingBottomRaw = paddingProps[`${prefix}Bottom`]
+    const paddingLeftRaw = paddingProps[`${prefix}Left`]
+    const paddingRightRaw = paddingProps[`${prefix}Right`]
+    
+    const paddingTop = getViewportValue(paddingTopRaw as ResponsiveProp<number>, currentViewport, isFormPadding ? 40 : 0)
+    const paddingBottom = getViewportValue(paddingBottomRaw as ResponsiveProp<number>, currentViewport, isFormPadding ? 40 : 0)
+    const paddingLeft = getViewportValue(paddingLeftRaw as ResponsiveProp<number>, currentViewport, isFormPadding ? 20 : 0)
+    const paddingRight = getViewportValue(paddingRightRaw as ResponsiveProp<number>, currentViewport, isFormPadding ? 20 : 0)
     const paddingLinked = (paddingProps.paddingLinked as boolean) ?? true
 
     // Handler que atualiza o valor para o viewport atual
     const handlePaddingChange = (side: 'Top' | 'Bottom' | 'Left' | 'Right', value: number) => {
       const currentLinked = (paddingProps.paddingLinked as boolean) ?? true
-      const key = `padding${side}`
+      const key = `${prefix}${side}`
       
       setProp(nodeId, (pr: Record<string, unknown>) => {
         if (currentLinked) {
           // Se vinculado, muda todos os 4 para o viewport atual
-          pr.paddingTop = setResponsiveValue(pr.paddingTop as ResponsiveProp<number>, value, currentViewport)
-          pr.paddingBottom = setResponsiveValue(pr.paddingBottom as ResponsiveProp<number>, value, currentViewport)
-          pr.paddingLeft = setResponsiveValue(pr.paddingLeft as ResponsiveProp<number>, value, currentViewport)
-          pr.paddingRight = setResponsiveValue(pr.paddingRight as ResponsiveProp<number>, value, currentViewport)
+          pr[`${prefix}Top`] = setResponsiveValue(pr[`${prefix}Top`] as ResponsiveProp<number>, value, currentViewport)
+          pr[`${prefix}Bottom`] = setResponsiveValue(pr[`${prefix}Bottom`] as ResponsiveProp<number>, value, currentViewport)
+          pr[`${prefix}Left`] = setResponsiveValue(pr[`${prefix}Left`] as ResponsiveProp<number>, value, currentViewport)
+          pr[`${prefix}Right`] = setResponsiveValue(pr[`${prefix}Right`] as ResponsiveProp<number>, value, currentViewport)
         } else {
           // Se desvinculado, muda apenas o lado específico para o viewport atual
           pr[key] = setResponsiveValue(pr[key] as ResponsiveProp<number>, value, currentViewport)
@@ -789,6 +1246,88 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
   }
 
   const renderBorderRadiusSection = (borderRadiusProps: Record<string, unknown>) => {
+    // Detectar se estamos usando props de form (formContainerBorderRadius, buttonBorderRadius)
+    const hasFormContainerRadius = 'formContainerBorderRadius' in borderRadiusProps
+    const hasButtonRadius = 'buttonBorderRadius' in borderRadiusProps
+    const isSimpleMode = hasFormContainerRadius || hasButtonRadius
+    
+    // Se for modo simples (CaptureForm), renderizar controles simples
+    if (isSimpleMode) {
+      const formContainerRadius = (borderRadiusProps.formContainerBorderRadius as number) ?? 12
+      const buttonRadius = (borderRadiusProps.buttonBorderRadius as number) ?? 6
+      
+      return (
+        <div className="space-y-4 p-2 bg-muted/20 rounded border">
+          {hasFormContainerRadius && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-xs font-medium">Border Radius do Container</Label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    value={formContainerRadius}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseInt(e.target.value) || 0)
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        pr.formContainerBorderRadius = val
+                      })
+                    }}
+                    className="text-xs w-16 px-2 py-1"
+                    min={0}
+                    max={100}
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                </div>
+              </div>
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[formContainerRadius]}
+                onValueChange={(v) => setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.formContainerBorderRadius = v[0]
+                })}
+              />
+            </div>
+          )}
+          
+          {hasButtonRadius && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label className="text-xs font-medium">Border Radius do Botão</Label>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    value={buttonRadius}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseInt(e.target.value) || 0)
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        pr.buttonBorderRadius = val
+                      })
+                    }}
+                    className="text-xs w-16 px-2 py-1"
+                    min={0}
+                    max={100}
+                  />
+                  <span className="text-xs text-muted-foreground">px</span>
+                </div>
+              </div>
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[buttonRadius]}
+                onValueChange={(v) => setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.buttonBorderRadius = v[0]
+                })}
+              />
+            </div>
+          )}
+        </div>
+      )
+    }
+    
+    // Modo padrão com 4 cantos
     const borderRadius = (borderRadiusProps.borderRadius as number) || 0
     const borderRadiusTopLeft = (borderRadiusProps.borderRadiusTopLeft as number) || 0
     const borderRadiusTopRight = (borderRadiusProps.borderRadiusTopRight as number) || 0
@@ -1386,6 +1925,23 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
                 className="w-4 h-4 rounded cursor-pointer"
               />
             </div>
+            
+            {/* Checkbox Screen Height (100vh) - apenas para Container */}
+            {dimensionProps.screenHeight !== undefined && (
+              <div className="flex items-center justify-between pt-2 border-t">
+                <Label className="text-xs font-medium">Altura da Tela (100vh)</Label>
+                <input
+                  type="checkbox"
+                  checked={dimensionProps.screenHeight as boolean ?? false}
+                  onChange={(e) =>
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.screenHeight = e.target.checked
+                    })
+                  }
+                  className="w-4 h-4 rounded cursor-pointer"
+                />
+              </div>
+            )}
           </div>
         )}
         
@@ -2585,6 +3141,302 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       return null
     }
 
+    // Handler especial para leadGroupId do CaptureForm
+    if (key === 'leadGroupId') {
+      return <LeadGroupSelect key={key} nodeId={nodeId} value={String(value || '')} setProp={setProp} />
+    }
+
+    // Handler especial para automação do CaptureForm e CTAButton
+    if (key === 'enableAutomation') {
+      const allPropsTyped = props as Record<string, unknown>
+      return (
+        <AutomationSelect
+          key={key}
+          nodeId={nodeId}
+          enableAutomation={Boolean(value)}
+          automationId={String(allPropsTyped.automationId || '')}
+          automationDelay={Number(allPropsTyped.automationDelay || 0)}
+          setProp={setProp}
+        />
+      )
+    }
+
+    // Pular as propriedades individuais de automação (são renderizadas pelo AutomationSelect)
+    if (key === 'automationId' || key === 'automationDelay') {
+      return null
+    }
+
+    // Handler especial para redirecionamento do CaptureForm
+    if (key === 'enableRedirect') {
+      const allPropsTyped = props as Record<string, unknown>
+      return (
+        <RedirectSelect
+          key={key}
+          nodeId={nodeId}
+          enableRedirect={Boolean(value)}
+          redirectUrl={String(allPropsTyped.redirectUrl || '')}
+          redirectDelay={Number(allPropsTyped.redirectDelay || 2)}
+          setProp={setProp}
+        />
+      )
+    }
+
+    // Pular as propriedades individuais de redirecionamento (são renderizadas pelo RedirectSelect)
+    if (key === 'redirectUrl' || key === 'redirectDelay') {
+      return null
+    }
+
+    // Handler especial para successMessage do CaptureForm  
+    if (key === 'successMessage') {
+      return (
+        <div key={key} className="space-y-2">
+          <Label className="text-xs font-medium">Mensagem de Sucesso</Label>
+          <Input
+            type="text"
+            value={String(value || '')}
+            onChange={(e) =>
+              setProp(nodeId, (pr: Record<string, unknown>) => {
+                pr.successMessage = e.target.value
+              })
+            }
+            className="text-xs"
+            placeholder="Obrigado! Entraremos em contato em breve."
+          />
+        </div>
+      )
+    }
+
+    // Handler especial para skipThankYouScreen e propriedades relacionadas
+    // A opção de pular só aparece quando o redirecionamento está ativo
+    if (key === 'skipThankYouScreen') {
+      const allPropsTyped = props as Record<string, unknown>
+      const enableRedirect = Boolean(allPropsTyped.enableRedirect)
+      const redirectUrl = String(allPropsTyped.redirectUrl || '')
+      const hasRedirect = enableRedirect && redirectUrl
+      
+      const skipThankYouScreen = Boolean(value)
+      const thankYouTitle = String(allPropsTyped.thankYouTitle || 'Obrigado!')
+      const thankYouSubtitle = String(allPropsTyped.thankYouSubtitle || 'Entraremos em contato em breve.')
+      const thankYouIcon = String(allPropsTyped.thankYouIcon || 'checkmark') as 'checkmark' | 'heart' | 'star' | 'thumbsup' | 'none'
+      const thankYouIconColor = String(allPropsTyped.thankYouIconColor || '#22c55e')
+      const thankYouIconSize = Number(allPropsTyped.thankYouIconSize || 48)
+      const thankYouButtonText = String(allPropsTyped.thankYouButtonText || 'Voltar')
+      const thankYouButtonColor = String(allPropsTyped.thankYouButtonColor || '#7c3aed')
+      const thankYouShowButton = Boolean(allPropsTyped.thankYouShowButton)
+      
+      // Determinar se vai mostrar a tela de agradecimento
+      const showThankYou = !hasRedirect || !skipThankYouScreen
+
+      return (
+        <div key={key} className="space-y-3 border p-3 rounded bg-muted/50">
+          <div className="flex justify-between items-center">
+            <Label className="text-xs font-medium">Tela de Agradecimento</Label>
+            {!hasRedirect && (
+              <span className="text-xs text-muted-foreground">Obrigatório</span>
+            )}
+          </div>
+          
+          {/* Opção de pular - só aparece quando tem redirecionamento */}
+          {hasRedirect && (
+            <div className="flex justify-between items-center py-2 border-b">
+              <div className="space-y-0.5">
+                <Label className="text-xs">Pular para redirecionamento</Label>
+                <p className="text-xs text-muted-foreground">Redireciona direto sem mostrar agradecimento</p>
+              </div>
+              <Switch
+                checked={skipThankYouScreen}
+                onCheckedChange={(checked) =>
+                  setProp(nodeId, (pr: Record<string, unknown>) => {
+                    pr.skipThankYouScreen = checked
+                  })
+                }
+              />
+            </div>
+          )}
+
+          {/* Configurações da tela de agradecimento - mostra se não vai pular */}
+          {showThankYou && (
+            <div className="space-y-3 pt-2">
+              {/* Título */}
+              <div className="space-y-1">
+                <Label className="text-xs">Título</Label>
+                <Input
+                  type="text"
+                  value={thankYouTitle}
+                  onChange={(e) =>
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.thankYouTitle = e.target.value
+                    })
+                  }
+                  className="text-xs"
+                  placeholder="Obrigado!"
+                />
+              </div>
+
+              {/* Subtítulo */}
+              <div className="space-y-1">
+                <Label className="text-xs">Subtítulo</Label>
+                <Input
+                  type="text"
+                  value={thankYouSubtitle}
+                  onChange={(e) =>
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.thankYouSubtitle = e.target.value
+                    })
+                  }
+                  className="text-xs"
+                  placeholder="Entraremos em contato em breve."
+                />
+              </div>
+
+              {/* Ícone */}
+              <div className="space-y-1">
+                <Label className="text-xs">Ícone</Label>
+                <Select
+                  value={thankYouIcon}
+                  onValueChange={(val) =>
+                    setProp(nodeId, (pr: Record<string, unknown>) => {
+                      pr.thankYouIcon = val
+                    })
+                  }
+                >
+                  <SelectTrigger className="text-xs h-8">
+                    <SelectValue placeholder="Selecione um ícone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="checkmark">✓ Checkmark</SelectItem>
+                    <SelectItem value="heart">♥ Coração</SelectItem>
+                    <SelectItem value="star">★ Estrela</SelectItem>
+                    <SelectItem value="thumbsup">👍 Joinha</SelectItem>
+                    <SelectItem value="none">Sem ícone</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Cor do Ícone */}
+              {thankYouIcon !== 'none' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Cor do Ícone</Label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={thankYouIconColor}
+                      onChange={(e) =>
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          pr.thankYouIconColor = e.target.value
+                        })
+                      }
+                      className="w-8 h-8 rounded border cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={thankYouIconColor}
+                      onChange={(e) =>
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          pr.thankYouIconColor = e.target.value
+                        })
+                      }
+                      className="text-xs flex-1"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Tamanho do Ícone */}
+              {thankYouIcon !== 'none' && (
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <Label className="text-xs">Tamanho do Ícone</Label>
+                    <span className="text-xs text-muted-foreground">{thankYouIconSize}px</span>
+                  </div>
+                  <Slider
+                    min={24}
+                    max={96}
+                    step={4}
+                    value={[thankYouIconSize]}
+                    onValueChange={(v) =>
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        pr.thankYouIconSize = v[0]
+                      })
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Mostrar Botão - só faz sentido se não tem redirecionamento */}
+              {!hasRedirect && (
+                <>
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <Label className="text-xs">Mostrar Botão</Label>
+                    <Switch
+                      checked={thankYouShowButton}
+                      onCheckedChange={(checked) =>
+                        setProp(nodeId, (pr: Record<string, unknown>) => {
+                          pr.thankYouShowButton = checked
+                        })
+                      }
+                    />
+                  </div>
+
+                  {thankYouShowButton && (
+                    <>
+                      {/* Texto do Botão */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">Texto do Botão</Label>
+                        <Input
+                          type="text"
+                          value={thankYouButtonText}
+                          onChange={(e) =>
+                            setProp(nodeId, (pr: Record<string, unknown>) => {
+                              pr.thankYouButtonText = e.target.value
+                            })
+                          }
+                          className="text-xs"
+                          placeholder="Voltar"
+                        />
+                      </div>
+
+                      {/* Cor do Botão */}
+                      <div className="space-y-1">
+                        <Label className="text-xs">Cor do Botão</Label>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="color"
+                            value={thankYouButtonColor}
+                            onChange={(e) =>
+                              setProp(nodeId, (pr: Record<string, unknown>) => {
+                                pr.thankYouButtonColor = e.target.value
+                              })
+                            }
+                            className="w-8 h-8 rounded border cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={thankYouButtonColor}
+                            onChange={(e) =>
+                              setProp(nodeId, (pr: Record<string, unknown>) => {
+                                pr.thankYouButtonColor = e.target.value
+                              })
+                            }
+                            className="text-xs flex-1"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    // Pular as propriedades individuais do Thank You Screen (são renderizadas pelo handler acima)
+    if (['showThankYouScreen', 'thankYouTitle', 'thankYouSubtitle', 'thankYouIcon', 'thankYouIconColor', 'thankYouIconSize', 'thankYouButtonText', 'thankYouButtonColor', 'thankYouShowButton'].includes(key)) {
+      return null
+    }
+
     // Handler especial para inputFields do CaptureForm
     if (key === 'inputFields') {
       const inputFields = (value as Array<{
@@ -2596,6 +3448,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
         borderRadius: number
         borderColor: string
         borderWidth: number
+        required?: boolean
       }>) || []
 
       return (
@@ -2619,6 +3472,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
                     borderRadius: 6,
                     borderColor: '#d1d5db',
                     borderWidth: 1,
+                    required: true,
                   })
                 })
               }}
@@ -2691,6 +3545,23 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
                     }}
                     className="text-xs h-7"
                     placeholder="Ex: Email"
+                  />
+                </div>
+
+                {/* Obrigatório */}
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Obrigatório</Label>
+                  <Switch
+                    checked={field.required !== false}
+                    onCheckedChange={(checked) => {
+                      setProp(nodeId, (pr: Record<string, unknown>) => {
+                        const fields = (pr.inputFields as typeof inputFields) || []
+                        const fieldIdx = fields.findIndex(f => f.id === field.id)
+                        if (fieldIdx !== -1) {
+                          fields[fieldIdx].required = checked
+                        }
+                      })
+                    }}
                   />
                 </div>
 

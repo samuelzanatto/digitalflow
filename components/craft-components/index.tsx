@@ -373,6 +373,7 @@ interface ContainerProps {
   borderColor?: string
   borderWidth?: number
   minHeight?: ResponsiveProp<number>
+  screenHeight?: boolean
   sectionId: string
 }
 
@@ -408,6 +409,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       borderColor = '#e5e7eb',
       borderWidth = 2,
       minHeight = 200,
+      screenHeight = false,
       sectionId = '',
       children,
     },
@@ -470,6 +472,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       borderColor: node.data.props.borderColor,
       borderWidth: node.data.props.borderWidth,
       minHeight: node.data.props.minHeight,
+      screenHeight: node.data.props.screenHeight,
     }))
     
     const { parentSpacing } = useEditor((state) => {
@@ -513,8 +516,10 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
         ? `${resolvedMinHeightProp}px`
         : undefined
 
-    const effectiveMinHeight =
-      resolvedHeight !== 'auto'
+    // Se screenHeight está ativado, usar 100vh como altura
+    const effectiveMinHeight = screenHeight
+      ? '100vh'
+      : resolvedHeight !== 'auto'
         ? resolvedHeight
         : resolvedMinHeight ?? (isRootLevel ? 'auto' : undefined)
 
@@ -619,6 +624,7 @@ export const Container = ContainerComponent
     borderColor: '#e5e7eb',
     borderWidth: 2,
     minHeight: 200,
+    screenHeight: false,
     sectionId: '',
   },
   displayName: 'Container',

@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { usePageHeader } from '@/hooks/usePageHeader'
 import { TeamChat } from '@/components/team-chat'
+import { OnlineUsersHeader } from '@/components/online-users-header'
 
 export default function EquipePage() {
   const { setPageHeader } = usePageHeader()
@@ -11,6 +12,7 @@ export default function EquipePage() {
     setPageHeader(
       'Equipe',
       'Chat geral para todos os membros conectados na dashboard',
+      <OnlineUsersHeader />,
     )
   }, [setPageHeader])
 

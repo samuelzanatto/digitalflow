@@ -655,6 +655,7 @@ export const FeatureCard = FeatureCardComponent
  * CaptureForm - Para lead capture/email signup
  * Um dos componentes MAIS críticos para conversão
  * Versão 2: Com suporte a múltiplos inputs, tipos customizáveis, sliders de width/height
+ * Versão 3: Com integração de grupos de leads e validação
  */
 interface InputFieldConfig {
   id: string
@@ -665,6 +666,7 @@ interface InputFieldConfig {
   borderRadius: number
   borderColor: string
   borderWidth: number
+  required?: boolean
 }
 
 interface CaptureFormProps {
@@ -695,6 +697,28 @@ interface CaptureFormProps {
   buttonFontSize?: number
   textColor?: string
   inputPlaceholderColor?: string
+  inputTextColor?: string
+  // Lead Group Integration
+  leadGroupId?: string
+  successMessage?: string
+  // Automation Integration
+  enableAutomation?: boolean
+  automationId?: string
+  automationDelay?: number // Delay em segundos
+  // Redirect after submit
+  enableRedirect?: boolean
+  redirectUrl?: string
+  redirectDelay?: number // Delay em segundos antes do redirecionamento
+  // Thank You Screen
+  skipThankYouScreen?: boolean // Só funciona quando enableRedirect está ativo
+  thankYouTitle?: string
+  thankYouSubtitle?: string
+  thankYouIcon?: 'checkmark' | 'heart' | 'star' | 'thumbsup' | 'none'
+  thankYouIconColor?: string
+  thankYouIconSize?: number
+  thankYouButtonText?: string
+  thankYouButtonColor?: string
+  thankYouShowButton?: boolean
 }
 
 const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
@@ -727,6 +751,7 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
           borderRadius: 6,
           borderColor: '#d1d5db',
           borderWidth: 1,
+          required: true,
         },
       ],
       inputPlaceholderColor = '#9ca3af',
@@ -738,16 +763,43 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
       buttonPadding = 12,
       buttonFontSize = 14,
       textColor = '#ffffff',
+      inputTextColor = '#000000',
+      leadGroupId = '',
+      successMessage = 'Obrigado! Entraremos em contato em breve.',
+      enableAutomation = false,
+      automationId = '',
+      automationDelay = 0,
+      enableRedirect = false,
+      redirectUrl = '',
+      redirectDelay = 2,
+      // Thank You Screen defaults
+      skipThankYouScreen = false, // Pular agradecimento (só funciona com redirecionamento ativo)
+      thankYouTitle = 'Obrigado!',
+      thankYouSubtitle = 'Entraremos em contato em breve.',
+      thankYouIcon = 'checkmark',
+      thankYouIconColor = '#22c55e',
+      thankYouIconSize = 48,
+      thankYouButtonText = 'Voltar',
+      thankYouButtonColor = '#7c3aed',
+      thankYouShowButton = false,
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, actions: { setProp } } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
     const { enabled: isEditorEnabled } = useEditor((state) => ({
       enabled: state.options.enabled,
     }))
     const { resolveResponsiveProp } = useEditorViewport()
+    
+    // Form state
+    const [formData, setFormData] = React.useState<Record<string, string>>({})
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [submitStatus, setSubmitStatus] = React.useState<'idle' | 'success' | 'error'>('idle')
+    const [errorMessage, setErrorMessage] = React.useState('')
+    // Editor preview state
+    const [previewThankYou, setPreviewThankYou] = React.useState(false)
 
     // Resolver todas as props responsivas
     const paddingTopValue = resolveResponsiveProp(formPaddingTop, 40)
@@ -787,6 +839,110 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
       ? `${resolvedHeight}px`
       : undefined
 
+    // Handler de mudança de input
+    const handleInputChange = (fieldId: string, value: string) => {
+      setFormData(prev => ({ ...prev, [fieldId]: value }))
+    }
+
+    // Handler de submit
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault()
+      
+      if (!leadGroupId) {
+        setErrorMessage('Grupo de leads não configurado')
+        setSubmitStatus('error')
+        return
+      }
+
+      // Validar campos obrigatórios
+      const requiredFields = inputFields?.filter(f => f.required !== false) || []
+      const missingFields = requiredFields.filter(f => !formData[f.id]?.trim())
+      
+      if (missingFields.length > 0) {
+        setErrorMessage(`Preencha os campos obrigatórios: ${missingFields.map(f => f.label).join(', ')}`)
+        setSubmitStatus('error')
+        return
+      }
+
+      // Validar email se existir
+      const emailField = inputFields?.find(f => f.type === 'email')
+      if (emailField && formData[emailField.id]) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(formData[emailField.id])) {
+          setErrorMessage('Por favor, insira um email válido')
+          setSubmitStatus('error')
+          return
+        }
+      }
+
+      setIsSubmitting(true)
+      setSubmitStatus('idle')
+      setErrorMessage('')
+
+      try {
+        // Montar dados para envio
+        const nameField = inputFields?.find(f => f.label.toLowerCase().includes('nome') || f.type === 'text')
+        const phoneField = inputFields?.find(f => f.type === 'phone')
+        
+        const payload = {
+          name: nameField ? formData[nameField.id] : 'Lead',
+          email: emailField ? formData[emailField.id] : '',
+          phone: phoneField ? formData[phoneField.id] : '',
+          source: 'capture_form',
+          customFields: formData,
+          // Adicionar automação se habilitada
+          ...(enableAutomation && automationId && {
+            automationId,
+            automationDelay: automationDelay || 0,
+          }),
+        }
+
+        const response = await fetch(`/api/capture/${leadGroupId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        if (response.ok) {
+          setSubmitStatus('success')
+          
+          // Verificar se vai pular para redirecionamento
+          const willSkipToRedirect = enableRedirect && redirectUrl && skipThankYouScreen
+          
+          // Só limpa os campos se não estiver pulando para redirecionamento
+          // (mantém os dados visíveis durante o redirect)
+          if (!willSkipToRedirect) {
+            setFormData({})
+            setIsSubmitting(false)
+          }
+          // Se vai pular para redirect, mantém isSubmitting = true (botão em loading)
+          
+          // Redirecionar após o delay se habilitado
+          if (enableRedirect && redirectUrl) {
+            setTimeout(() => {
+              // Verificar se é uma URL externa ou slug de página interna
+              if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://')) {
+                window.location.href = redirectUrl
+              } else {
+                // Assume que é um slug de página interna
+                window.location.href = `/page/${redirectUrl}`
+              }
+            }, (redirectDelay || 2) * 1000)
+          }
+        } else {
+          const data = await response.json()
+          setErrorMessage(data.error || 'Erro ao enviar formulário')
+          setSubmitStatus('error')
+          setIsSubmitting(false)
+        }
+      } catch (error) {
+        console.error('Erro ao enviar formulário:', error)
+        setErrorMessage('Erro de conexão. Tente novamente.')
+        setSubmitStatus('error')
+        setIsSubmitting(false)
+      }
+    }
+
     return (
       <div
         ref={(el) => {
@@ -800,6 +956,7 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
           }
         }}
         style={{
+          position: 'relative',
           width: computedWidth,
           maxWidth: '100%',
           height: computedHeight,
@@ -819,93 +976,252 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
           gap: '24px',
         }}
       >
-        {/* Título */}
-        <div>
-          <h2 style={{
-            fontSize: `${resolvedTitleFontSize}px`,
-            fontWeight: 'bold',
-            marginBottom: '8px',
-            color: titleColor,
-            margin: 0,
-            wordWrap: 'break-word',
-          }}>
-            {title}
-          </h2>
-          {subtitle && (
-            <p style={{
-              fontSize: `${resolvedSubtitleFontSize}px`,
-              color: subtitleColor,
-              margin: '8px 0 0 0',
+        {/* Título - ocultar quando mostrar tela de agradecimento, mas manter se pulando para redirect */}
+        {(submitStatus !== 'success' || (enableRedirect && redirectUrl && skipThankYouScreen)) && !(isEditorEnabled && previewThankYou) && (
+          <div>
+            <h2 style={{
+              fontSize: `${resolvedTitleFontSize}px`,
+              fontWeight: 'bold',
+              marginBottom: '8px',
+              color: titleColor,
+              margin: 0,
               wordWrap: 'break-word',
             }}>
-              {subtitle}
-            </p>
-          )}
-        </div>
+              {title}
+            </h2>
+            {subtitle && (
+              <p style={{
+                fontSize: `${resolvedSubtitleFontSize}px`,
+                color: subtitleColor,
+                margin: '8px 0 0 0',
+                wordWrap: 'break-word',
+              }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
+        )}
 
-        {/* Formulário com inputs */}
-        <div style={{
-          display: 'flex',
-          flexDirection: resolvedInputsDirection,
-          gap: `${resolvedInputGap}px`,
-          width: '100%',
-        }}>
-          {inputFields && inputFields.map((field) => (
-            <div key={field.id} style={{ flex: resolvedInputsDirection === 'row' ? 1 : undefined, width: resolvedInputsDirection === 'column' ? '100%' : 'auto', minWidth: 0 }}>
-              {field.label && (
-                <label style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  marginBottom: '4px',
-                  color: titleColor,
-                  textAlign: 'left',
-                }}>
-                  {field.label}
-                </label>
-              )}
-              <input
-                type={field.type === 'phone' ? 'tel' : field.type}
-                placeholder={field.placeholder}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: `${field.borderRadius}px`,
-                  border: `${field.borderWidth}px solid ${field.borderColor}`,
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box' as const,
-                  '--placeholder-color': field.placeholderColor || inputPlaceholderColor || '#9ca3af',
-                  pointerEvents: isEditorEnabled ? 'none' : 'auto',
-                } as React.CSSProperties}
-                className="capture-form-input"
-                disabled={isEditorEnabled}
-              />
-            </div>
-          ))}
-
-          {/* Botão */}
+        {/* Botão de Preview no Editor - mostra se não vai pular o agradecimento */}
+        {isEditorEnabled && isSelected && !(enableRedirect && redirectUrl && skipThankYouScreen) && (
           <button
-            type={isEditorEnabled ? 'button' : 'submit'}
+            type="button"
+            onClick={() => setPreviewThankYou(!previewThankYou)}
             style={{
-              backgroundColor: buttonColor,
-              color: textColor,
-              padding: `${buttonPadding}px 24px`,
-              borderRadius: `${buttonBorderRadius}px`,
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              padding: '6px 12px',
+              backgroundColor: previewThankYou ? '#22c55e' : '#3b82f6',
+              color: '#ffffff',
               border: 'none',
-              fontWeight: 'bold',
-              fontSize: `${buttonFontSize}px`,
-              cursor: isEditorEnabled ? 'default' : 'pointer',
-              width: resolvedInputsDirection === 'row' ? 'auto' : '100%',
-              minHeight: '44px',
-              flexShrink: 0,
-              pointerEvents: isEditorEnabled ? 'none' : 'auto',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
-            disabled={isEditorEnabled}
           >
-            {buttonText}
+            {previewThankYou ? '← Formulário' : 'Ver Agradecimento →'}
           </button>
-        </div>
+        )}
+
+        {/* Tela de Agradecimento - mostra sempre, exceto se pular E tiver redirecionamento */}
+        {(submitStatus === 'success' || (isEditorEnabled && previewThankYou)) && !(enableRedirect && redirectUrl && skipThankYouScreen) && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            padding: '24px',
+            minHeight: '150px',
+          }}>
+            {/* Ícone */}
+            {thankYouIcon !== 'none' && (
+              <div style={{
+                width: `${thankYouIconSize}px`,
+                height: `${thankYouIconSize}px`,
+                borderRadius: '50%',
+                backgroundColor: `${thankYouIconColor}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: `${thankYouIconSize * 0.5}px`,
+              }}>
+                {thankYouIcon === 'checkmark' && <span style={{ color: thankYouIconColor }}>✓</span>}
+                {thankYouIcon === 'heart' && <span style={{ color: thankYouIconColor }}>♥</span>}
+                {thankYouIcon === 'star' && <span style={{ color: thankYouIconColor }}>★</span>}
+                {thankYouIcon === 'thumbsup' && <span style={{ color: thankYouIconColor }}>👍</span>}
+              </div>
+            )}
+            
+            {/* Título do Agradecimento */}
+            <h3 style={{
+              fontSize: `${resolvedTitleFontSize * 0.85}px`,
+              fontWeight: 'bold',
+              color: titleColor,
+              margin: 0,
+              textAlign: 'center',
+            }}>
+              {thankYouTitle}
+            </h3>
+            
+            {/* Subtítulo do Agradecimento */}
+            {thankYouSubtitle && (
+              <p style={{
+                fontSize: `${resolvedSubtitleFontSize}px`,
+                color: subtitleColor,
+                margin: 0,
+                textAlign: 'center',
+              }}>
+                {thankYouSubtitle}
+              </p>
+            )}
+            
+            {/* Mensagem de Redirecionamento */}
+            {enableRedirect && redirectUrl && !isEditorEnabled && (
+              <p style={{
+                fontSize: '12px',
+                color: subtitleColor,
+                opacity: 0.7,
+                margin: 0,
+              }}>
+                Redirecionando em {redirectDelay || 2} segundos...
+              </p>
+            )}
+            
+            {/* Botão opcional */}
+            {thankYouShowButton && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isEditorEnabled) {
+                    setSubmitStatus('idle')
+                  }
+                }}
+                style={{
+                  backgroundColor: thankYouButtonColor,
+                  color: textColor,
+                  padding: `${buttonPadding}px 32px`,
+                  borderRadius: `${buttonBorderRadius}px`,
+                  border: 'none',
+                  fontWeight: 'bold',
+                  fontSize: `${buttonFontSize}px`,
+                  cursor: isEditorEnabled ? 'default' : 'pointer',
+                  marginTop: '8px',
+                  pointerEvents: isEditorEnabled ? 'none' : 'auto',
+                }}
+              >
+                {thankYouButtonText}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Mensagem de erro */}
+        {submitStatus === 'error' && errorMessage && (
+          <div style={{
+            padding: '12px',
+            backgroundColor: '#fef2f2',
+            borderRadius: '8px',
+            color: '#dc2626',
+            fontSize: '13px',
+          }}>
+            {errorMessage}
+          </div>
+        )}
+
+        {/* Aviso de grupo não configurado (apenas no editor) */}
+        {isEditorEnabled && !leadGroupId && (
+          <div style={{
+            padding: '12px',
+            backgroundColor: '#fef3c7',
+            borderRadius: '8px',
+            color: '#92400e',
+            fontSize: '12px',
+          }}>
+            ⚠️ Selecione um grupo de leads nas propriedades para receber os formulários
+          </div>
+        )}
+
+        {/* Formulário com inputs - mantém visível se pulando agradecimento (até redirecionar) */}
+        {(submitStatus !== 'success' || (enableRedirect && redirectUrl && skipThankYouScreen)) && !(isEditorEnabled && previewThankYou) && (
+          <form 
+            onSubmit={handleSubmit}
+            style={{
+              display: 'flex',
+              flexDirection: resolvedInputsDirection,
+              gap: `${resolvedInputGap}px`,
+              width: '100%',
+            }}
+          >
+            {inputFields && inputFields.map((field) => (
+              <div key={field.id} style={{ flex: resolvedInputsDirection === 'row' ? 1 : undefined, width: resolvedInputsDirection === 'column' ? '100%' : 'auto', minWidth: 0 }}>
+                {field.label && (
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    marginBottom: '4px',
+                    color: titleColor,
+                    textAlign: 'left',
+                  }}>
+                    {field.label}
+                    {field.required !== false && <span style={{ color: '#ef4444', marginLeft: '2px' }}>*</span>}
+                  </label>
+                )}
+                <input
+                  type={field.type === 'phone' ? 'tel' : field.type}
+                  placeholder={field.placeholder}
+                  value={formData[field.id] || ''}
+                  onChange={(e) => handleInputChange(field.id, e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: `${field.borderRadius}px`,
+                    border: `${field.borderWidth}px solid ${field.borderColor}`,
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box' as const,
+                    color: inputTextColor,
+                    '--placeholder-color': field.placeholderColor || inputPlaceholderColor || '#9ca3af',
+                    pointerEvents: isEditorEnabled ? 'none' : 'auto',
+                  } as React.CSSProperties}
+                  className="capture-form-input"
+                  disabled={isEditorEnabled || isSubmitting}
+                  required={field.required !== false}
+                />
+              </div>
+            ))}
+
+            {/* Botão */}
+            <button
+              type={isEditorEnabled ? 'button' : 'submit'}
+              style={{
+                backgroundColor: isSubmitting ? '#9ca3af' : buttonColor,
+                color: textColor,
+                padding: `${buttonPadding}px 24px`,
+                borderRadius: `${buttonBorderRadius}px`,
+                border: 'none',
+                fontWeight: 'bold',
+                fontSize: `${buttonFontSize}px`,
+                cursor: isEditorEnabled || isSubmitting ? 'default' : 'pointer',
+                width: resolvedInputsDirection === 'row' ? 'auto' : '100%',
+                minHeight: '44px',
+                flexShrink: 0,
+                pointerEvents: isEditorEnabled ? 'none' : 'auto',
+                opacity: isSubmitting ? 0.7 : 1,
+              }}
+              disabled={isEditorEnabled || isSubmitting}
+            >
+              {isSubmitting ? 'Enviando...' : buttonText}
+            </button>
+          </form>
+        )}
       </div>
     )
   }
@@ -936,16 +1252,29 @@ export const CaptureForm = CaptureFormComponent
     inputFields: [
       {
         id: '1',
-        type: 'email',
-        label: 'Email',
-        placeholder: 'Enter your email',
+        type: 'text',
+        label: 'Nome',
+        placeholder: 'Seu nome',
         placeholderColor: '#9ca3af',
         borderRadius: 6,
         borderColor: '#d1d5db',
         borderWidth: 1,
+        required: true,
+      },
+      {
+        id: '2',
+        type: 'email',
+        label: 'Email',
+        placeholder: 'seu@email.com',
+        placeholderColor: '#9ca3af',
+        borderRadius: 6,
+        borderColor: '#d1d5db',
+        borderWidth: 1,
+        required: true,
       },
     ],
     inputPlaceholderColor: '#9ca3af',
+    inputTextColor: '#000000',
     titleFontSize: 28,
     titleColor: '#000000',
     subtitleFontSize: 16,
@@ -954,6 +1283,24 @@ export const CaptureForm = CaptureFormComponent
     buttonPadding: 12,
     buttonFontSize: 14,
     textColor: '#ffffff',
+    leadGroupId: '',
+    successMessage: 'Obrigado! Entraremos em contato em breve.',
+    enableAutomation: false,
+    automationId: '',
+    automationDelay: 0,
+    enableRedirect: false,
+    redirectUrl: '',
+    redirectDelay: 2,
+    // Thank You Screen
+    skipThankYouScreen: false,
+    thankYouTitle: 'Obrigado!',
+    thankYouSubtitle: 'Entraremos em contato em breve.',
+    thankYouIcon: 'checkmark',
+    thankYouIconColor: '#22c55e',
+    thankYouIconSize: 48,
+    thankYouButtonText: 'Voltar',
+    thankYouButtonColor: '#7c3aed',
+    thankYouShowButton: false,
   },
   displayName: 'Capture Form',
 }

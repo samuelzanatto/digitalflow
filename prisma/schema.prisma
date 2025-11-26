@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL")
 }
 
 // Modelo para páginas de vendas
@@ -109,4 +108,149 @@ model TeamMessage {
   @@map("team_messages")
   @@index([userId])
   @@index([insertedAt])
+}
+
+// Modelo para integrações (ex: Kirvano, etc)
+model Integration {
+  id            String   @id @default(uuid())
+  userId        String
+  name          String   // Nome da integração (ex: "Kirvano")
+  provider      String   // Identificador do provider (ex: "kirvano")
+  webhookToken  String   @unique @default(uuid()) // Token único para o webhook
+  enabled       Boolean  @default(true)
+  config        Json     @default("{}") // Configurações adicionais
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relação com eventos recebidos
+  events        WebhookEvent[]
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([webhookToken])
+}
+
+// Modelo para eventos de webhook recebidos
+model WebhookEvent {
+  id            String   @id @default(uuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  
+  event         String   // Tipo do evento (ex: "SALE_APPROVED", "ABANDONED_CART")
+  payload       Json     // Payload completo do webhook
+  processedAt   DateTime @default(now())
+  status        String   @default("received") // received, processed, error
+  
+  @@index([integrationId])
+  @@index([event])
+  @@index([processedAt])
+}
+
+// Modelo para vendas (dados da Kirvano)
+model Sale {
+  id              String   @id @default(uuid())
+  integrationId   String
+  
+  // Dados da venda
+  externalId      String   // sale_id da Kirvano
+  checkoutId      String?
+  event           String   // Evento que gerou o registro
+  status          String   // PENDING, APPROVED, REFUSED, REFUNDED, CHARGEBACK, CANCELED
+  paymentMethod   String   // CREDIT_CARD, PIX, BANK_SLIP
+  totalPrice      String   // Preço total formatado
+  totalPriceCents Int?     // Preço em centavos para cálculos
+  type            String   // ONE_TIME, RECURRING
+  
+  // Dados do cliente
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  customerDocument String?
+  
+  // Dados do pagamento
+  paymentBrand    String?  // visa, mastercard, etc
+  installments    Int?
+  finishedAt      DateTime?
+  
+  // Dados de assinatura (se aplicável)
+  planName        String?
+  chargeFrequency String?
+  nextChargeDate  DateTime?
+  
+  // Produtos
+  products        Json     @default("[]")
+  
+  // UTMs
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  utmTerm         String?
+  utmContent      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([integrationId, externalId])
+  @@index([integrationId])
+  @@index([status])
+  @@index([customerEmail])
+  @@index([createdAt])
+}
+
+// Modelo para grupos de leads
+model LeadGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relação com leads
+  leads       Lead[]
+
+  @@index([userId])
+}
+
+// Modelo para leads
+model Lead {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String
+  groupId      String    @db.Uuid
+  group        LeadGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  name         String
+  email        String
+  phone        String?
+  source       String    @default("form")
+  status       String    @default("new")
+  score        Int       @default(0)
+  customFields Json      @default("{}")
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([groupId])
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Modelo para automações de email
+model Automation {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String
+  name         String
+  type         String    @default("email") // Tipo: email (por enquanto só email)
+  subject      String    // Assunto do email
+  message      String    // Conteúdo do email (HTML)
+  enabled      Boolean   @default(true)
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([enabled])
 }

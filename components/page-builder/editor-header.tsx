@@ -25,6 +25,69 @@ interface EditorHeaderProps {
 }
 
 /**
+ * Valida se CaptureForm tem os campos obrigatórios (nome, email, telefone)
+ */
+function validateCaptureFormFields(layout: Record<string, unknown>): { valid: boolean; error?: string } {
+  // Percorre todos os nós buscando CaptureForm
+  for (const nodeKey of Object.keys(layout)) {
+    const node = layout[nodeKey] as Record<string, unknown>
+    if (!node || typeof node !== 'object') continue
+    
+    // Na estrutura serializada do CraftJS, displayName e props estão diretamente no nó
+    const displayName = node.displayName as string | undefined
+    const typeObj = node.type as Record<string, unknown> | undefined
+    const typeName = typeObj?.resolvedName as string | undefined
+    
+    // Verifica se é um CaptureForm
+    if (displayName === 'Capture Form' || typeName === 'CaptureForm') {
+      const props = node.props as Record<string, unknown> | undefined
+      if (!props) continue
+      
+      const inputFields = props.inputFields as Array<{
+        id: string
+        type: string
+        label: string
+      }> | undefined
+      
+      if (!inputFields || inputFields.length === 0) {
+        return { valid: false, error: 'Formulário de captura precisa ter pelo menos os campos: Nome, Email e Telefone' }
+      }
+      
+      // Verifica se tem campo de texto (nome)
+      const hasNameField = inputFields.some(f => 
+        f.type === 'text' && (f.label.toLowerCase().includes('nome') || f.label.toLowerCase().includes('name'))
+      )
+      
+      // Verifica se tem campo de email
+      const hasEmailField = inputFields.some(f => f.type === 'email')
+      
+      // Verifica se tem campo de telefone
+      const hasPhoneField = inputFields.some(f => f.type === 'phone')
+      
+      if (!hasNameField) {
+        return { valid: false, error: 'Formulário de captura precisa ter um campo de Nome (tipo: Texto, label contendo "nome")' }
+      }
+      
+      if (!hasEmailField) {
+        return { valid: false, error: 'Formulário de captura precisa ter um campo de Email' }
+      }
+      
+      if (!hasPhoneField) {
+        return { valid: false, error: 'Formulário de captura precisa ter um campo de Telefone' }
+      }
+      
+      // Verifica se tem grupo de leads configurado
+      const leadGroupId = props.leadGroupId as string | undefined
+      if (!leadGroupId) {
+        return { valid: false, error: 'Formulário de captura precisa ter um Grupo de Leads selecionado' }
+      }
+    }
+  }
+  
+  return { valid: true }
+}
+
+/**
  * Normaliza o layout serializado para garantir tipos corretos
  */
 function normalizeLayoutForSave(layout: Record<string, unknown>): Record<string, unknown> {
@@ -87,6 +150,13 @@ export function EditorHeader({
       } catch (error) {
         console.error('Erro ao serializar layout do Craft:', error)
         toast.error('Falha ao preparar layout para salvar')
+        return
+      }
+
+      // Valida CaptureForm antes de salvar
+      const validation = validateCaptureFormFields(parsedLayout)
+      if (!validation.valid) {
+        toast.error(validation.error || 'Erro de validação no formulário')
         return
       }
 
@@ -176,6 +246,13 @@ export function SaveButton({
       } catch (error) {
         console.error('Erro ao serializar layout do Craft:', error)
         toast.error('Falha ao preparar layout para salvar')
+        return
+      }
+
+      // Valida CaptureForm antes de salvar
+      const validation = validateCaptureFormFields(parsedLayout)
+      if (!validation.valid) {
+        toast.error(validation.error || 'Erro de validação no formulário')
         return
       }
 

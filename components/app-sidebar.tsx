@@ -8,11 +8,7 @@ import {
   IconDashboard,
   IconDatabase,
   IconFileAi,
-  IconFileWord,
-  IconCalendar,
   IconMessage,
-  IconReport,
-  IconListDetails,
   IconSearch,
   IconSettings,
   IconUsers,
@@ -20,12 +16,13 @@ import {
   IconQuestionMark,
   IconLayout,
   IconBraces,
+  IconPlug,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { OnlineAvatarGroup } from "@/components/online-avatar-group"
 import { useUnreadMessages } from "@/contexts/unread-messages"
 import {
   Sidebar,
@@ -55,6 +52,11 @@ const data = {
       icon: IconBraces,
     },
     {
+      title: "Automações",
+      url: "/dashboard/automacoes",
+      icon: IconFileAi,
+    },
+    {
       title: "Chat",
       url: "/dashboard/chat",
       icon: IconMessage,
@@ -75,11 +77,6 @@ const data = {
       icon: IconChartBar,
     },
     {
-      title: "Agendamentos",
-      url: "/dashboard/agendamentos",
-      icon: IconCalendar,
-    },
-    {
       title: "Clientes",
       url: "/dashboard/clientes",
       icon: IconDatabase,
@@ -89,8 +86,12 @@ const data = {
       url: "/dashboard/perguntas",
       icon: IconQuestionMark,
     },
+    {
+      title: "Integrações",
+      url: "/dashboard/integracoes",
+      icon: IconPlug,
+    },
   ],
-  navClouds: [],
   navSecondary: [
     {
       title: "Análise & Feedback",
@@ -108,28 +109,6 @@ const data = {
       icon: IconUsers,
     },
   ],
-  documents: [
-    {
-      name: "Relatórios",
-      url: "/dashboard/relatorios",
-      icon: IconReport,
-    },
-    {
-      name: "Tarefas",
-      url: "/dashboard/tarefas",
-      icon: IconListDetails,
-    },
-    {
-      name: "Automações",
-      url: "/dashboard/automacoes",
-      icon: IconFileAi,
-    },
-    {
-      name: "Documentos",
-      url: "/dashboard/documentos",
-      icon: IconFileWord,
-    },
-  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -140,27 +119,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-            >
-              <Link href="/" className="flex items-center gap-2">
-                <Image
-                  src="/logo.png"
-                  alt="Flow Logo"
-                  width={32}
-                  height={32}
-                  className="w-6 h-6 object-contain"
-                />
-                <span className="text-base font-semibold">flow</span>
-              </Link>
-            </SidebarMenuButton>
+            <div className="flex items-center justify-between w-full">
+              <SidebarMenuButton
+                asChild
+                className="data-[slot=sidebar-menu-button]:p-1.5! shrink-0"
+              >
+                <Link href="/" className="flex items-center gap-2">
+                  <Image
+                    src="/logo.png"
+                    alt="Flow Logo"
+                    width={32}
+                    height={32}
+                    className="w-6 h-6 object-contain"
+                  />
+                  <span className="text-base font-semibold">flow</span>
+                </Link>
+              </SidebarMenuButton>
+              <OnlineAvatarGroup className="absolute ml-56" />
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} unreadCount={unreadCount} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

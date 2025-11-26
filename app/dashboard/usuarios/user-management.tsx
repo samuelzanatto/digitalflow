@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { usePageHeader } from '@/hooks/usePageHeader'
 
 import {
@@ -42,6 +43,15 @@ const buildDisplayName = (user: User) =>
   (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name.trim()) ||
   user.email?.split('@')[0] ||
   'Usuário Flow'
+
+const getInitials = (name: string) => {
+  return name
+    .split(" ")
+    .map(word => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+}
 
 export function UserManagementPanel({ initialUsers }: { initialUsers: User[] }) {
   const router = useRouter()
@@ -181,6 +191,7 @@ export function UserManagementPanel({ initialUsers }: { initialUsers: User[] }) 
         <table className="min-w-full divide-y divide-white/5 text-sm text-white">
           <thead>
             <tr className="bg-white/5 text-xs uppercase tracking-widest text-white/50">
+              <th className="px-4 py-3 text-left w-14"></th>
               <th className="px-4 py-3 text-left">Nome</th>
               <th className="px-4 py-3 text-left">Email</th>
               <th className="px-4 py-3 text-left">Último acesso</th>
@@ -191,10 +202,20 @@ export function UserManagementPanel({ initialUsers }: { initialUsers: User[] }) 
           <tbody className="divide-y divide-white/5">
             {users.map((user) => {
               const isRootAdmin = user.email?.toLowerCase() === rootAdminEmail
+              const displayName = buildDisplayName(user)
+              const avatarUrl = user.user_metadata?.avatar_url as string | undefined
               return (
                 <tr key={user.id} className="hover:bg-white/5">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-white">{buildDisplayName(user)}</div>
+                    <Avatar className="h-9 w-9 border border-white/10">
+                      <AvatarImage src={avatarUrl} alt={displayName} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                        {getInitials(displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-white">{displayName}</div>
                     {isRootAdmin && (
                       <Badge variant="secondary" className="mt-1 bg-amber-500/10 text-amber-200">
                         Administrador principal

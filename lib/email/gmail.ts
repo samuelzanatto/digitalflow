@@ -71,3 +71,46 @@ export async function sendInviteEmail(payload: InviteEmailPayload) {
     text: `Acesse o link para concluir seu cadastro: ${payload.inviteUrl}`,
   })
 }
+
+// Tipo para envio de automação de email
+type AutomationEmailPayload = {
+  to: string
+  subject: string
+  htmlContent: string
+  textContent?: string
+}
+
+/**
+ * Envia um email de automação
+ * Substitui variáveis como {{nome}} e {{email}} no conteúdo
+ */
+export async function sendAutomationEmail(payload: AutomationEmailPayload) {
+  if (!transporter) {
+    throw new Error('Gmail SMTP não configurado corretamente.')
+  }
+
+  await transporter.sendMail({
+    from: fromName ? `${fromName} <${fromEmail}>` : fromEmail,
+    to: payload.to,
+    subject: payload.subject,
+    html: payload.htmlContent,
+    text: payload.textContent || payload.htmlContent.replace(/<[^>]*>/g, ''),
+  })
+}
+
+/**
+ * Processa variáveis de template em uma mensagem
+ */
+export function processTemplateVariables(
+  template: string,
+  variables: { nome?: string; email?: string; [key: string]: string | undefined }
+): string {
+  let processed = template
+  
+  Object.entries(variables).forEach(([key, value]) => {
+    const regex = new RegExp(`{{${key}}}`, 'gi')
+    processed = processed.replace(regex, value || '')
+  })
+  
+  return processed
+}
