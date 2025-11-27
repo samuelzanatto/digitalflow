@@ -188,7 +188,7 @@ export const Image = TiptapImage.extend<CustomImageOptions>({
       inline: false,
       allowBase64: false,
       HTMLAttributes: {},
-    }
+    } as CustomImageOptions
   },
 
   addAttributes() {

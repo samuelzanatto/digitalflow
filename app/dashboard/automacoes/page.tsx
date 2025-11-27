@@ -1,10 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePageHeader } from "@/hooks/usePageHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -17,8 +16,36 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog"
-import { motion } from "framer-motion"
-import { IconPlus, IconEdit, IconTrash, IconMail, IconEye } from "@tabler/icons-react"
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import {
+  DashboardCard,
+  DashboardCardHeader,
+  DashboardCardContent,
+  DashboardCardFooter,
+  DashboardCardActions,
+} from "@/components/digitalflow"
+import { Plus, Pencil, Trash2, Mail, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap"
 import type { Content } from "@tiptap/react"
@@ -49,8 +76,11 @@ export default function AutomacoesPage() {
     message: "" as Content,
   })
   const [submitting, setSubmitting] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const fetchAutomations = async () => {
+  const fetchAutomations = useCallback(async () => {
     try {
       const response = await fetch("/api/automations")
       if (response.ok) {
@@ -63,23 +93,13 @@ export default function AutomacoesPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    fetchAutomations()
   }, [])
 
   useEffect(() => {
-    const actionButton = (
-      <Button className="gap-2" onClick={() => handleOpenDialog()}>
-        <IconPlus size={18} />
-        Nova Automação
-      </Button>
-    )
-    setPageHeader("Automações", "Configure workflows e gatilhos automáticos de email", actionButton)
-  }, [setPageHeader])
+    fetchAutomations()
+  }, [fetchAutomations])
 
-  const handleOpenDialog = (automation?: Automation) => {
+  const handleOpenDialog = useCallback((automation?: Automation) => {
     if (automation) {
       setEditingAutomation(automation)
       setFormData({
@@ -98,7 +118,17 @@ export default function AutomacoesPage() {
       })
     }
     setDialogOpen(true)
-  }
+  }, [])
+
+  useEffect(() => {
+    const actionButton = (
+      <Button className="gap-2" onClick={() => handleOpenDialog()}>
+        <Plus className="w-4 h-4" />
+        Nova Automação
+      </Button>
+    )
+    setPageHeader("Automações", "Configure workflows e gatilhos automáticos de email", actionButton)
+  }, [setPageHeader, handleOpenDialog])
 
   const handlePreview = () => {
     // Processar variáveis de exemplo para preview
@@ -166,16 +196,30 @@ export default function AutomacoesPage() {
     }
   }
 
-  const handleDelete = async (automation: Automation) => {
-    if (!confirm(`Deseja excluir a automação "${automation.name}"?`)) return
+  const handleOpenDelete = (automation: Automation) => {
+    setDeleteTarget(automation)
+    setDeleteDialogOpen(true)
+  }
 
+  useEffect(() => {
+    if (!deleteDialogOpen) {
+      setDeleteTarget(null)
+    }
+  }, [deleteDialogOpen])
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget || isDeleting) return
+
+    setIsDeleting(true)
     try {
-      const response = await fetch(`/api/automations/${automation.id}`, {
+      const response = await fetch(`/api/automations/${deleteTarget.id}`, {
         method: "DELETE",
       })
 
       if (response.ok) {
         toast.success("Automação excluída!")
+        setDeleteDialogOpen(false)
+        setDeleteTarget(null)
         fetchAutomations()
       } else {
         toast.error("Erro ao excluir automação")
@@ -183,74 +227,137 @@ export default function AutomacoesPage() {
     } catch (error) {
       console.error("Erro ao excluir:", error)
       toast.error("Erro ao excluir automação")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
+  const currentDeleteTarget = useMemo(() => deleteTarget, [deleteTarget])
+
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-6 bg-black rounded-b-2xl p-4 lg:p-6">
+      {/* Alert Dialog de Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir automação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover a automação &quot;{currentDeleteTarget?.name}&quot;? Essa ação não
+              pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-white" disabled={isDeleting}>
+              {isDeleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Carregando automações...</p>
+        <div className="flex flex-1 items-center justify-center">
+          <video autoPlay loop muted playsInline className="w-24 h-24">
+            <source src="/loading.mp4" type="video/mp4" />
+          </video>
         </div>
       ) : automations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <IconMail size={48} className="text-muted-foreground" />
-          <p className="text-muted-foreground">Nenhuma automação criada ainda</p>
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
-            <IconPlus size={18} />
-            Criar primeira automação
-          </Button>
+        <div className="flex flex-1 items-center justify-center">
+          <Empty className="border-none bg-transparent p-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Mail className="w-5 h-5" />
+              </EmptyMedia>
+              <EmptyTitle>Nenhuma automação criada</EmptyTitle>
+              <EmptyDescription>
+                Comece criando sua primeira automação de email para disparar mensagens automáticas.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button className="gap-2" onClick={() => handleOpenDialog()}>
+                <Plus className="w-4 h-4" />
+                Criar primeira automação
+              </Button>
+            </EmptyContent>
+          </Empty>
         </div>
       ) : (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ duration: 0.5, delay: 0.2 }} 
-          className="space-y-3"
-        >
+        <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {automations.map((automation) => (
-            <Card key={automation.id} className="p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <IconMail size={20} className="text-primary" />
-                    <h3 className="font-semibold">{automation.name}</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-1">
-                    📧 Assunto: {automation.subject}
-                  </p>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    💬 {automation.message.substring(0, 100)}...
-                  </p>
-                </div>
-                <div className="flex gap-2 items-center">
+            <DashboardCard key={automation.id}>
+              <DashboardCardHeader
+                icon={<Mail className="w-4 h-4" />}
+                title={automation.name}
+                description={automation.subject || "Sem assunto"}
+                actions={
+                  <DashboardCardActions>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleOpenDialog(automation)
+                      }}
+                      className="gap-2"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleOpenDelete(automation)
+                      }}
+                      className="gap-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DashboardCardActions>
+                }
+              />
+
+              <DashboardCardContent>
+                <div className="flex items-center gap-2">
                   <Switch
                     checked={automation.enabled}
                     onCheckedChange={() => handleToggleEnabled(automation)}
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  <Badge variant={automation.enabled ? "default" : "outline"}>
+                  <Badge variant={automation.enabled ? "default" : "outline"} className="text-xs">
                     {automation.enabled ? "Ativa" : "Inativa"}
                   </Badge>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleOpenDialog(automation)}
-                  >
-                    <IconEdit size={16} />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleDelete(automation)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <IconTrash size={16} />
-                  </Button>
                 </div>
-              </div>
-            </Card>
+              </DashboardCardContent>
+
+              <DashboardCardFooter
+                leftContent={
+                  <>
+                    <span>Criada em {new Date(automation.createdAt).toLocaleDateString("pt-BR")}</span>
+                    <span className="opacity-80">
+                      Atualizada em {new Date(automation.updatedAt).toLocaleDateString("pt-BR")}
+                    </span>
+                  </>
+                }
+                rightContent={
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleOpenDialog(automation)
+                    }}
+                    className="gap-1 text-xs"
+                  >
+                    <Eye className="w-3 h-3" />
+                    Ver
+                  </Button>
+                }
+              />
+            </DashboardCard>
           ))}
-        </motion.div>
+        </div>
       )}
 
       {/* Dialog de Criar/Editar */}
@@ -312,7 +419,7 @@ export default function AutomacoesPage() {
                   onClick={handlePreview}
                   className="gap-2"
                 >
-                  <IconEye size={16} />
+                  <Eye className="w-4 h-4" />
                   Visualizar
                 </Button>
               </div>

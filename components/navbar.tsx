@@ -6,7 +6,6 @@ import Image from "next/image";
 import { motion, useScroll } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TransitionLink } from "@/components/transition-link";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -240,29 +239,6 @@ export function Navbar() {
                 </Button>
               </motion.div>
 
-              {/* Login Button */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.35 }}
-                className="hidden sm:block"
-              >
-                <Button
-                  asChild
-                  className="border border-white/40 hover:border-white/80 bg-transparent hover:bg-white/5 text-white rounded-full px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-all duration-300"
-                >
-                  <TransitionLink href="/login">
-                    <motion.span
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="relative z-10 font-bold"
-                    >
-                      Login
-                    </motion.span>
-                  </TransitionLink>
-                </Button>
-              </motion.div>
-
               {/* Mobile Menu Button - Desktop only (hidden) */}
               <motion.button
                 initial={{ opacity: 0 }}
@@ -368,14 +344,6 @@ export function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Link href="#contato">Agendar</Link>
-              </Button>
-
-              <Button
-                asChild
-                className="w-full border border-white/40 hover:border-white/80 bg-transparent hover:bg-white/5 text-white rounded-xl py-6 text-lg font-semibold transition-all duration-300"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <TransitionLink href="/login">Login</TransitionLink>
               </Button>
             </motion.div>
           </div>

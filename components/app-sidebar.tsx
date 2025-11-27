@@ -7,16 +7,16 @@ import {
   IconChartBar,
   IconDashboard,
   IconDatabase,
-  IconFileAi,
   IconMessage,
   IconSearch,
   IconSettings,
   IconUsers,
   IconUsersGroup,
-  IconQuestionMark,
   IconLayout,
-  IconBraces,
   IconPlug,
+  IconRobotFace,
+  IconProgressHelp,
+  IconRouteSquare2,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -49,12 +49,12 @@ const data = {
     {
       title: "Flows",
       url: "/dashboard/flows",
-      icon: IconBraces,
+      icon: IconRouteSquare2,
     },
     {
       title: "Automações",
       url: "/dashboard/automacoes",
-      icon: IconFileAi,
+      icon: IconRobotFace,
     },
     {
       title: "Chat",
@@ -84,7 +84,7 @@ const data = {
     {
       title: "Perguntas",
       url: "/dashboard/perguntas",
-      icon: IconQuestionMark,
+      icon: IconProgressHelp,
     },
     {
       title: "Integrações",

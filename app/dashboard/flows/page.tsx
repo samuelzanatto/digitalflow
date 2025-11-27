@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, ArrowRight, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Plus, ArrowRight, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -16,12 +15,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  DashboardCard,
+  DashboardCardHeader,
+  DashboardCardContent,
+  DashboardCardFooter,
+  DashboardCardActions,
+} from "@/components/digitalflow"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -406,76 +409,46 @@ export default function FlowsPage() {
           </Empty>
         </div>
       ) : (
-        <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
           {funnels.map((funnel) => (
-            <Card
+            <DashboardCard
               key={funnel.funnelId}
-              role="button"
-              tabIndex={0}
-              onClick={(event) => {
-                if ((event.target as HTMLElement).closest('[role="menuitem"]')) return
-                router.push(`/dashboard/flows/${funnel.funnelId}`)
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault()
-                  router.push(`/dashboard/flows/${funnel.funnelId}`)
-                }
-              }}
-              className="h-full rounded-3xl hover:shadow-xl transition-all duration-300 hover:border-primary/50 cursor-pointer group overflow-hidden bg-black/70 border border-white/10"
+              onClick={() => router.push(`/dashboard/flows/${funnel.funnelId}`)}
             >
-              <div className="p-6 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
-                      {funnel.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {funnel.description || "Sem descrição"}
-                    </p>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                        }}
-                        className="rounded-full border border-white/10 p-1.5 text-white/60 hover:text-white hover:border-white/30 transition-colors"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Ações do funil</span>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem
-                        onSelect={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          handleOpenEdit(funnel)
-                        }}
-                        className="gap-2"
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Editar título/descrição
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onSelect={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          handleOpenDelete(funnel)
-                        }}
-                        className="gap-2 text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Excluir funil
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                <div className="flex items-center gap-4 py-2">
+              <DashboardCardHeader
+                title={funnel.name}
+                description={funnel.description || "Sem descrição"}
+                actions={
+                  <DashboardCardActions>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleOpenEdit(funnel)
+                      }}
+                      className="gap-2"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleOpenDelete(funnel)
+                      }}
+                      className="gap-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DashboardCardActions>
+                }
+              />
+
+              <DashboardCardContent>
+                <div className="flex items-center gap-4">
                   <div>
                     <p className="text-2xl font-bold text-primary">{funnel.stagesCount}</p>
                     <p className="text-xs text-muted-foreground">Nós salvos</p>
@@ -488,17 +461,20 @@ export default function FlowsPage() {
                     <p className="text-xs text-muted-foreground">Atualizado</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                  <div className="flex flex-col text-xs text-muted-foreground">
-                    <span>
-                      Criado em {new Date(funnel.createdAt).toLocaleDateString("pt-BR")}
-                    </span>
+              </DashboardCardContent>
+
+              <DashboardCardFooter
+                leftContent={
+                  <>
+                    <span>Criado em {new Date(funnel.createdAt).toLocaleDateString("pt-BR")}</span>
                     <span className="opacity-80">Criado por: {formatUserId(funnel.createdBy)}</span>
-                  </div>
+                  </>
+                }
+                rightContent={
                   <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Card>
+                }
+              />
+            </DashboardCard>
           ))}
         </div>
       )}

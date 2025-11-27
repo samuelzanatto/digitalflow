@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import type { Database } from '@/types/supabase'
 
-const PROTECTED_PATHS = [/^\/dashboard(\/.*)?$/]
+const PROTECTED_PATHS = [/^\/dashboard(\/.*)?$/, /^\/admin$/]
 
 const requireEnv = (value: string | undefined, key: string) => {
   if (!value) {
@@ -53,6 +53,13 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && request.nextUrl.pathname === '/login') {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/dashboard'
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Redirecionar /admin para /dashboard quando autenticado
+  if (user && request.nextUrl.pathname === '/admin') {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/dashboard'
     return NextResponse.redirect(redirectUrl)
