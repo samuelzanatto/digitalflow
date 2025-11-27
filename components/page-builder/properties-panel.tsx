@@ -12,11 +12,11 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { ChevronDown, Calendar as CalendarIcon, Monitor, Tablet, Smartphone, Link2, Link2Off } from 'lucide-react'
+import { ChevronDown, Calendar as CalendarIcon, Monitor, Tablet, Smartphone } from 'lucide-react'
 import { AVAILABLE_FONTS } from '@/lib/fonts'
 import { getUserPages } from '@/lib/actions/pages'
-import { useViewport, ViewportMode, isResponsiveValue, ResponsiveValue, ResponsiveProp } from '@/contexts/viewport-context'
-import { setResponsiveValue, getViewportValue, hasViewportOverride, RESPONSIVE_PROPS, isResponsivePropName } from '@/lib/responsive-props'
+import { useViewport, ViewportMode, ResponsiveProp } from '@/contexts/viewport-context'
+import { setResponsiveValue, getViewportValue, hasViewportOverride } from '@/lib/responsive-props'
 import { cn } from '@/lib/utils'
 
 /**
@@ -312,7 +312,7 @@ function RedirectSelect({ nodeId, enableRedirect, redirectUrl, redirectDelay, se
           // Filtrar apenas páginas publicadas
           setPages((data.pages || []).filter((p: PageOption) => p.published))
         }
-      } catch (error) {
+      } catch {
         // Silently fail
       } finally {
         setLoading(false)
@@ -329,8 +329,6 @@ function RedirectSelect({ nodeId, enableRedirect, redirectUrl, redirectDelay, se
       setIsCustomUrl(false)
     }
   }, [redirectUrl])
-
-  const selectedPage = pages.find(p => p.slug === redirectUrl)
 
   return (
     <div className="space-y-3 border p-3 rounded bg-green-500/5">
@@ -511,6 +509,7 @@ interface ResponsiveNumberInputProps {
   showSlider?: boolean
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ResponsiveNumberInput({
   label,
   value,
@@ -809,12 +808,6 @@ interface PropertyPanelContentProps {
   nodeId: string
 }
 
-type PageOption = {
-  id: string
-  title: string
-  slug: string
-}
-
 // Categorizar propriedades em seções
 function categorizeProps(props: Record<string, unknown>) {
   const sections: Record<string, Record<string, unknown>> = {
@@ -915,14 +908,14 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     const fetchPages = async () => {
       setIsLoadingPages(true)
       try {
-  const result = await getUserPages()
+        const result = await getUserPages()
         if (result.success && Array.isArray(result.data)) {
-          const mapped = (result.data as Array<{ id: string; title: string; slug: string }>).
-            map((page) => ({ id: page.id, title: page.title, slug: page.slug }))
+          const mapped = (result.data as Array<{ id: string; title: string; slug: string; published: boolean }>)
+            .map((page) => ({ id: page.id, title: page.title, slug: page.slug, published: page.published ?? false }))
           setAvailablePages(mapped)
         }
-      } catch (error) {
-        console.error('Erro ao carregar páginas disponíveis:', error)
+      } catch (err) {
+        console.error('Erro ao carregar páginas disponíveis:', err)
       } finally {
         setIsLoadingPages(false)
       }
