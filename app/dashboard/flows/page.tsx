@@ -414,6 +414,7 @@ export default function FlowsPage() {
             <DashboardCard
               key={funnel.funnelId}
               onClick={() => router.push(`/dashboard/flows/${funnel.funnelId}`)}
+              itemPath={`/dashboard/flows/${funnel.funnelId}`}
             >
               <DashboardCardHeader
                 title={funnel.name}

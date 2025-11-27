@@ -4,6 +4,8 @@ import { PageHeaderProvider } from "@/components/page-header-context"
 import { UnreadMessagesProvider } from "@/contexts/unread-messages"
 import { UserProvider } from "@/contexts/user-context"
 import { OnlineUsersProvider } from "@/contexts/online-users-context"
+import { CollaborationProvider } from "@/contexts/collaboration-context"
+import { ChatNotificationsProvider } from "@/contexts/chat-notifications-context"
 import {
   SidebarInset,
   SidebarProvider,
@@ -18,26 +20,30 @@ export default function DashboardLayout({
     <div suppressHydrationWarning>
       <UserProvider>
         <OnlineUsersProvider>
-          <UnreadMessagesProvider>
-            <SidebarProvider
-            style={
-              {
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)",
-              } as React.CSSProperties
-            }
-          >
-            <AppSidebar variant="inset" />
-            <SidebarInset>
-              <PageHeaderProvider>
-                <SiteHeader />
-                <div className="flex flex-1 flex-col rounded-b-2xl bg-black">
-                  {children}
-                </div>
-              </PageHeaderProvider>
-            </SidebarInset>
-          </SidebarProvider>
-          </UnreadMessagesProvider>
+          <CollaborationProvider>
+            <UnreadMessagesProvider>
+              <ChatNotificationsProvider>
+                <SidebarProvider
+                style={
+                  {
+                    "--sidebar-width": "calc(var(--spacing) * 72)",
+                    "--header-height": "calc(var(--spacing) * 12)",
+                  } as React.CSSProperties
+                }
+              >
+                <AppSidebar variant="inset" />
+                <SidebarInset>
+                  <PageHeaderProvider>
+                    <SiteHeader />
+                    <div className="flex flex-1 flex-col rounded-b-2xl bg-black">
+                      {children}
+                    </div>
+                  </PageHeaderProvider>
+                </SidebarInset>
+              </SidebarProvider>
+              </ChatNotificationsProvider>
+            </UnreadMessagesProvider>
+          </CollaborationProvider>
         </OnlineUsersProvider>
       </UserProvider>
     </div>

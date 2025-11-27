@@ -3,16 +3,23 @@
 import { createContext, useContext, useEffect, useState, useMemo, useCallback, type ReactNode } from "react"
 import { createSupabaseBrowserClient, type SupabaseBrowserClient } from "@/lib/supabase/client"
 
+// Email do administrador raiz definido em variável de ambiente
+const ROOT_ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ROOT_ADMIN_EMAIL || "admin@digitalflow.com").toLowerCase()
+
+export type UserRole = "admin" | "user"
+
 type UserData = {
   id: string
   email: string
   full_name?: string
   avatar_url?: string
+  role: UserRole
 }
 
 type UserContextType = {
   user: UserData | null
   isLoading: boolean
+  isAdmin: boolean
   refreshUser: () => Promise<void>
   updateUserData: (data: Partial<Pick<UserData, "full_name" | "avatar_url">>) => void
 }
@@ -35,12 +42,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   } | null): UserData | null => {
     if (!sessionUser) return null
     const metadata = sessionUser.user_metadata ?? {}
+    const email = sessionUser.email || ""
+    
+    // Determina o role: admin se for o email root ou se tiver role="admin" no metadata
+    const metadataRole = typeof metadata.role === "string" ? metadata.role : undefined
+    const isRootAdmin = email.toLowerCase() === ROOT_ADMIN_EMAIL
+    const role: UserRole = isRootAdmin || metadataRole === "admin" ? "admin" : "user"
     
     return {
       id: sessionUser.id,
-      email: sessionUser.email || "",
+      email,
       full_name: typeof metadata.full_name === "string" ? metadata.full_name : undefined,
       avatar_url: typeof metadata.avatar_url === "string" ? metadata.avatar_url : undefined,
+      role,
     }
   }, [])
 
@@ -55,6 +69,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const updateUserData = useCallback((data: Partial<Pick<UserData, "full_name" | "avatar_url">>) => {
     setUser(prev => prev ? { ...prev, ...data } : null)
   }, [])
+
+  // Verifica se o usuário é admin
+  const isAdmin = useMemo(() => user?.role === "admin", [user?.role])
 
   useEffect(() => {
     if (!supabase) return
@@ -85,9 +102,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     user,
     isLoading,
+    isAdmin,
     refreshUser,
     updateUserData,
-  }), [user, isLoading, refreshUser, updateUserData])
+  }), [user, isLoading, isAdmin, refreshUser, updateUserData])
 
   return (
     <UserContext.Provider value={value}>

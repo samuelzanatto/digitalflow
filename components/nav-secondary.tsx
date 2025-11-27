@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useUser } from "@/contexts/user-context"
 
 export function NavSecondary({
   items,
@@ -21,15 +22,20 @@ export function NavSecondary({
     title: string
     url: string
     icon: Icon
+    adminOnly?: boolean
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname()
+  const { isAdmin } = useUser()
+
+  // Filtra itens que são apenas para admin se o usuário não for admin
+  const filteredItems = items.filter(item => !item.adminOnly || isAdmin)
 
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => {
+          {filteredItems.map((item) => {
             // Marcar como ativo apenas se for correspondência exata
             const isActive = pathname === item.url
             return (

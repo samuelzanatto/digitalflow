@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useMemo, useRef, type ReactNode } from "react"
 import { createSupabaseBrowserClient, type SupabaseBrowserClient } from "@/lib/supabase/client"
 import { useUser } from "@/contexts/user-context"
+import type { RealtimeChannel } from "@supabase/supabase-js"
 
 export type OnlineUser = {
   id: string
@@ -23,6 +24,8 @@ export function OnlineUsersProvider({ children }: { children: ReactNode }) {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
+  const channelRef = useRef<RealtimeChannel | null>(null)
+  const currentUserIdRef = useRef<string | null>(null)
 
   const getSupabaseClient = () => {
     if (supabaseRef.current) return supabaseRef.current
@@ -31,11 +34,24 @@ export function OnlineUsersProvider({ children }: { children: ReactNode }) {
     return supabaseRef.current
   }
 
+  // Efeito principal para conexão - só reconecta se o usuário mudar
   useEffect(() => {
     if (!user) return
     
+    // Se já estamos conectados com o mesmo usuário, não reconectar
+    if (channelRef.current && currentUserIdRef.current === user.id) {
+      return
+    }
+    
     const client = getSupabaseClient()
     if (!client) return
+
+    // Limpa canal anterior se existir
+    if (channelRef.current) {
+      void client.removeChannel(channelRef.current)
+    }
+
+    currentUserIdRef.current = user.id
 
     const channel = client.channel("global_online_presence", {
       config: {
@@ -44,6 +60,8 @@ export function OnlineUsersProvider({ children }: { children: ReactNode }) {
         },
       },
     })
+
+    channelRef.current = channel
 
     channel.on("presence", { event: "sync" }, () => {
       type PresencePayload = OnlineUser & { presence_ref: string }
@@ -81,27 +99,27 @@ export function OnlineUsersProvider({ children }: { children: ReactNode }) {
     })
 
     return () => {
-      void client.removeChannel(channel)
+      // Só limpa ao desmontar o provider completamente
+      if (channelRef.current) {
+        void client.removeChannel(channelRef.current)
+        channelRef.current = null
+        currentUserIdRef.current = null
+      }
     }
-  }, [user])
+  }, [user?.id]) // Só depende do ID do usuário, não do objeto inteiro
 
-  // Atualiza a presença quando o avatar do usuário muda
+  // Atualiza a presença quando o avatar ou nome do usuário muda
   useEffect(() => {
-    if (!user || !isConnected) return
-    
-    const client = getSupabaseClient()
-    if (!client) return
-
-    const channel = client.channel("global_online_presence")
+    if (!user || !isConnected || !channelRef.current) return
     
     // Re-track com dados atualizados
-    void channel.track({
+    void channelRef.current.track({
       id: user.id,
       name: user.full_name || user.email?.split("@")[0] || "Usuário",
       email: user.email,
       avatarUrl: user.avatar_url ?? undefined,
     })
-  }, [user?.avatar_url, user?.full_name, user, isConnected])
+  }, [user?.avatar_url, user?.full_name, user?.email, user?.id, isConnected])
 
   const value = useMemo(() => ({
     onlineUsers,

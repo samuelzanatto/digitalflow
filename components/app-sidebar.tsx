@@ -8,7 +8,6 @@ import {
   IconDashboard,
   IconDatabase,
   IconMessage,
-  IconSearch,
   IconSettings,
   IconUsers,
   IconUsersGroup,
@@ -17,9 +16,11 @@ import {
   IconRobotFace,
   IconProgressHelp,
   IconRouteSquare2,
+  IconTargetArrow,
+  IconBrandHipchat,
 } from "@tabler/icons-react"
 
-import { NavMain } from "@/components/nav-main"
+import { NavMain, type NavGroup } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import { OnlineAvatarGroup } from "@/components/online-avatar-group"
@@ -34,82 +35,107 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const data = {
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Páginas",
-      url: "/dashboard/paginas",
-      icon: IconLayout,
-    },
-    {
-      title: "Flows",
-      url: "/dashboard/flows",
-      icon: IconRouteSquare2,
-    },
-    {
-      title: "Automações",
-      url: "/dashboard/automacoes",
-      icon: IconRobotFace,
-    },
-    {
-      title: "Chat",
-      url: "/dashboard/chat",
-      icon: IconMessage,
-    },
-    {
-      title: "Equipe",
-      url: "/dashboard/equipe",
-      icon: IconUsersGroup,
-    },
-    {
-      title: "Leads",
-      url: "/dashboard/leads",
-      icon: IconUsers,
-    },
-    {
-      title: "Pipeline",
-      url: "/dashboard/pipeline",
-      icon: IconChartBar,
-    },
-    {
-      title: "Clientes",
-      url: "/dashboard/clientes",
-      icon: IconDatabase,
-    },
-    {
-      title: "Perguntas",
-      url: "/dashboard/perguntas",
-      icon: IconProgressHelp,
-    },
-    {
-      title: "Integrações",
-      url: "/dashboard/integracoes",
-      icon: IconPlug,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Análise & Feedback",
-      url: "/dashboard/analise",
-      icon: IconSearch,
-    },
-    {
-      title: "Configurações",
-      url: "/dashboard/configuracoes",
-      icon: IconSettings,
-    },
-    {
-      title: "Usuários",
-      url: "/dashboard/usuarios",
-      icon: IconUsers,
-    },
-  ],
-}
+const navGroups: NavGroup[] = [
+  {
+    // Grupo principal sem label
+    items: [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: IconDashboard,
+      },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      {
+        title: "Pipeline",
+        url: "/dashboard/pipeline",
+        icon: IconTargetArrow,
+      },
+      {
+        title: "Leads",
+        url: "/dashboard/leads",
+        icon: IconUsers,
+      },
+      {
+        title: "Clientes",
+        url: "/dashboard/clientes",
+        icon: IconDatabase,
+      },
+    ],
+  },
+  {
+    label: "Produção",
+    items: [
+      {
+        title: "Páginas",
+        url: "/dashboard/paginas",
+        icon: IconLayout,
+      },
+      {
+        title: "Flows",
+        url: "/dashboard/flows",
+        icon: IconRouteSquare2,
+      },
+      {
+        title: "Automações",
+        url: "/dashboard/automacoes",
+        icon: IconRobotFace,
+      },
+    ],
+  },
+  {
+    label: "Comunicação",
+    items: [
+      {
+        title: "Chat",
+        url: "/dashboard/chat",
+        icon: IconBrandHipchat,
+      },
+      {
+        title: "Equipe",
+        url: "/dashboard/equipe",
+        icon: IconMessage,
+      },
+    ],
+  },
+  {
+    label: "Dados",
+    items: [
+      {
+        title: "Análise",
+        url: "/dashboard/analise",
+        icon: IconChartBar,
+      },
+      {
+        title: "Integrações",
+        url: "/dashboard/integracoes",
+        icon: IconPlug,
+      },
+      {
+        title: "Perguntas",
+        url: "/dashboard/perguntas",
+        icon: IconProgressHelp,
+      },
+    ],
+  },
+]
+
+const navSecondary = [
+  {
+    title: "Configurações",
+    url: "/dashboard/configuracoes",
+    icon: IconSettings,
+  },
+  {
+    title: "Usuários",
+    url: "/dashboard/usuarios",
+    icon: IconUsersGroup,
+    adminOnly: true,
+  },
+]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { unreadCount } = useUnreadMessages()
@@ -135,14 +161,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <span className="text-base font-semibold">flow</span>
                 </Link>
               </SidebarMenuButton>
-              <OnlineAvatarGroup className="absolute ml-56" />
+              <OnlineAvatarGroup className="absolute ml-52" />
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} unreadCount={unreadCount} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain groups={navGroups} unreadCount={unreadCount} />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

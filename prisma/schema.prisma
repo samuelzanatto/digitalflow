@@ -254,3 +254,99 @@ model Automation {
   @@index([userId])
   @@index([enabled])
 }
+
+// Modelo para stages do pipeline de vendas
+model PipelineStage {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String
+  title         String
+  color         String   @default("bg-blue-500")
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relação com oportunidades
+  opportunities PipelineOpportunity[]
+
+  @@index([userId])
+  @@index([order])
+}
+
+// Modelo para oportunidades do pipeline
+model PipelineOpportunity {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String
+  stageId       String    @db.Uuid
+  stage         PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  
+  title         String
+  company       String?
+  email         String?
+  phone         String?
+  value         Decimal   @default(0) @db.Decimal(15, 2)
+  order         Int       @default(0)
+  notes         String?
+  leadId        String?   @db.Uuid
+  closedAt      DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([stageId])
+  @@index([order])
+  @@index([createdAt])
+}
+
+// Modelo para sessões de chat de atendimento
+model ChatSession {
+  id            String    @id @default(uuid()) @db.Uuid
+  
+  // Dados do visitante
+  visitorName   String
+  visitorEmail  String?
+  visitorPhone  String?
+  quizAnswers   Json      @default("{}") // Respostas do quiz
+  
+  // Atendimento
+  attendantId   String?   @db.Uuid // ID do atendente (usuário do sistema)
+  status        String    @default("waiting") // waiting, in_progress, completed, abandoned
+  queuePosition Int       @default(0)
+  
+  // Timestamps
+  startedAt     DateTime  @default(now())
+  attendedAt    DateTime? // Quando foi atendido
+  completedAt   DateTime?
+  
+  // Feedback
+  rating        Int?      // 1-5 estrelas
+  feedbackText  String?
+  feedbackAt    DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relações
+  messages      ChatMessage[]
+
+  @@index([status])
+  @@index([attendantId])
+  @@index([queuePosition])
+  @@index([createdAt])
+}
+
+// Modelo para mensagens do chat
+model ChatMessage {
+  id            String    @id @default(uuid()) @db.Uuid
+  sessionId     String    @db.Uuid
+  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  sender        String    // 'visitor' ou 'attendant'
+  senderId      String?   @db.Uuid // ID do atendente se for do sistema
+  content       String
+  
+  createdAt     DateTime  @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
+}

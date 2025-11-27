@@ -9,8 +9,11 @@ import type {
 import { formatRelative } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createSupabaseBrowserClient, type SupabaseBrowserClient } from '@/lib/supabase/client'
 import { useUnreadMessages } from '@/contexts/unread-messages'
+import { useCollaboration } from '@/contexts/collaboration-context'
+import type { CursorMessageHistoryItem } from '@/hooks/useRealtimeCollaboration'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -19,6 +22,7 @@ import type { Database } from '@/types/supabase'
 
 const MESSAGES_LIMIT = 200
 const MAX_MESSAGE_LENGTH = 600
+const TYPING_TIMEOUT = 3000 // 3 segundos sem digitar = parou de digitar
 
 type TeamMessageRow = Database['public']['Tables']['team_messages']['Row']
 type TeamMessageInsert = Database['public']['Tables']['team_messages']['Insert']
@@ -30,6 +34,13 @@ interface ChatIdentity {
   name: string
   email?: string
   avatarUrl?: string | null
+}
+
+interface TypingUser {
+  id: string
+  name: string
+  avatarUrl?: string | null
+  timestamp: number
 }
 
 const formatAuthUser = (user: {
@@ -51,15 +62,85 @@ const formatAuthUser = (user: {
   }
 }
 
+// Componente de animação de digitação (bolinhas)
+function TypingDots() {
+  return (
+    <span className="flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="h-2 w-2 rounded-full bg-slate-400"
+          animate={{
+            scale: [1, 1.3, 1],
+            opacity: [0.5, 1, 0.5],
+          }}
+          transition={{
+            duration: 0.8,
+            repeat: Infinity,
+            delay: i * 0.15,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </span>
+  )
+}
+
+// Componente de indicador de digitação
+function TypingIndicator({ typingUsers }: { typingUsers: TypingUser[] }) {
+  if (typingUsers.length === 0) return null
+
+  const names = typingUsers.map((u) => u.name.split(' ')[0])
+  let text = ''
+  
+  if (names.length === 1) {
+    text = `${names[0]} está digitando`
+  } else if (names.length === 2) {
+    text = `${names[0]} e ${names[1]} estão digitando`
+  } else {
+    text = `${names[0]} e mais ${names.length - 1} estão digitando`
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      className="flex items-center gap-3 px-2"
+    >
+      <div className="flex -space-x-2">
+        {typingUsers.slice(0, 3).map((user) => (
+          <Avatar key={user.id} className="h-7 w-7 border-2 border-slate-900">
+            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
+            <AvatarFallback className="bg-primary/20 text-[10px] font-semibold uppercase text-primary">
+              {user.name.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 rounded-2xl bg-slate-800/80 px-3 py-2 border border-slate-700/50">
+        <span className="text-xs text-slate-400">{text}</span>
+        <TypingDots />
+      </div>
+    </motion.div>
+  )
+}
+
 export function TeamChat() {
   const [messages, setMessages] = useState<TeamMessageRow[]>([])
   const [pendingMessage, setPendingMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [identity, setIdentity] = useState<ChatIdentity | null>(null)
+  const [typingUsers, setTypingUsers] = useState<Map<string, TypingUser>>(new Map())
   const listRef = useRef<HTMLDivElement>(null)
   const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
+  const typingChannelRef = useRef<ReturnType<SupabaseBrowserClient["channel"]> | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isTypingRef = useRef(false)
+  const processedBroadcastsRef = useRef<Set<string>>(new Set())
   const { resetUnread } = useUnreadMessages()
+  const { sendCursorMessage, messageHistory } = useCollaboration()
 
   const getSupabaseClient = () => {
     if (supabaseRef.current) return supabaseRef.current
@@ -184,9 +265,20 @@ export function TeamChat() {
           if (!payload.new) return
           const newMessage = payload.new as TeamMessageRow
           setMessages((prev) => {
-            // Avoid duplicates
+            // Avoid duplicates by ID
             if (prev.find((m) => m.id === newMessage.id)) return prev
-            const next = [...prev, newMessage]
+            
+            // Also check for broadcast messages with same content/user
+            // Remove temporary broadcast message if real one arrived
+            const filtered = prev.filter((m) => {
+              if (!m.id.startsWith('broadcast-')) return true
+              // Remove broadcast message if it matches the new real message
+              return !(m.user_id === newMessage.user_id && 
+                       m.content === newMessage.content &&
+                       Math.abs(new Date(m.inserted_at).getTime() - new Date(newMessage.inserted_at).getTime()) < 10000)
+            })
+            
+            const next = [...filtered, newMessage]
             if (next.length > MESSAGES_LIMIT) {
               return next.slice(next.length - MESSAGES_LIMIT)
             }
@@ -216,16 +308,174 @@ export function TeamChat() {
     }
   }, [identity])
 
+  // Sincroniza mensagens do broadcast (messageHistory) com o chat
+  // Isso garante que mensagens enviadas via Ctrl+M apareçam no chat
+  // NOTA: Mensagens do banco (postgres_changes) já são tratadas separadamente
+  // Aqui só tratamos mensagens de broadcast que ainda não chegaram pelo banco
+  useEffect(() => {
+    if (!identity) return
+
+    messageHistory.forEach((msg: CursorMessageHistoryItem) => {
+      // Ignora mensagens próprias (já foram adicionadas ao enviar)
+      if (msg.isOwn) return
+      
+      // Verifica se já processamos essa mensagem
+      if (processedBroadcastsRef.current.has(msg.messageId)) return
+      processedBroadcastsRef.current.add(msg.messageId)
+
+      // Verifica se a mensagem já existe no estado atual
+      // Isso evita adicionar duplicatas quando o postgres_changes já trouxe a mensagem
+      setMessages((prev) => {
+        // Verifica duplicata por conteúdo e usuário (janela de 10 segundos)
+        const isDuplicate = prev.some(
+          (m) => m.user_id === msg.id && 
+                 m.content === msg.message &&
+                 Math.abs(new Date(m.inserted_at).getTime() - msg.timestamp) < 10000
+        )
+        if (isDuplicate) return prev
+
+        // Cria uma mensagem temporária para exibição imediata
+        const tempMessage: TeamMessageRow = {
+          id: `broadcast-${msg.messageId}`,
+          content: msg.message,
+          username: msg.name,
+          avatar_url: msg.avatarUrl || null,
+          user_id: msg.id,
+          inserted_at: new Date(msg.timestamp).toISOString(),
+        }
+
+        const next = [...prev, tempMessage]
+        if (next.length > MESSAGES_LIMIT) {
+          return next.slice(next.length - MESSAGES_LIMIT)
+        }
+        return next
+      })
+    })
+  }, [messageHistory, identity])
+
+  // Canal de broadcast para indicador de digitação
+  useEffect(() => {
+    const client = getSupabaseClient()
+    if (!client || !identity) return
+
+    const typingChannel = client.channel('team_chat_typing', {
+      config: {
+        broadcast: { self: false },
+      },
+    })
+
+    typingChannelRef.current = typingChannel
+
+    // Listener para eventos de typing
+    typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+      const { userId, userName, userAvatar, isTyping } = payload as {
+        userId: string
+        userName: string
+        userAvatar?: string | null
+        isTyping: boolean
+      }
+
+      if (userId === identity.id) return
+
+      setTypingUsers((prev) => {
+        const updated = new Map(prev)
+        if (isTyping) {
+          updated.set(userId, {
+            id: userId,
+            name: userName,
+            avatarUrl: userAvatar,
+            timestamp: Date.now(),
+          })
+        } else {
+          updated.delete(userId)
+        }
+        return updated
+      })
+    })
+
+    typingChannel.subscribe()
+
+    // Limpa usuários que pararam de digitar (timeout de segurança)
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now()
+      setTypingUsers((prev) => {
+        const updated = new Map(prev)
+        let hasChanges = false
+        prev.forEach((user, id) => {
+          if (now - user.timestamp > TYPING_TIMEOUT) {
+            updated.delete(id)
+            hasChanges = true
+          }
+        })
+        return hasChanges ? updated : prev
+      })
+    }, 1000)
+
+    return () => {
+      clearInterval(cleanupInterval)
+      void typingChannel.unsubscribe()
+      typingChannelRef.current = null
+    }
+  }, [identity])
+
   useEffect(() => {
     if (!listRef.current) return
     listRef.current.scrollTop = listRef.current.scrollHeight
-  }, [messages])
+  }, [messages, typingUsers])
+
+  // Broadcast typing status
+  const broadcastTyping = useCallback((isTyping: boolean) => {
+    if (!typingChannelRef.current || !identity) return
+    if (isTypingRef.current === isTyping) return // Evita broadcasts repetidos
+    
+    isTypingRef.current = isTyping
+    
+    void typingChannelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        userId: identity.id,
+        userName: identity.name,
+        userAvatar: identity.avatarUrl,
+        isTyping,
+      },
+    })
+  }, [identity])
+
+  // Handle text change com typing indicator
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    setPendingMessage(value)
+
+    // Broadcast typing
+    if (value.trim().length > 0) {
+      broadcastTyping(true)
+      
+      // Reset timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+      
+      // Stop typing after inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        broadcastTyping(false)
+      }, TYPING_TIMEOUT)
+    } else {
+      broadcastTyping(false)
+    }
+  }, [broadcastTyping])
 
   const handleSend = async () => {
     if (!pendingMessage.trim() || sending) return
     if (!identity) {
       toast.error('Carregando os dados do usuário...')
       return
+    }
+
+    // Para de digitar ao enviar
+    broadcastTyping(false)
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
     }
 
     setSending(true)
@@ -256,8 +506,10 @@ export function TeamChat() {
     } else if (data && data.length > 0) {
       // Add message immediately without waiting for realtime
       setMessages((prev) => [...prev, data[0]])
+      // Também envia para o sistema de mensagens flutuantes de colaboração
+      // skipPersist=true porque já salvamos no banco acima
+      sendCursorMessage(payload.content, true)
       setPendingMessage('')
-      toast.success('Mensagem enviada!')
     }
     setSending(false)
   }
@@ -342,13 +594,22 @@ export function TeamChat() {
     <div className="flex h-full w-full flex-col overflow-hidden">
       <div ref={listRef} className="flex-1 overflow-y-auto px-6 py-8">
         {renderMessages()}
+        
+        {/* Indicador de digitação */}
+        <AnimatePresence>
+          {typingUsers.size > 0 && (
+            <div className="mt-4">
+              <TypingIndicator typingUsers={Array.from(typingUsers.values())} />
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="border-t border-slate-700/50 px-6 py-5">
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <Textarea
             value={pendingMessage}
-            onChange={(event) => setPendingMessage(event.target.value)}
+            onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             maxLength={MAX_MESSAGE_LENGTH}
             placeholder="Escreva uma mensagem para sua equipe..."
@@ -365,6 +626,7 @@ export function TeamChat() {
                 className="border-slate-600/50 text-slate-300 hover:text-slate-100 hover:bg-slate-800/50"
                 onClick={() => {
                   setPendingMessage('')
+                  broadcastTyping(false)
                 }}
               >
                 Limpar

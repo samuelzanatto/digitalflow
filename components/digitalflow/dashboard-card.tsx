@@ -8,11 +8,24 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useCollaboration } from "@/contexts/collaboration-context"
 
 interface DashboardCardProps {
   children?: React.ReactNode
   className?: string
   onClick?: () => void
+  /**
+   * Path que identifica este card para mostrar avatares de colaboradores
+   * que estão visualizando este item específico
+   */
+  itemPath?: string
 }
 
 interface DashboardCardHeaderProps {
@@ -41,7 +54,14 @@ interface DashboardCardActionsProps {
 }
 
 const DashboardCard = React.forwardRef<HTMLDivElement, DashboardCardProps>(
-  ({ children, className, onClick }, ref) => {
+  ({ children, className, onClick, itemPath }, ref) => {
+    const { collaborators } = useCollaboration()
+    
+    // Filtra colaboradores que estão visualizando este item específico
+    const viewingCollaborators = itemPath
+      ? collaborators.filter((c) => c.currentPath === itemPath)
+      : []
+
     return (
       <div
         ref={ref}
@@ -55,13 +75,62 @@ const DashboardCard = React.forwardRef<HTMLDivElement, DashboardCardProps>(
           }
         }}
         className={cn(
-          "h-[220px] rounded-3xl transition-all duration-300 group overflow-hidden",
+          "h-[220px] rounded-3xl transition-all duration-300 group overflow-hidden relative",
           "bg-black/70 border border-white/10",
           "hover:shadow-xl hover:border-primary/50",
           onClick && "cursor-pointer",
+          viewingCollaborators.length > 0 && "ring-2 ring-offset-2 ring-offset-background",
           className
         )}
+        style={viewingCollaborators.length > 0 ? { 
+          "--tw-ring-color": viewingCollaborators[0]?.color 
+        } as React.CSSProperties : undefined}
       >
+        {/* Avatares dos colaboradores visualizando este card */}
+        {viewingCollaborators.length > 0 && (
+          <div className="absolute -top-2 -right-2 z-10 flex -space-x-2">
+            <TooltipProvider>
+              {viewingCollaborators.slice(0, 3).map((collaborator) => (
+                <Tooltip key={collaborator.id}>
+                  <TooltipTrigger asChild>
+                    <Avatar 
+                      className="h-7 w-7 border-2 border-background ring-2 shadow-lg cursor-default"
+                      style={{ "--tw-ring-color": collaborator.color } as React.CSSProperties}
+                    >
+                      <AvatarImage src={collaborator.avatarUrl ?? undefined} alt={collaborator.name} />
+                      <AvatarFallback 
+                        className="text-xs font-medium text-white"
+                        style={{ backgroundColor: collaborator.color }}
+                      >
+                        {collaborator.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {collaborator.name} está visualizando
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+              {viewingCollaborators.length > 3 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium shadow-lg">
+                      +{viewingCollaborators.length - 3}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {viewingCollaborators.slice(3).map((c) => c.name).join(", ")}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </TooltipProvider>
+          </div>
+        )}
         <div className="p-6 h-full flex flex-col">{children}</div>
       </div>
     )
@@ -147,7 +216,12 @@ const DashboardCardActions = React.forwardRef<HTMLDivElement, DashboardCardActio
             <span className="sr-only">Ações</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuContent 
+          align="end" 
+          className="w-40"
+          onClick={(e) => e.stopPropagation()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           {children}
         </DropdownMenuContent>
       </DropdownMenu>

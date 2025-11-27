@@ -3,6 +3,8 @@
 import { useRef, useState } from "react"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
+import { toast } from "sonner"
+import { Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -18,9 +20,9 @@ export function LoginForm({
   const searchParams = useSearchParams()
   const supabaseRef = useRef<SupabaseBrowserClient | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
   const [info, setInfo] = useState("")
   const [mode, setMode] = useState<"login" | "recovery">("login")
+  const [showPassword, setShowPassword] = useState(false)
 
   const ensureSupabaseClient = () => {
     if (supabaseRef.current) {
@@ -43,7 +45,6 @@ export function LoginForm({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
-    setError("")
     setInfo("")
 
     const formData = new FormData(e.currentTarget)
@@ -52,26 +53,20 @@ export function LoginForm({
     const supabase = ensureSupabaseClient()
 
     if (!supabase) {
-      setError("Não conseguimos carregar o cliente de autenticação. Recarregue a página e tente novamente.")
+      toast.error("Não conseguimos carregar o cliente de autenticação. Recarregue a página e tente novamente.")
       setIsLoading(false)
       return
     }
 
     if (!email) {
-      setError("Informe um email válido")
-      setIsLoading(false)
-      return
-    }
-
-    if (!supabase) {
-      setError("Ainda estamos inicializando o cliente de autenticação. Tente novamente em instantes.")
+      toast.error("Informe um email válido")
       setIsLoading(false)
       return
     }
 
     if (mode === "login") {
       if (!password) {
-        setError("Digite sua senha")
+        toast.error("Digite sua senha")
         setIsLoading(false)
         return
       }
@@ -82,7 +77,7 @@ export function LoginForm({
       })
 
       if (signInError) {
-        setError(signInError.message)
+        toast.error(signInError.message)
         setIsLoading(false)
         return
       }
@@ -100,7 +95,7 @@ export function LoginForm({
       })
 
       if (recoveryError) {
-        setError(recoveryError.message)
+        toast.error(recoveryError.message)
         setIsLoading(false)
         return
       }
@@ -133,16 +128,11 @@ export function LoginForm({
             </p>
           </div>
 
-          {(error || info) && (
+          {info && (
             <div
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm border",
-                error
-                  ? "bg-red-500/10 border-red-500/30 text-red-400"
-                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
-              )}
+              className="px-4 py-2 rounded-lg text-sm border bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
             >
-              {error || info}
+              {info}
             </div>
           )}
 
@@ -161,14 +151,28 @@ export function LoginForm({
           {mode === "login" && (
             <Field>
               <FieldLabel htmlFor="password">Senha</FieldLabel>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required={mode === "login"}
-                className="bg-input/30 border-input text-foreground placeholder:text-muted-foreground"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  required={mode === "login"}
+                  className="bg-input/30 border-input text-foreground placeholder:text-muted-foreground pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </Field>
           )}
 
@@ -195,7 +199,6 @@ export function LoginForm({
               className="w-full text-center text-sm"
               onClick={() => {
                 setMode((value) => (value === "login" ? "recovery" : "login"))
-                setError("")
                 setInfo("")
               }}
             >

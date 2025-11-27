@@ -36,7 +36,24 @@ const resolveAppUrl = () => {
   return 'http://localhost:3000'
 }
 
-export async function inviteUserAction(payload: { email: string; name?: string }): Promise<AdminActionResult> {
+// Verifica se o email do requisitante é admin
+async function isRequesterAdmin(supabaseClient: ReturnType<typeof createSupabaseAdminClient>, requesterId?: string): Promise<boolean> {
+  if (!requesterId) return false
+  
+  try {
+    const { data } = await supabaseClient.auth.admin.getUserById(requesterId)
+    if (!data?.user) return false
+    
+    const email = data.user.email?.toLowerCase()
+    const metadataRole = data.user.user_metadata?.role
+    
+    return email === rootAdminEmail || metadataRole === 'admin'
+  } catch {
+    return false
+  }
+}
+
+export async function inviteUserAction(payload: { email: string; name?: string; requesterId?: string }): Promise<AdminActionResult> {
   const email = payload.email?.trim().toLowerCase()
   const name = payload.name?.trim()
 
@@ -48,11 +65,17 @@ export async function inviteUserAction(payload: { email: string; name?: string }
     return missingAdminConfigResult
   }
 
+  const supabase = createSupabaseAdminClient()
+
+  // Verifica permissão de admin
+  if (!await isRequesterAdmin(supabase, payload.requesterId)) {
+    return { success: false, message: 'Apenas administradores podem convidar novos usuários.' }
+  }
+
   if (!hasGmailTransport) {
     return missingEmailConfigResult
   }
-
-  const supabase = createSupabaseAdminClient()
+  
   const { data, error } = await supabase.auth.admin.generateLink({
     type: 'invite',
     email,
@@ -71,7 +94,7 @@ export async function inviteUserAction(payload: { email: string; name?: string }
   try {
     await sendInviteEmail({
       to: email,
-  inviteUrl,
+      inviteUrl,
       invitedName: name,
     })
   } catch (err) {
@@ -83,7 +106,8 @@ export async function inviteUserAction(payload: { email: string; name?: string }
   return { success: true, message: 'Convite enviado com sucesso.' }
 }
 
-export async function deleteUserAction(payload: { userId: string }): Promise<AdminActionResult> {
+// Desativa um usuário (ban permanente) - somente admin pode executar
+export async function disableUserAction(payload: { userId: string; requesterId?: string }): Promise<AdminActionResult> {
   const { userId } = payload
   if (!userId) {
     return { success: false, message: 'Usuário inválido.' }
@@ -94,6 +118,82 @@ export async function deleteUserAction(payload: { userId: string }): Promise<Adm
   }
 
   const supabase = createSupabaseAdminClient()
+
+  // Verifica permissão de admin
+  if (!await isRequesterAdmin(supabase, payload.requesterId)) {
+    return { success: false, message: 'Apenas administradores podem desativar usuários.' }
+  }
+
+  // Verifica se é o admin principal
+  const { data } = await supabase.auth.admin.getUserById(userId).catch(() => ({ data: null }))
+  const email = data?.user?.email?.toLowerCase()
+  if (email && email === rootAdminEmail) {
+    return { success: false, message: 'Não é permitido desativar o administrador principal.' }
+  }
+
+  // Usa updateUserById para "banir" o usuário permanentemente
+  // A duração de ~100 anos efetivamente desativa o usuário
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
+    ban_duration: '876000h' // ~100 anos = ban permanente
+  })
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+
+  revalidatePath('/dashboard/usuarios')
+  return { success: true, message: 'Usuário desativado com sucesso.' }
+}
+
+// Reativa um usuário (remove o ban) - somente admin pode executar
+export async function enableUserAction(payload: { userId: string; requesterId?: string }): Promise<AdminActionResult> {
+  const { userId } = payload
+  if (!userId) {
+    return { success: false, message: 'Usuário inválido.' }
+  }
+
+  if (!hasSupabaseAdminConfig) {
+    return missingAdminConfigResult
+  }
+
+  const supabase = createSupabaseAdminClient()
+
+  // Verifica permissão de admin
+  if (!await isRequesterAdmin(supabase, payload.requesterId)) {
+    return { success: false, message: 'Apenas administradores podem reativar usuários.' }
+  }
+
+  // Remove o ban do usuário
+  const { error } = await supabase.auth.admin.updateUserById(userId, {
+    ban_duration: 'none' // Remove o ban
+  })
+
+  if (error) {
+    return { success: false, message: error.message }
+  }
+
+  revalidatePath('/dashboard/usuarios')
+  return { success: true, message: 'Usuário reativado com sucesso.' }
+}
+
+// Mantido para compatibilidade, mas não será mais usado na UI
+export async function deleteUserAction(payload: { userId: string; requesterId?: string }): Promise<AdminActionResult> {
+  const { userId } = payload
+  if (!userId) {
+    return { success: false, message: 'Usuário inválido.' }
+  }
+
+  if (!hasSupabaseAdminConfig) {
+    return missingAdminConfigResult
+  }
+
+  const supabase = createSupabaseAdminClient()
+
+  // Verifica permissão de admin
+  if (!await isRequesterAdmin(supabase, payload.requesterId)) {
+    return { success: false, message: 'Apenas administradores podem remover usuários.' }
+  }
+
   const { data } = await supabase.auth.admin.getUserById(userId).catch(() => ({ data: null }))
   const email = data?.user?.email?.toLowerCase()
   if (email && email === rootAdminEmail) {
@@ -109,7 +209,7 @@ export async function deleteUserAction(payload: { userId: string }): Promise<Adm
   return { success: true, message: 'Usuário removido.' }
 }
 
-export async function resetUserPasswordAction(payload: { email: string }): Promise<AdminActionResult> {
+export async function resetUserPasswordAction(payload: { email: string; requesterId?: string }): Promise<AdminActionResult> {
   const email = payload.email?.trim().toLowerCase()
 
   if (!email) {
@@ -118,6 +218,17 @@ export async function resetUserPasswordAction(payload: { email: string }): Promi
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return { success: false, message: 'Supabase não está configurado corretamente.' }
+  }
+
+  if (!hasSupabaseAdminConfig) {
+    return missingAdminConfigResult
+  }
+
+  const supabase = createSupabaseAdminClient()
+
+  // Verifica permissão de admin
+  if (!await isRequesterAdmin(supabase, payload.requesterId)) {
+    return { success: false, message: 'Apenas administradores podem resetar senhas de usuários.' }
   }
 
   const client = createClient(supabaseUrl, supabaseAnonKey)

@@ -23,10 +23,19 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/usePageHeader"
-import { Plus, Trash2, ArrowLeft, Save, Maximize2, Minimize2 } from "lucide-react"
+import { Plus, ArrowLeft, Save, Maximize2, Minimize2 } from "lucide-react"
 import { toast } from "sonner"
 import { saveFlowNodes } from "@/lib/actions/flows"
 import { useSupabaseUser } from "@/hooks/useSupabaseUser"
+import { EditableNode, InputNode, OutputNode } from "@/components/flow-nodes"
+
+// Definir nodeTypes fora do componente para evitar re-renders
+const nodeTypes = {
+  default: EditableNode,
+  input: InputNode,
+  output: OutputNode,
+  editable: EditableNode,
+}
 
 const STRUCTURED_LABEL_FALLBACK = "Novo nó"
 const DEFAULT_NODE_STYLE: CSSProperties = {
@@ -328,7 +337,6 @@ export default function FlowEditor() {
   const activeNode = useMemo(() => nodes.find((node) => node.selected) ?? null, [nodes])
   const selectedNodeId = activeNode?.id ?? null
   const selectedNodeLabel = activeNode ? getRawLabel(activeNode) : ""
-  const selectedNodeType = activeNode?.type ?? "default"
   const selectedNodeStyle = ensureNodeStyle(activeNode?.style)
   const selectedNodeAlignment = selectedNodeStyle.textAlign ?? "left"
   const selectedNodeBackground =
@@ -344,18 +352,6 @@ export default function FlowEditor() {
     { value: "center", label: "Centro" },
     { value: "right", label: "Dir." },
   ]
-
-  const nodeToolbarPosition = useMemo(() => {
-    if (!activeNode) return null
-    const nodeWithDimensions = activeNode as NodeWithDimensions
-    const absolutePosition = nodeWithDimensions.positionAbsolute ?? nodeWithDimensions.position
-    if (!absolutePosition) return null
-
-    const width = nodeWithDimensions.width ?? 160
-    const top = absolutePosition.y * viewport.zoom + viewport.y - 12
-    const left = (absolutePosition.x + width / 2) * viewport.zoom + viewport.x
-    return { top, left }
-  }, [activeNode, viewport])
 
   const updateSelectedNodeStyle = useCallback(
     (partial: Partial<CSSProperties>) => {
@@ -390,24 +386,6 @@ export default function FlowEditor() {
                   ...(node.data as Record<string, unknown>),
                   ...withStructuredLabel(value),
                 },
-              }
-            : node,
-        ),
-      )
-    },
-    [selectedNodeId, setNodes],
-  )
-
-  const handleSelectedNodeTypeChange = useCallback(
-    (value: Node["type"]) => {
-      if (!selectedNodeId) return
-
-      setNodes((nds) =>
-        nds.map((node) =>
-          node.id === selectedNodeId
-            ? {
-                ...node,
-                type: value,
               }
             : node,
         ),
@@ -462,11 +440,6 @@ export default function FlowEditor() {
     setNodes((nds) => [...nds, newNode])
     setNodeLabel("")
   }, [nodeLabel, nodes.length, setNodes])
-
-  const deleteSelected = useCallback(() => {
-    setNodes((nds) => nds.filter((n) => !n.selected))
-    setEdges((eds) => eds.filter((e) => !e.selected))
-  }, [setNodes, setEdges])
 
   const handleBack = useCallback(() => {
     router.back()
@@ -615,21 +588,6 @@ export default function FlowEditor() {
                   </p>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-white/70">Tipo</label>
-                  <select
-                    value={selectedNodeType ?? "default"}
-                    onChange={(event) =>
-                      handleSelectedNodeTypeChange(event.target.value as Node["type"])
-                    }
-                    className="w-full rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm"
-                  >
-                    <option value="input">Input</option>
-                    <option value="default">Default</option>
-                    <option value="output">Output</option>
-                  </select>
-                </div>
-
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-white/70">Alinhamento</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -698,27 +656,6 @@ export default function FlowEditor() {
 
         {/* Canvas */}
         <div className="flex-1 relative rf-theme-dark">
-          {!shouldShowSkeleton && activeNode && nodeToolbarPosition && (
-            <div
-              className="pointer-events-none absolute z-20"
-              style={{
-                top: nodeToolbarPosition.top,
-                left: nodeToolbarPosition.left,
-                transform: "translate(-50%, -100%)",
-              }}
-            >
-              <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-black/80 px-3 py-1 text-xs text-white shadow-lg backdrop-blur">
-                <Button
-                  onClick={deleteSelected}
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1 px-3 text-xs"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
           {shouldShowSkeleton ? (
             <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
               Carregando fluxo...
@@ -727,6 +664,7 @@ export default function FlowEditor() {
             <ReactFlow
               nodes={nodes}
               edges={edges}
+              nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}

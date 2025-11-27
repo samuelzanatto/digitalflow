@@ -76,8 +76,6 @@ export default function QuizPage() {
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [answers, setAnswers] = useState<Answer>({});
   const [step, setStep] = useState<Step>("quiz");
-  const [userEmail, setUserEmail] = useState("");
-  const [userName, setUserName] = useState("");
   const { isExiting } = useTransitionContext();
   const [navigated, setNavigated] = useState(false);
 
@@ -103,22 +101,15 @@ export default function QuizPage() {
   };
 
   const handleSubmit = async () => {
-    if (!userEmail || !userName) {
-      alert("Por favor, preencha seu nome e email");
-      return;
-    }
-
     setStep("submitting");
 
-    // Salvar dados do usuário e respostas no localStorage
+    // Salvar respostas do quiz no localStorage (nome/email serão coletados no chat)
     const quizData = {
-      name: userName,
-      email: userEmail,
       answers: answers,
       timestamp: new Date().toISOString(),
     };
 
-    localStorage.setItem("quizUser", JSON.stringify(quizData));
+    localStorage.setItem("quizAnswers", JSON.stringify(quizData));
 
     // Simular delay antes de redirecionar para o chat
     setTimeout(() => {
@@ -223,34 +214,6 @@ export default function QuizPage() {
                 </motion.div>
               )}
 
-              {/* Email and Name (Last Question) */}
-              {isLastQuestion && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="space-y-4 bg-white/5 p-6 rounded-xl border border-white/10"
-                >
-                  <h3 className="text-white font-medium">
-                    Para finalizarmos, preciso de alguns dados:
-                  </h3>
-                  <input
-                    type="text"
-                    placeholder="Seu nome completo"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
-                  <input
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={userEmail}
-                    onChange={(e) => setUserEmail(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-purple-500 transition-colors"
-                  />
-                </motion.div>
-              )}
-
               {/* Navigation Buttons */}
               <div className="flex gap-4">
                 {currentQuestion > 1 && (
@@ -267,14 +230,14 @@ export default function QuizPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={handleNext}
-                  disabled={!isAnswered && !isLastQuestion}
+                  disabled={!isAnswered}
                   className={`flex-1 px-6 py-3 rounded-full font-medium flex items-center justify-center gap-2 transition-all ${
-                    isAnswered || isLastQuestion
+                    isAnswered
                       ? "bg-linear-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700"
                       : "bg-white/5 text-white/50 cursor-not-allowed"
                   }`}
                 >
-                  {isLastQuestion ? "Enviar Respostas" : "Próxima"}
+                  {isLastQuestion ? "Ir para o Chat" : "Próxima"}
                   <ArrowRight size={20} />
                 </motion.button>
               </div>

@@ -1,18 +1,42 @@
 import type { User } from '@supabase/supabase-js'
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { UserManagementPanel } from './user-management'
 
 export const dynamic = 'force-dynamic'
 
-async function fetchUsers(): Promise<User[]> {
+const rootAdminEmail = (process.env.NEXT_PUBLIC_ROOT_ADMIN_EMAIL || 'admin@digitalflow.com').toLowerCase()
+
+// Extensão do tipo User para incluir campos retornados pela Admin API
+type AdminUser = User & {
+  banned_until?: string | null
+}
+
+async function fetchUsers(): Promise<AdminUser[]> {
   const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase.auth.admin.listUsers({ perPage: 200 })
   if (error) {
     console.error('[dashboard/usuarios] Falha ao listar usuários:', error)
     return []
   }
-  return data?.users ?? []
+  return (data?.users ?? []) as AdminUser[]
+}
+
+async function checkIsAdmin(): Promise<boolean> {
+  try {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) return false
+    
+    const email = user.email?.toLowerCase()
+    const metadataRole = user.user_metadata?.role
+    
+    return email === rootAdminEmail || metadataRole === 'admin'
+  } catch {
+    return false
+  }
 }
 
 function MissingAdminConfigNotice() {
@@ -28,9 +52,26 @@ function MissingAdminConfigNotice() {
   )
 }
 
+function AccessDeniedNotice() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-red-400/40 bg-red-500/5 p-8 text-center text-sm text-red-100">
+      <div className="text-base font-semibold text-red-200">Acesso negado</div>
+      <p className="max-w-2xl text-red-100/80">
+        Você não tem permissão para acessar esta página. Apenas administradores podem gerenciar usuários.
+      </p>
+    </div>
+  )
+}
+
 export default async function UsuariosPage() {
   if (!hasSupabaseAdminConfig) {
     return <MissingAdminConfigNotice />
+  }
+
+  // Verifica se o usuário é admin
+  const isAdmin = await checkIsAdmin()
+  if (!isAdmin) {
+    return <AccessDeniedNotice />
   }
 
   const users = await fetchUsers()
