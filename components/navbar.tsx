@@ -6,6 +6,7 @@ import Image from "next/image";
 import { motion, useScroll } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TransitionLink } from "@/components/transition-link";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -100,14 +101,7 @@ export function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="fixed top-0 left-0 right-0 z-40 transition-all duration-300"
-        style={{
-          backgroundColor: isScrolled ? "rgba(0, 0, 0, 0.8)" : "transparent",
-          backdropFilter: isScrolled ? "blur(8px)" : "none",
-          borderBottomWidth: "1px",
-          borderBottomColor: isScrolled ? "rgba(255, 255, 255, 0.1)" : "transparent",
-          transition: "background-color 300ms ease-in-out, border-color 300ms ease-in-out",
-        }}
+        className="fixed top-0 left-0 right-0 z-40"
       >
         <div className="w-full">
           <div className="relative flex items-center h-16 md:h-28 px-4 sm:px-8 lg:px-36 justify-between md:justify-center">
@@ -154,7 +148,14 @@ export function Navbar() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="hidden md:flex md:flex-1 items-center justify-center"
             >
-              <div className="flex items-center gap-1 bg-white/5 backdrop-blur-sm rounded-full px-1 py-1 border border-white/30 whitespace-nowrap">
+              <div 
+                className="flex items-center gap-1 rounded-full px-1 py-1 border border-white/20 whitespace-nowrap"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                }}
+              >
                 {navItems.map((item, index) => (
                   <motion.div
                     key={item.label}
@@ -215,28 +216,18 @@ export function Navbar() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="hidden sm:block"
               >
-                <Button
-                  asChild
-                  className="relative overflow-hidden bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium shadow-lg shadow-purple-500/50 transition-all duration-300"
+                <TransitionLink
+                  href="/quiz"
+                  className="relative inline-flex items-center justify-center border border-white/30 hover:border-white/50 text-white rounded-full px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-all duration-300"
                 >
-                  <Link href="#contato">
-                    <motion.span
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="relative z-10 font-bold"
-                    >
-                      Agendar
-                    </motion.span>
-                    
-                    {/* Animated gradient overlay */}
-                    <motion.div
-                      className="absolute inset-0 bg-linear-to-r from-pink-600 to-purple-600"
-                      initial={{ x: "100%" }}
-                      whileHover={{ x: 0 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </Link>
-                </Button>
+                  <motion.span
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="relative z-10 font-bold"
+                  >
+                    Falar com especialista
+                  </motion.span>
+                </TransitionLink>
               </motion.div>
 
               {/* Mobile Menu Button - Desktop only (hidden) */}

@@ -44,7 +44,7 @@ const faqs = [
 
 export function FAQ() {
   return (
-    <section id="faq" className="py-12 md:py-20 px-4 bg-black">
+    <section id="faq" className="py-32 md:py-48 lg:py-64 px-4 bg-black">
       <div className="max-w-3xl mx-auto">
         <motion.div
           initial={{ opacity: 0 }}
@@ -52,10 +52,10 @@ export function FAQ() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12 md:mb-16 px-0"
         >
-          <Badge variant="outline" className="mb-4 border-purple-500/50 text-purple-400">
+          <Badge variant="outline" className="mb-4 border-purple-500/30 text-purple-400 bg-purple-500/5 backdrop-blur-sm">
             Dúvidas frequentes
           </Badge>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mb-4">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-light text-white mb-4">
             Ficou com alguma dúvida?
           </h2>
           <p className="text-white/60 text-sm md:text-base lg:text-lg">

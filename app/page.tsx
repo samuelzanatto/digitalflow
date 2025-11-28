@@ -4,10 +4,8 @@ import { Hero } from "@/components/sections/hero";
 import { ProductTypes } from "@/components/sections/product-types";
 import { Features } from "@/components/sections/features";
 import { Testimonials } from "@/components/sections/testimonials";
-import { WhyChoose } from "@/components/sections/why-choose";
 import { Pricing } from "@/components/sections/pricing";
 import { FAQ } from "@/components/sections/faq";
-import { CTA } from "@/components/sections/cta";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/sections/footer";
 import { motion } from "framer-motion";
@@ -37,10 +35,8 @@ export default function Home() {
           <ProductTypes />
           <Features />
           <Testimonials />
-          <WhyChoose />
           <Pricing />
           <FAQ />
-          <CTA />
         </div>
       </div>
       <Footer />

@@ -3,11 +3,11 @@
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { TransitionLink } from "@/components/transition-link";
 
 export function Pricing() {
   return (
-    <section className="py-12 md:py-20 px-4 bg-black">
+    <section id="pricing" className="py-12 md:py-20 px-4 bg-black">
       <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0 }}
@@ -15,14 +15,17 @@ export function Pricing() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12 md:mb-16 px-0"
         >
-          <Badge variant="outline" className="mb-4 border-purple-500/50 text-purple-400">
+          <Badge variant="outline" className="mb-4 border-purple-500/30 text-purple-400 bg-purple-500/5 backdrop-blur-sm">
             Investimento
           </Badge>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-extralight text-white mb-4">
-            Modelos de investimento flexíveis
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-light text-white mb-4">
+            Modelo de{" "}
+            <span className="bg-linear-to-r from-purple-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">
+              investimento flexível
+            </span>
           </h2>
           <p className="text-white/60 text-sm md:text-base lg:text-lg">
-            Escolha o modelo que melhor se alinha ao seu negócio. Sem contratos longos ou surpresas.
+            Escolha o modelo que se alinha ao seu negócio. Sem contratos longos ou surpresas.
           </p>
         </motion.div>
 
@@ -74,9 +77,9 @@ export function Pricing() {
 
               <Button
                 asChild
-                className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full py-4 md:py-6 text-sm md:text-lg font-semibold shadow-lg shadow-purple-500/50 mt-6 md:mt-0"
+                className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full py-4 md:py-6 text-sm md:text-lg font-semibold mt-6 md:mt-0"
               >
-                <Link href="#contato">Agendar uma estratégia</Link>
+                <TransitionLink href="/quiz">Agendar uma estratégia</TransitionLink>
               </Button>
             </div>
           </div>
