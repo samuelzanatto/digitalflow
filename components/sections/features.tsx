@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -62,51 +62,46 @@ const features: Feature[] = [
   },
 ];
 
-function TimelineCard({ feature, index, isActive }: { feature: Feature; index: number; isActive: boolean }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-
+// Memoized TimelineCard para evitar re-renders desnecessários
+const TimelineCard = ({ feature, index, isActive }: { feature: Feature; index: number; isActive: boolean }) => {
   return (
     <div 
-      ref={cardRef}
+      className={`rounded-xl border bg-white/2 backdrop-blur-sm p-6 h-full transition-[border-color,box-shadow] duration-500 will-change-[border-color,box-shadow] ${
+        isActive 
+          ? "border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.15)]" 
+          : "border-white/10"
+      }`}
     >
-      <div 
-        className={`rounded-xl border bg-white/2 backdrop-blur-sm p-6 h-full transition-all duration-700 ${
-          isActive 
-            ? "border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.15)]" 
-            : "border-white/10"
-        }`}
-      >
-        {/* Header com ícone e título */}
-        <div className="flex items-center gap-4 mb-4">
-          <div className="p-3 rounded-lg bg-purple-500/10 text-purple-400">
-            {feature.icon}
-          </div>
-          <div>
-            <span className="text-xs font-medium text-purple-400/70 uppercase tracking-wider">
-              {feature.subtitle}
-            </span>
-            <h3 className="text-lg font-medium text-white">{feature.title}</h3>
-          </div>
+      {/* Header com ícone e título */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="p-3 rounded-lg bg-purple-500/10 text-purple-400">
+          {feature.icon}
         </div>
-
-        {/* Descrição */}
-        <p className="text-sm text-white/60 leading-relaxed mb-4">
-          {feature.description}
-        </p>
-
-        {/* Benefícios */}
-        <ul className="space-y-2">
-          {feature.benefits.map((benefit, idx) => (
-            <li key={idx} className="flex items-center gap-2 text-sm text-white/50">
-              <div className="w-1.5 h-1.5 rounded-full bg-purple-500/60 shrink-0" />
-              {benefit}
-            </li>
-          ))}
-        </ul>
+        <div>
+          <span className="text-xs font-medium text-purple-400/70 uppercase tracking-wider">
+            {feature.subtitle}
+          </span>
+          <h3 className="text-lg font-medium text-white">{feature.title}</h3>
+        </div>
       </div>
+
+      {/* Descrição */}
+      <p className="text-sm text-white/60 leading-relaxed mb-4">
+        {feature.description}
+      </p>
+
+      {/* Benefícios */}
+      <ul className="space-y-2">
+        {feature.benefits.map((benefit, idx) => (
+          <li key={idx} className="flex items-center gap-2 text-sm text-white/50">
+            <div className="w-1.5 h-1.5 rounded-full bg-purple-500/60 shrink-0" />
+            {benefit}
+          </li>
+        ))}
+      </ul>
     </div>
   );
-}
+};
 
 export function Features() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -114,12 +109,34 @@ export function Features() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const glowLineRef = useRef<HTMLDivElement>(null);
   const [activeCards, setActiveCards] = useState<boolean[]>(features.map(() => false));
+  
+  // Ref para rastrear o estado anterior e evitar re-renders desnecessários
+  const lastActiveRef = useRef<boolean[]>(features.map(() => false));
+  // Ref para armazenar posições calculadas dos pontos (evita recalcular a cada frame)
+  const pointPositionsRef = useRef<number[]>([]);
 
   useGSAP(() => {
     if (!containerRef.current || !timelineRef.current || !glowLineRef.current) return;
 
     const points = containerRef.current.querySelectorAll(".timeline-point");
     const cards = containerRef.current.querySelectorAll(".timeline-card");
+
+    // Pré-calcular posições dos pontos uma única vez
+    const calculatePointPositions = () => {
+      if (!timelineRef.current) return;
+      const containerRect = timelineRef.current.getBoundingClientRect();
+      const containerHeight = containerRect.height;
+      
+      pointPositionsRef.current = Array.from(points).map((point) => {
+        const pointRect = point.getBoundingClientRect();
+        const pointTopRelative = pointRect.top - containerRect.top;
+        return (pointTopRelative / containerHeight) * 100;
+      });
+    };
+
+    // Calcular posições inicialmente e no refresh
+    calculatePointPositions();
+    ScrollTrigger.addEventListener("refresh", calculatePointPositions);
 
     // Animação principal da linha que "acende" durante o scroll
     ScrollTrigger.create({
@@ -130,65 +147,55 @@ export function Features() {
       onUpdate: (self) => {
         // Atualiza a altura da linha brilhante baseado no progresso do scroll
         const progress = self.progress;
+        const glowHeight = progress * 100;
+        
+        // Usar set em vez de to para melhor performance (sem animação intermediária)
         gsap.set(glowLineRef.current, {
-          height: `${progress * 100}%`,
+          height: `${glowHeight}%`,
         });
+
+        // Coletar mudanças de estado para batch update
+        const newActiveStates = [...lastActiveRef.current];
+        let hasChanges = false;
 
         // Para cada ponto, verifica se a linha chegou à sua posição
         points.forEach((point, index) => {
-          if (!point) return;
-
-          // Calcula a posição do ponto relativa ao container da timeline
-          const pointRect = point.getBoundingClientRect();
-          const containerRect = timelineRef.current!.getBoundingClientRect();
-          
-          // Posição do ponto como percentual da altura total da timeline
-          const pointTopRelative = pointRect.top - containerRect.top;
-          const containerHeight = containerRect.height;
-          const pointHeightPercent = (pointTopRelative / containerHeight) * 100;
-
-          // A linha ativa o ponto quando a altura do glow alcança a posição do ponto
-          const glowHeight = progress * 100;
+          const pointHeightPercent = pointPositionsRef.current[index] ?? 0;
           const isPointActive = glowHeight >= pointHeightPercent;
+          const wasActive = lastActiveRef.current[index];
 
-          if (isPointActive) {
-            gsap.to(point, {
-              scale: 1.3,
-              borderColor: "#a855f7",
-              boxShadow: "0 0 20px rgba(168, 85, 247, 0.8), 0 0 40px rgba(168, 85, 247, 0.4)",
-              duration: 0.1,
-              ease: "power1.out",
-            });
+          // Só animar se o estado mudou
+          if (isPointActive !== wasActive) {
+            hasChanges = true;
+            newActiveStates[index] = isPointActive;
 
-            // Ativa o card correspondente
-            setActiveCards((prev) => {
-              if (!prev[index]) {
-                const newActive = [...prev];
-                newActive[index] = true;
-                return newActive;
-              }
-              return prev;
-            });
-          } else {
-            gsap.to(point, {
-              scale: 1,
-              borderColor: "rgba(168, 85, 247, 0.4)",
-              boxShadow: "none",
-              duration: 0.1,
-              ease: "power1.out",
-            });
-
-            // Desativa o card se a linha passar
-            setActiveCards((prev) => {
-              if (prev[index]) {
-                const newActive = [...prev];
-                newActive[index] = false;
-                return newActive;
-              }
-              return prev;
-            });
+            if (isPointActive) {
+              gsap.to(point, {
+                scale: 1.3,
+                borderColor: "#a855f7",
+                boxShadow: "0 0 20px rgba(168, 85, 247, 0.8), 0 0 40px rgba(168, 85, 247, 0.4)",
+                duration: 0.15,
+                ease: "power2.out",
+                overwrite: true,
+              });
+            } else {
+              gsap.to(point, {
+                scale: 1,
+                borderColor: "rgba(168, 85, 247, 0.4)",
+                boxShadow: "none",
+                duration: 0.15,
+                ease: "power2.out",
+                overwrite: true,
+              });
+            }
           }
         });
+
+        // Só atualizar estado se houve mudanças
+        if (hasChanges) {
+          lastActiveRef.current = newActiveStates;
+          setActiveCards(newActiveStates);
+        }
       },
     });
 
@@ -238,7 +245,7 @@ export function Features() {
             {/* Linha que acende (glow) */}
             <div 
               ref={glowLineRef}
-              className="absolute top-0 left-0 w-px"
+              className="absolute top-0 left-0 w-px will-change-[height]"
               style={{
                 height: "0%",
                 background: "linear-gradient(180deg, rgba(168, 85, 247, 0.8) 0%, rgba(168, 85, 247, 1) 50%, rgba(236, 72, 153, 0.8) 100%)",

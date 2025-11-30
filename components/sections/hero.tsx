@@ -2,14 +2,28 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState, useEffect, lazy, Suspense } from "react";
 import TypingText from "@/components/ui/shadcn-io/typing-text";
-import Hyperspeed from "@/components/Hyperspeed";
 import { hyperspeedPresets } from "@/components/HyperSpeedPresets";
+
+// Lazy load Hyperspeed para evitar bloquear o carregamento inicial
+const Hyperspeed = lazy(() => import("@/components/Hyperspeed"));
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
   const typingTexts = ["leads qualificados", "vendas em escala", "ROI maximizado"];
+  const [isHyperspeedReady, setIsHyperspeedReady] = useState(false);
+
+  // Delay Hyperspeed loading to after initial render
+  useEffect(() => {
+    const timer = requestIdleCallback?.(() => setIsHyperspeedReady(true)) 
+      ?? setTimeout(() => setIsHyperspeedReady(true), 100);
+    return () => {
+      if (typeof timer === 'number') {
+        cancelIdleCallback?.(timer) ?? clearTimeout(timer);
+      }
+    };
+  }, []);
   
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -24,9 +38,15 @@ export function Hero() {
     <section ref={sectionRef} className="relative min-h-screen overflow-hidden">
       {/* Hyperspeed Background */}
       <div className="absolute inset-0 h-screen overflow-hidden opacity-60">
-        <Hyperspeed 
-          effectOptions={hyperspeedPresets.one as Record<string, unknown>}
-        />
+        {isHyperspeedReady && (
+          <Suspense fallback={
+            <div className="w-full h-full bg-linear-to-b from-purple-900/20 to-black" />
+          }>
+            <Hyperspeed 
+              effectOptions={hyperspeedPresets.one as Record<string, unknown>}
+            />
+          </Suspense>
+        )}
       </div>
 
       {/* Overlay escuro sutil */}
@@ -39,7 +59,7 @@ export function Hero() {
       <motion.div 
         id="home" 
         className="relative z-10 flex items-center justify-center min-h-screen w-full"
-        style={{ y: contentY, opacity: contentOpacity }}
+        style={{ y: contentY, opacity: contentOpacity, willChange: "transform, opacity" }}
       >
         <div className="w-full px-4 sm:px-6 py-20 md:py-40 pt-36 md:pt-48">
           <div className="flex flex-col items-center justify-center w-full">

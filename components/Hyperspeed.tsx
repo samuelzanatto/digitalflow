@@ -945,12 +945,17 @@ class App {
     }
     this.container = container;
 
+    // Detectar mobile para otimizar performance
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+    
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
-      alpha: true
+      alpha: true,
+      powerPreference: isMobile ? 'low-power' : 'high-performance',
     });
     this.renderer.setSize(container.offsetWidth, container.offsetHeight, false);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    // Limitar pixel ratio em mobile para melhor performance
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
 
     this.composer = new EffectComposer(this.renderer);
     container.appendChild(this.renderer.domElement);
