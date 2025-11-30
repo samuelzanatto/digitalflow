@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { useState, useRef, useCallback } from "react";
+import { useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -62,90 +62,47 @@ const features: Feature[] = [
   },
 ];
 
-function FeatureBadge({ feature, isExpanded }: { feature: Feature; isExpanded: boolean }) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const arrowRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-
-  useGSAP(() => {
-    if (!contentRef.current || !arrowRef.current || !innerRef.current) return;
-
-    // Usa GSAP para animar em vez de Framer Motion - mais performático
-    gsap.to(contentRef.current, {
-      height: isExpanded ? "auto" : 0,
-      duration: 0.6,
-      ease: "power2.inOut",
-    });
-
-    gsap.to(arrowRef.current, {
-      rotation: isExpanded ? 180 : 0,
-      duration: 0.4,
-      ease: "power2.inOut",
-    });
-
-    gsap.to(innerRef.current, {
-      opacity: isExpanded ? 1 : 0,
-      y: isExpanded ? 0 : -10,
-      duration: 0.4,
-      delay: isExpanded ? 0.15 : 0,
-      ease: "power2.out",
-    });
-  }, { dependencies: [isExpanded] });
+function TimelineCard({ feature, index, isActive }: { feature: Feature; index: number; isActive: boolean }) {
+  const cardRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative overflow-visible">
-      <div
-        className={`rounded-xl border border-white/10 bg-white/2 backdrop-blur-sm transition-all duration-500 ${
-          isExpanded ? "bg-white/5 border-purple-500/30" : ""
+    <div 
+      ref={cardRef}
+    >
+      <div 
+        className={`rounded-xl border bg-white/2 backdrop-blur-sm p-6 h-full transition-all duration-700 ${
+          isActive 
+            ? "border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.15)]" 
+            : "border-white/10"
         }`}
       >
-        <div className="p-5">
-          {/* Header com ícone e título */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg transition-colors duration-500 ${
-                isExpanded ? "bg-purple-500/20 text-purple-400" : "bg-white/5 text-white/50"
-              }`}>
-                {feature.icon}
-              </div>
-              <div>
-                <span className="text-xs font-medium text-purple-400/80 uppercase tracking-wider">
-                  {feature.subtitle}
-                </span>
-                <h3 className="text-base font-medium text-white">{feature.title}</h3>
-              </div>
-            </div>
-            <div ref={arrowRef} className="text-white/40">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
+        {/* Header com ícone e título */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="p-3 rounded-lg bg-purple-500/10 text-purple-400">
+            {feature.icon}
           </div>
-
-          {/* Descrição sempre visível */}
-          <p className="text-sm text-white/50 leading-relaxed min-h-10">
-            {feature.description}
-          </p>
-          
-          {/* Conteúdo expandido */}
-          <div ref={contentRef} className="overflow-hidden" style={{ height: 0 }}>
-            <div ref={innerRef} className="opacity-0" style={{ transform: "translateY(-10px)" }}>
-              <div className="pt-4 mt-4 border-t border-white/10">
-                <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-3">
-                  O que está incluso:
-                </p>
-                <ul className="space-y-2">
-                  {feature.benefits.map((benefit, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-sm text-white/70">
-                      <div className="w-1.5 h-1.5 rounded-full bg-purple-500/60" />
-                      {benefit}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          <div>
+            <span className="text-xs font-medium text-purple-400/70 uppercase tracking-wider">
+              {feature.subtitle}
+            </span>
+            <h3 className="text-lg font-medium text-white">{feature.title}</h3>
           </div>
         </div>
+
+        {/* Descrição */}
+        <p className="text-sm text-white/60 leading-relaxed mb-4">
+          {feature.description}
+        </p>
+
+        {/* Benefícios */}
+        <ul className="space-y-2">
+          {feature.benefits.map((benefit, idx) => (
+            <li key={idx} className="flex items-center gap-2 text-sm text-white/50">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500/60 shrink-0" />
+              {benefit}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -154,44 +111,109 @@ function FeatureBadge({ feature, isExpanded }: { feature: Feature; isExpanded: b
 export function Features() {
   const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [expandedIndex, setExpandedIndex] = useState(-1);
-
-  // Usa useCallback para evitar recriação da função
-  const updateExpandedIndex = useCallback((newIndex: number) => {
-    setExpandedIndex((prev) => (prev !== newIndex ? newIndex : prev));
-  }, []);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const glowLineRef = useRef<HTMLDivElement>(null);
+  const [activeCards, setActiveCards] = useState<boolean[]>(features.map(() => false));
 
   useGSAP(() => {
-    // Cria um ScrollTrigger com pin que percorre todos os badges
-    // 500px por feature = scroll mais longo e confortável
+    if (!containerRef.current || !timelineRef.current || !glowLineRef.current) return;
+
+    const points = containerRef.current.querySelectorAll(".timeline-point");
+    const cards = containerRef.current.querySelectorAll(".timeline-card");
+
+    // Animação principal da linha que "acende" durante o scroll
     ScrollTrigger.create({
-      trigger: sectionRef.current,
-      start: "top top",
-      end: `+=${features.length * 500}`,
-      pin: true,
-      pinSpacing: true,
-      scrub: 1.2,
-      anticipatePin: 1, // Melhora performance do pin
+      trigger: timelineRef.current,
+      start: "top 60%",
+      end: "bottom 40%",
+      scrub: 0.5,
       onUpdate: (self) => {
-        // Calcula qual badge deve estar expandido baseado no progresso
+        // Atualiza a altura da linha brilhante baseado no progresso do scroll
         const progress = self.progress;
-        // Adiciona um offset para que o primeiro card não comece expandido
-        const adjustedProgress = Math.max(0, (progress - 0.05) / 0.95);
-        const newIndex = Math.floor(adjustedProgress * features.length);
-        
-        // Garante que o índice não ultrapasse o número de features
-        // E começa em -1 para que nenhum badge inicie expandido
-        const clampedIndex = progress < 0.05 ? -1 : Math.min(newIndex, features.length - 1);
-        
-        updateExpandedIndex(clampedIndex);
+        gsap.set(glowLineRef.current, {
+          height: `${progress * 100}%`,
+        });
+
+        // Para cada ponto, verifica se a linha chegou à sua posição
+        points.forEach((point, index) => {
+          if (!point) return;
+
+          // Calcula a posição do ponto relativa ao container da timeline
+          const pointRect = point.getBoundingClientRect();
+          const containerRect = timelineRef.current!.getBoundingClientRect();
+          
+          // Posição do ponto como percentual da altura total da timeline
+          const pointTopRelative = pointRect.top - containerRect.top;
+          const containerHeight = containerRect.height;
+          const pointHeightPercent = (pointTopRelative / containerHeight) * 100;
+
+          // A linha ativa o ponto quando a altura do glow alcança a posição do ponto
+          const glowHeight = progress * 100;
+          const isPointActive = glowHeight >= pointHeightPercent;
+
+          if (isPointActive) {
+            gsap.to(point, {
+              scale: 1.3,
+              borderColor: "#a855f7",
+              boxShadow: "0 0 20px rgba(168, 85, 247, 0.8), 0 0 40px rgba(168, 85, 247, 0.4)",
+              duration: 0.1,
+              ease: "power1.out",
+            });
+
+            // Ativa o card correspondente
+            setActiveCards((prev) => {
+              if (!prev[index]) {
+                const newActive = [...prev];
+                newActive[index] = true;
+                return newActive;
+              }
+              return prev;
+            });
+          } else {
+            gsap.to(point, {
+              scale: 1,
+              borderColor: "rgba(168, 85, 247, 0.4)",
+              boxShadow: "none",
+              duration: 0.1,
+              ease: "power1.out",
+            });
+
+            // Desativa o card se a linha passar
+            setActiveCards((prev) => {
+              if (prev[index]) {
+                const newActive = [...prev];
+                newActive[index] = false;
+                return newActive;
+              }
+              return prev;
+            });
+          }
+        });
       },
     });
-  }, { scope: sectionRef }); // Remove expandedIndex da dependência, usa scope
+
+    // Também ativar no mobile sem a timeline visível
+    cards.forEach((card, index) => {
+      ScrollTrigger.create({
+        trigger: card,
+        start: "top 75%",
+        onEnter: () => {
+          setActiveCards((prev) => {
+            const newActive = [...prev];
+            newActive[index] = true;
+            return newActive;
+          });
+        },
+        once: true,
+      });
+    });
+  }, { scope: containerRef });
 
   return (
-    <section ref={sectionRef} id="sobre" className="py-12 md:py-20 px-4 bg-black">
-      <div ref={containerRef} className="max-w-6xl mx-auto h-[calc(100vh-100px)] flex flex-col">
-        <div className="text-center mb-8 md:mb-12 px-0 header-content shrink-0">
+    <section ref={sectionRef} id="sobre" className="py-24 md:py-32 px-4 bg-black">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-20">
           <Badge variant="outline" className="mb-4 border-purple-500/30 text-purple-400 bg-purple-500/5 backdrop-blur-sm">
             Como trabalhamos
           </Badge>
@@ -206,15 +228,76 @@ export function Features() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 flex-1 auto-rows-fr">
-          {features.map((feature, index) => (
-            <div key={feature.title} className="feature-card">
-              <FeatureBadge 
-                feature={feature} 
-                isExpanded={index <= expandedIndex} 
-              />
-            </div>
-          ))}
+        {/* Timeline */}
+        <div ref={containerRef} className="relative">
+          {/* Container da Linha da Timeline - visível apenas em desktop */}
+          <div ref={timelineRef} className="hidden lg:block absolute left-1/2 top-0 bottom-0 transform -translate-x-1/2">
+            {/* Linha base (escura) */}
+            <div className="absolute inset-0 w-px bg-white/10" />
+            
+            {/* Linha que acende (glow) */}
+            <div 
+              ref={glowLineRef}
+              className="absolute top-0 left-0 w-px"
+              style={{
+                height: "0%",
+                background: "linear-gradient(180deg, rgba(168, 85, 247, 0.8) 0%, rgba(168, 85, 247, 1) 50%, rgba(236, 72, 153, 0.8) 100%)",
+                boxShadow: "0 0 10px rgba(168, 85, 247, 0.6), 0 0 20px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.2)",
+              }}
+            />
+          </div>
+
+          {/* Cards */}
+          <div className="space-y-24 lg:space-y-48">
+            {features.map((feature, index) => {
+              const isEven = index % 2 === 0;
+              
+              return (
+                <div key={feature.title} className="timeline-card relative">
+                  {/* Layout Desktop */}
+                  <div className="hidden lg:grid lg:grid-cols-[1fr_60px_1fr] items-center">
+                    {/* Lado Esquerdo - card se for par, vazio se for ímpar */}
+                    <div className={isEven ? "" : "invisible"}>
+                      {isEven && (
+                        <TimelineCard 
+                          feature={feature} 
+                          index={index}
+                          isActive={activeCards[index]}
+                        />
+                      )}
+                    </div>
+
+                    {/* Ponto Central da Timeline */}
+                    <div className="flex justify-center items-center">
+                      <div 
+                        className="timeline-point w-4 h-4 rounded-full border-4 border-purple-500/50 bg-black z-10 transition-all"
+                      />
+                    </div>
+
+                    {/* Lado Direito - card se for ímpar, vazio se for par */}
+                    <div className={!isEven ? "" : "invisible"}>
+                      {!isEven && (
+                        <TimelineCard 
+                          feature={feature} 
+                          index={index}
+                          isActive={activeCards[index]}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Layout Mobile - sempre mostrar card */}
+                  <div className="lg:hidden">
+                    <TimelineCard 
+                      feature={feature} 
+                      index={index}
+                      isActive={activeCards[index]}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

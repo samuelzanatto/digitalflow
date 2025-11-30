@@ -16,7 +16,7 @@ import * as THREE from 'three';
 
 // replace with your own imports, see the usage snippet for details
 import cardGLB from './card.glb';
-import lanyard from './lanyard.png';
+import lanyardImg from './lanyard.png';
 
 extend({ MeshLineGeometry, MeshLineMaterial });
 
@@ -107,7 +107,7 @@ function Band({ maxSpeed = 50, minSpeed = 0 }: BandProps) {
   };
 
   const { nodes, materials } = useGLTF(cardGLB) as any;
-  const texture = useTexture(lanyard);
+  const texture = useTexture(lanyardImg as any) as any;
   const [curve] = useState(
     () =>
       new THREE.CatmullRomCurve3([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()])

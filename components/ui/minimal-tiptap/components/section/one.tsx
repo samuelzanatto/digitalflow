@@ -118,7 +118,7 @@ export const SectionOne: React.FC<SectionOneProps> = ({
         })}
         aria-label={label}
       >
-        <Element className={className}>{label}</Element>
+        {React.createElement(Element, { className }, label)}
         <ShortcutKey keys={shortcuts} />
       </DropdownMenuItem>
     ),

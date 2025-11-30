@@ -3,16 +3,13 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
 import { useRef } from "react";
-import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
+import TypingText from "@/components/ui/shadcn-io/typing-text";
 import Hyperspeed from "@/components/Hyperspeed";
 import { hyperspeedPresets } from "@/components/HyperSpeedPresets";
 
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
-  const words = [
-    { text: "performance", className: "bg-linear-to-r from-purple-400 via-pink-400 to-violet-400 bg-clip-text text-transparent" },
-    { text: "real", className: "bg-linear-to-r from-purple-400 via-pink-400 to-violet-400 bg-clip-text text-transparent" },
-  ];
+  const typingTexts = ["leads qualificados", "vendas em escala", "ROI maximizado"];
   
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -60,11 +57,18 @@ export function Hero() {
                 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-light text-white mb-8 md:mb-10 leading-[1.2] text-center w-full"
               >
                 <span className="whitespace-nowrap">Tráfego pago com</span>
-                <TypewriterEffectSmooth 
-                  words={words}
-                  className="justify-center"
-                  cursorClassName="bg-purple-500"
-                />
+                <span className="block text-3xl sm:text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-light bg-linear-to-r from-purple-400 via-pink-400 to-violet-400 bg-clip-text text-transparent">
+                  <TypingText 
+                    text={typingTexts}
+                    typingSpeed={100}
+                    deletingSpeed={50}
+                    pauseDuration={1500}
+                    loop={true}
+                    showCursor={true}
+                    cursorClassName="bg-purple-500"
+                    className="inline-block"
+                  />
+                </span>
               </motion.h1>
 
               <motion.div
@@ -86,16 +90,10 @@ export function Hero() {
                       });
                     }
                   }}
-                  className="relative inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all duration-300 hover:scale-105"
-                  style={{
-                    background: 'transparent',
-                    border: '2px solid transparent',
-                    backgroundImage: 'linear-gradient(black, black), linear-gradient(to right, #9333ea, #ec4899)',
-                    backgroundOrigin: 'border-box',
-                    backgroundClip: 'padding-box, border-box',
-                  }}
+                  className="group relative inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all duration-300 overflow-hidden backdrop-blur-sm border-2 border-purple-500/50 bg-white/5 hover:border-transparent"
                 >
-                  Começar agora
+                  <span className="absolute inset-0 bg-linear-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="relative z-10">Começar agora</span>
                 </Link>
               </motion.div>
 

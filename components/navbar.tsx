@@ -6,6 +6,7 @@ import Image from "next/image";
 import { motion, useScroll } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { TransitionLink } from "@/components/transition-link";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,7 @@ export function Navbar() {
     const element = document.getElementById(sectionId);
     
     if (element) {
-      const offsetTop = element.offsetTop - 120; // 120px de offset (altura da navbar)
+      const offsetTop = element.offsetTop - 80; // 80px de offset para ficar mais próximo
       window.scrollTo({
         top: offsetTop,
         behavior: "smooth",
@@ -120,9 +121,7 @@ export function Navbar() {
                 }}
                 className="flex items-center space-x-2 whitespace-nowrap min-w-max"
               >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <div
                   className="flex items-center gap-2"
                 >
                   <Image
@@ -137,7 +136,7 @@ export function Navbar() {
                       flow
                     </span>
                   </div>
-                </motion.div>
+                </div>
               </Link>
             </motion.div>
 
@@ -173,8 +172,6 @@ export function Navbar() {
                       className="relative group"
                     >
                       <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
                         className={cn(
                           "px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap",
                           activeSection === item.label
@@ -220,146 +217,99 @@ export function Navbar() {
                   href="/quiz"
                   className="relative inline-flex items-center justify-center border border-white/30 hover:border-white/50 text-white rounded-full px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium transition-all duration-300"
                 >
-                  <motion.span
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <span
                     className="relative z-10 font-bold"
                   >
                     Falar com especialista
-                  </motion.span>
+                  </span>
                 </TransitionLink>
               </motion.div>
 
               {/* Mobile Menu Button - Desktop only (hidden) */}
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Toggle menu"
-              >
-                <motion.div
-                  animate={{ rotate: isMobileMenuOpen ? 90 : 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                </motion.div>
-              </motion.button>
-            </div>
-          </div>
-        </div>
-      </motion.nav>
-
-      {/* Mobile Menu */}
-      <motion.div
-        initial={{ opacity: 0, x: "100%" }}
-        animate={{
-          opacity: isMobileMenuOpen ? 1 : 0,
-          x: isMobileMenuOpen ? 0 : "100%",
-        }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className={cn(
-          "fixed inset-0 md:hidden",
-          isMobileMenuOpen ? "z-50 pointer-events-auto" : "z-0 pointer-events-none"
-        )}
-      >
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isMobileMenuOpen ? 1 : 0 }}
-          transition={{ duration: 0.3 }}
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        />
-
-        {/* Menu Panel */}
-        <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: isMobileMenuOpen ? 0 : "100%" }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-          className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-black/95 backdrop-blur-xl border-l border-white/10 shadow-2xl"
-        >
-          <div className="flex flex-col h-full p-6 pt-16">
-            {/* Mobile Nav Items */}
-            <nav className="flex-1 space-y-2">
-              {navItems.map((item, index) => (
-                <motion.div
-                  key={item.label}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{
-                    opacity: isMobileMenuOpen ? 1 : 0,
-                    x: isMobileMenuOpen ? 0 : 50,
-                  }}
-                  transition={{ duration: 0.3, delay: 0.1 + index * 0.05 }}
-                >
-                  <Link
-                    href={item.href}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveSection(item.label);
-                      setIsMobileMenuOpen(false);
-                      handleSmoothScroll(item.href);
-                    }}
-                    className="block"
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Toggle menu"
                   >
                     <motion.div
-                      whileTap={{ scale: 0.95 }}
-                      className={cn(
-                        "px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300",
-                        activeSection === item.label
-                          ? "bg-white/10 text-white"
-                          : "text-white/70 hover:text-white hover:bg-white/5"
-                      )}
+                      animate={{ rotate: isMobileMenuOpen ? 90 : 0 }}
+                      transition={{ duration: 0.3 }}
                     >
-                      {item.label}
+                      {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </motion.div>
-                  </Link>
-                </motion.div>
-              ))}
-            </nav>
+                  </motion.button>
+                </SheetTrigger>
+                  <SheetContent side="right" className="w-4/5 sm:w-96 bg-black/95 border-l border-white/10 px-6">
+                    <SheetTitle className="sr-only">Menu de Navegação</SheetTitle>
+                    <div className="flex flex-col h-full pt-16">
+                      {/* Mobile Nav Items */}
+                      <nav className="flex-1 space-y-2 pt-8">
+                        {navItems.map((item, index) => (
+                          <motion.div
+                            key={item.label}
+                            initial={{ opacity: 0, x: 50 }}
+                            animate={{
+                              opacity: isMobileMenuOpen ? 1 : 0,
+                              x: isMobileMenuOpen ? 0 : 50,
+                            }}
+                            transition={{ duration: 0.3, delay: 0.1 + index * 0.05 }}
+                          >
+                            <Link
+                              href={item.href}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setActiveSection(item.label);
+                                setIsMobileMenuOpen(false);
+                                handleSmoothScroll(item.href);
+                              }}
+                              className="block"
+                            >
+                              <motion.div
+                                whileTap={{ scale: 0.95 }}
+                                className={cn(
+                                  "px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300",
+                                  activeSection === item.label
+                                    ? "bg-white/10 text-white"
+                                    : "text-white/70 hover:text-white hover:bg-white/5"
+                                )}
+                              >
+                                {item.label}
+                              </motion.div>
+                            </Link>
+                          </motion.div>
+                        ))}
+                      </nav>
 
-            {/* Mobile Contact Button */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{
-                opacity: isMobileMenuOpen ? 1 : 0,
-                y: isMobileMenuOpen ? 0 : 20,
-              }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-              className="space-y-3"
-            >
-              <Button
-                asChild
-                className="w-full bg-linear-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl py-6 text-lg font-semibold shadow-lg shadow-purple-500/50"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <Link href="#contato">Agendar</Link>
-              </Button>
-            </motion.div>
+                      {/* Mobile Contact Button */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{
+                          opacity: isMobileMenuOpen ? 1 : 0,
+                          y: isMobileMenuOpen ? 0 : 20,
+                        }}
+                        transition={{ duration: 0.3, delay: 0.4 }}
+                        className="space-y-3 pb-8 mt-auto"
+                      >
+                        <TransitionLink
+                          href="/quiz"
+                          className="relative inline-flex w-full items-center justify-center border border-white/30 hover:border-white/50 text-white rounded-full px-4 py-2 text-sm font-medium transition-all duration-300"
+                        >
+                          <span className="relative z-10 font-bold">
+                            Falar com especialista
+                          </span>
+                        </TransitionLink>
+                      </motion.div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
           </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Mobile Close Button - Fixed on top of sidebar */}
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isMobileMenuOpen ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
-        onClick={() => setIsMobileMenuOpen(false)}
-        className={cn(
-          "fixed top-3 right-4 md:hidden text-white p-2 hover:bg-white/10 rounded-lg transition-colors z-50",
-          !isMobileMenuOpen && "pointer-events-none"
-        )}
-        aria-label="Close menu"
-      >
-        <motion.div
-          animate={{ rotate: isMobileMenuOpen ? 0 : 90 }}
-          transition={{ duration: 0.3 }}
-        >
-          <X size={24} />
-        </motion.div>
-      </motion.button>
+        </motion.nav>
     </>
   );
 }
