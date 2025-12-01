@@ -12,9 +12,9 @@ export async function GET() {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Buscar integrações do usuário
+    // Buscar integrações globais
     const integrations = await prisma.integration.findMany({
-      where: { userId: user.id },
+      where: { isGlobal: true },
       select: { id: true }
     })
 

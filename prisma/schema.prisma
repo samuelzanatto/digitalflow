@@ -110,10 +110,11 @@ model TeamMessage {
   @@index([insertedAt])
 }
 
-// Modelo para integrações (ex: Kirvano, etc)
+// Modelo para integrações globais (ex: Kirvano, etc)
 model Integration {
   id            String   @id @default(uuid())
-  userId        String
+  userId        String?  // Nullable - integrações globais não têm userId
+  isGlobal      Boolean  @default(true) // Indica se a integração é global
   name          String   // Nome da integração (ex: "Kirvano")
   provider      String   // Identificador do provider (ex: "kirvano")
   webhookToken  String   @unique @default(uuid()) // Token único para o webhook
@@ -125,9 +126,9 @@ model Integration {
   // Relação com eventos recebidos
   events        WebhookEvent[]
 
-  @@unique([userId, provider])
   @@index([userId])
   @@index([webhookToken])
+  @@index([provider])
 }
 
 // Modelo para eventos de webhook recebidos

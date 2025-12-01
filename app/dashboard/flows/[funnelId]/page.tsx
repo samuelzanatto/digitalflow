@@ -1,6 +1,6 @@
 "use client"
 
-import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react"
+import { CSSProperties, useCallback, useEffect, useMemo, useState, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import {
   ReactFlow,
@@ -17,17 +17,21 @@ import {
   BackgroundVariant,
   type Viewport,
   type ReactFlowInstance,
+  type NodeChange,
+  type EdgeChange,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { usePageHeader } from "@/hooks/usePageHeader"
-import { Plus, ArrowLeft, Save, Maximize2, Minimize2 } from "lucide-react"
+import { Plus, ArrowLeft, Save, Maximize2, Minimize2, Users } from "lucide-react"
 import { toast } from "sonner"
 import { saveFlowNodes } from "@/lib/actions/flows"
 import { useSupabaseUser } from "@/hooks/useSupabaseUser"
 import { EditableNode, InputNode, OutputNode } from "@/components/flow-nodes"
+import { useFlowCollaboration } from "@/hooks/useFlowCollaboration"
+import { FlowCollaborators } from "@/components/collaboration/flow-collaborators"
 
 // Definir nodeTypes fora do componente para evitar re-renders
 const nodeTypes = {
@@ -183,7 +187,8 @@ const templateEdges: Edge[] = [
   { id: "e3-4", source: "3", target: "4" },
 ]
 
-const serializeFlow = (nodes: Node[], edges: Edge[]) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const serializeFlow = (nodes: Node[], edges: any[]) => {
   const safeNodes = nodes
     .map((node) => {
       const data = node.data as { rawLabel?: string }
@@ -275,8 +280,8 @@ export default function FlowEditor() {
   const funnelId = params.funnelId as string
   const { user } = useSupabaseUser()
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChangeBase] = useEdgesState<Edge>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isHydrating, setIsHydrating] = useState(true)
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(() =>
@@ -285,6 +290,54 @@ export default function FlowEditor() {
   const [nodeLabel, setNodeLabel] = useState("")
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 })
   const [isFullscreen, setIsFullscreen] = useState(false)
+  
+  // Ref para evitar loops de sync
+  const isRemoteUpdateRef = useRef(false)
+
+  // Hook de colaboração em tempo real
+  const {
+    isConnected: isCollabConnected,
+    collaborators,
+    handleNodesChange: handleCollabNodesChange,
+    handleEdgesChange: handleCollabEdgesChange,
+    broadcastNodeUpdate,
+    broadcastNodeAdd,
+    broadcastEdgeAdd,
+  } = useFlowCollaboration({
+    funnelId,
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    onRemoteChange: () => {
+      isRemoteUpdateRef.current = true
+      // Reset após um tick
+      setTimeout(() => {
+        isRemoteUpdateRef.current = false
+      }, 100)
+    },
+  })
+
+  // Handler combinado para mudanças de nós
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    onNodesChangeBase(changes)
+    
+    // Só broadcast se não for uma atualização remota
+    if (!isRemoteUpdateRef.current) {
+      handleCollabNodesChange(changes)
+    }
+  }, [onNodesChangeBase, handleCollabNodesChange])
+
+  // Handler combinado para mudanças de edges
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    onEdgesChangeBase(changes)
+    
+    // Só broadcast se não for uma atualização remota
+    if (!isRemoteUpdateRef.current) {
+      handleCollabEdgesChange(changes)
+    }
+  }, [onEdgesChangeBase, handleCollabEdgesChange])
+
   useEffect(() => {
     let cancelled = false
 
@@ -356,26 +409,36 @@ export default function FlowEditor() {
   const updateSelectedNodeStyle = useCallback(
     (partial: Partial<CSSProperties>) => {
       if (!selectedNodeId) return
+      
+      const newStyle = ensureNodeStyle({
+        ...selectedNodeStyle,
+        ...partial,
+      })
+      
       setNodes((nds) =>
         nds.map((node) =>
           node.id === selectedNodeId
             ? {
                 ...node,
-                style: ensureNodeStyle({
-                  ...node.style,
-                  ...partial,
-                }),
+                style: newStyle,
               }
             : node,
         ),
       )
+      
+      // Broadcast alteração de estilo
+      broadcastNodeUpdate(selectedNodeId, { style: newStyle })
     },
-    [selectedNodeId, setNodes],
+    [selectedNodeId, selectedNodeStyle, setNodes, broadcastNodeUpdate],
   )
 
   const handleSelectedNodeLabelChange = useCallback(
     (value: string) => {
       if (!selectedNodeId) return
+
+      const newData = {
+        ...withStructuredLabel(value),
+      }
 
       setNodes((nds) =>
         nds.map((node) =>
@@ -384,14 +447,17 @@ export default function FlowEditor() {
                 ...node,
                 data: {
                   ...(node.data as Record<string, unknown>),
-                  ...withStructuredLabel(value),
+                  ...newData,
                 },
               }
             : node,
         ),
       )
+      
+      // Broadcast alteração de label
+      broadcastNodeUpdate(selectedNodeId, { data: newData })
     },
-    [selectedNodeId, setNodes],
+    [selectedNodeId, setNodes, broadcastNodeUpdate],
   )
 
   const handleAlignmentChange = useCallback(
@@ -417,16 +483,22 @@ export default function FlowEditor() {
   }, [])
 
   const onConnect = useCallback(
-    (connection: Connection) =>
-      setEdges((eds) => addEdge({ ...connection, animated: true }, eds)),
-    [setEdges]
+    (connection: Connection) => {
+      const newEdge = { ...connection, id: `e${connection.source}-${connection.target}`, animated: true }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setEdges((eds) => addEdge(newEdge, eds as any))
+      
+      // Broadcast nova conexão
+      broadcastEdgeAdd(newEdge)
+    },
+    [setEdges, broadcastEdgeAdd]
   )
 
   const addNewNode = useCallback(() => {
     const nodeCount = nodes.length
     const rawLabel = nodeLabel.trim() || `Nó ${nodeCount + 1}`
     const newNode: Node = {
-      id: `${nodeCount + 1}`,
+      id: `node_${Date.now()}_${nodeCount + 1}`,
       type: "default",
       position: {
         x: Math.random() * 400,
@@ -439,7 +511,10 @@ export default function FlowEditor() {
     }
     setNodes((nds) => [...nds, newNode])
     setNodeLabel("")
-  }, [nodeLabel, nodes.length, setNodes])
+    
+    // Broadcast novo nó
+    broadcastNodeAdd(newNode)
+  }, [nodeLabel, nodes.length, setNodes, broadcastNodeAdd])
 
   const handleBack = useCallback(() => {
     router.back()
@@ -676,6 +751,13 @@ export default function FlowEditor() {
               <Background variant={BackgroundVariant.Dots} />
               <Controls />
               <MiniMap />
+              {/* Painel de colaboração */}
+              <Panel position="top-center" className="bg-card/80 backdrop-blur-sm border rounded-lg px-4 py-2">
+                <FlowCollaborators 
+                  collaborators={collaborators}
+                  isConnected={isCollabConnected}
+                />
+              </Panel>
               {isFullscreen && (
                 <Panel position="top-left" className="bg-card border rounded-lg p-3">
                   <Button
@@ -689,7 +771,7 @@ export default function FlowEditor() {
                   </Button>
                 </Panel>
               )}
-              <Panel position="top-right" className="bg-card border rounded-lg p-3">
+              <Panel position="bottom-right" className="bg-card border rounded-lg p-3">
                 <div className="text-sm space-y-2">
                   <p className="font-semibold">Instruções</p>
                   <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">

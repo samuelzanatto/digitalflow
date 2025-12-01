@@ -18,9 +18,9 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
-    // Verificar se a integração pertence ao usuário
+    // Verificar se a integração existe (global)
     const existing = await prisma.integration.findFirst({
-      where: { id, userId: user.id }
+      where: { id, isGlobal: true }
     })
 
     if (!existing) {
@@ -57,9 +57,9 @@ export async function DELETE(
 
     const { id } = await params
 
-    // Verificar se a integração pertence ao usuário
+    // Verificar se a integração existe (global)
     const existing = await prisma.integration.findFirst({
-      where: { id, userId: user.id }
+      where: { id, isGlobal: true }
     })
 
     if (!existing) {

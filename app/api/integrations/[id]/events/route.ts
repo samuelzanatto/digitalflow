@@ -17,9 +17,9 @@ export async function GET(
 
     const { id } = await params
 
-    // Verificar se a integração pertence ao usuário
+    // Verificar se a integração existe (global)
     const integration = await prisma.integration.findFirst({
-      where: { id, userId: user.id }
+      where: { id, isGlobal: true }
     })
 
     if (!integration) {

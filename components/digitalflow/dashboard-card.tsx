@@ -75,7 +75,7 @@ const DashboardCard = React.forwardRef<HTMLDivElement, DashboardCardProps>(
           }
         }}
         className={cn(
-          "h-[220px] rounded-3xl transition-all duration-300 group overflow-hidden relative",
+          "h-[220px] rounded-3xl transition-all duration-300 group relative",
           "bg-black/70 border border-white/10",
           "hover:shadow-xl hover:border-primary/50",
           onClick && "cursor-pointer",
@@ -88,7 +88,7 @@ const DashboardCard = React.forwardRef<HTMLDivElement, DashboardCardProps>(
       >
         {/* Avatares dos colaboradores visualizando este card */}
         {viewingCollaborators.length > 0 && (
-          <div className="absolute -top-2 -right-2 z-10 flex -space-x-2">
+          <div className="absolute -top-2 -right-2 z-50 flex -space-x-2">
             <TooltipProvider>
               {viewingCollaborators.slice(0, 3).map((collaborator) => (
                 <Tooltip key={collaborator.id}>

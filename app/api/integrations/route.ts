@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/db/prisma"
 
-// GET - Listar integrações do usuário
+// GET - Listar integrações globais
 export async function GET() {
   try {
     const supabase = await createSupabaseServerClient()
@@ -12,8 +12,9 @@ export async function GET() {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
+    // Buscar integrações globais (isGlobal = true)
     const integrations = await prisma.integration.findMany({
-      where: { userId: user.id },
+      where: { isGlobal: true },
       include: {
         _count: {
           select: { events: true }
@@ -46,13 +47,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nome e provider são obrigatórios" }, { status: 400 })
     }
 
-    // Verificar se já existe integração com esse provider
-    const existing = await prisma.integration.findUnique({
+    // Verificar se já existe integração global com esse provider
+    const existing = await prisma.integration.findFirst({
       where: {
-        userId_provider: {
-          userId: user.id,
-          provider
-        }
+        provider,
+        isGlobal: true
       }
     })
 
@@ -60,11 +59,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Integração já existe" }, { status: 409 })
     }
 
+    // Criar integração global (sem userId)
     const integration = await prisma.integration.create({
       data: {
-        userId: user.id,
         name,
         provider,
+        isGlobal: true,
         enabled: true
       }
     })
