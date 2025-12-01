@@ -16,11 +16,21 @@ export function Hero() {
 
   // Delay Hyperspeed loading to after initial render
   useEffect(() => {
-    const timer = requestIdleCallback?.(() => setIsHyperspeedReady(true)) 
-      ?? setTimeout(() => setIsHyperspeedReady(true), 100);
+    let timer: ReturnType<typeof setTimeout> | ReturnType<typeof requestIdleCallback>;
+    let isIdleCallback = false;
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      isIdleCallback = true;
+      timer = requestIdleCallback(() => setIsHyperspeedReady(true));
+    } else {
+      timer = setTimeout(() => setIsHyperspeedReady(true), 100);
+    }
+
     return () => {
-      if (typeof timer === 'number') {
-        cancelIdleCallback?.(timer) ?? clearTimeout(timer);
+      if (isIdleCallback && typeof timer === 'number') {
+        cancelIdleCallback(timer);
+      } else if (!isIdleCallback) {
+        clearTimeout(timer as NodeJS.Timeout);
       }
     };
   }, []);
