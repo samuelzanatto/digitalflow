@@ -267,8 +267,8 @@ export function useFlowCollaboration({
       channelRef.current.track({
         id: userRef.current?.id,
         email: userRef.current?.email,
-        name: userRef.current?.user_metadata?.name || userRef.current?.email?.split("@")[0],
-        avatar: userRef.current?.user_metadata?.avatar_url,
+        name: userRef.current?.full_name || userRef.current?.email?.split("@")[0],
+        avatar: userRef.current?.avatar_url,
         selectedNodeId: nodeId,
         lastActive: new Date().toISOString(),
       })
