@@ -4,12 +4,12 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState, useRef } from
 import { useParams, useRouter } from "next/navigation"
 import {
   ReactFlow,
+  ReactFlowProvider,
   useNodesState,
   useEdgesState,
   addEdge,
   Background,
   Controls,
-  MiniMap,
   Panel,
   Connection,
   Node,
@@ -32,6 +32,7 @@ import { useSupabaseUser } from "@/hooks/useSupabaseUser"
 import { EditableNode, InputNode, OutputNode } from "@/components/flow-nodes"
 import { useFlowCollaboration } from "@/hooks/useFlowCollaboration"
 import { FlowCollaborators } from "@/components/collaboration/flow-collaborators"
+import NodeSelectionOverlay from "@/components/collaboration/node-selection-overlay"
 
 // Definir nodeTypes fora do componente para evitar re-renders
 const nodeTypes = {
@@ -294,6 +295,14 @@ export default function FlowEditor() {
   // Ref para evitar loops de sync
   const isRemoteUpdateRef = useRef(false)
 
+  // Função para hidratar dados do nó (converter rawLabel em label JSX)
+  const hydrateNodeData = useCallback((data: Record<string, unknown>) => {
+    if (typeof data.rawLabel === "string") {
+      return withStructuredLabel(data.rawLabel)
+    }
+    return data
+  }, [])
+
   // Hook de colaboração em tempo real
   const {
     isConnected: isCollabConnected,
@@ -303,6 +312,8 @@ export default function FlowEditor() {
     broadcastNodeUpdate,
     broadcastNodeAdd,
     broadcastEdgeAdd,
+    broadcastNodeSelect,
+    broadcastFlowSaved,
   } = useFlowCollaboration({
     funnelId,
     nodes,
@@ -315,6 +326,12 @@ export default function FlowEditor() {
       setTimeout(() => {
         isRemoteUpdateRef.current = false
       }, 100)
+    },
+    hydrateNodeData,
+    onRemoteSave: (savedBy, snapshot) => {
+      // Outro colaborador salvou - atualiza o lastSavedSnapshot
+      setLastSavedSnapshot(snapshot)
+      toast.success(`${savedBy} salvou o fluxo`)
     },
   })
 
@@ -389,6 +406,12 @@ export default function FlowEditor() {
   }, [])
   const activeNode = useMemo(() => nodes.find((node) => node.selected) ?? null, [nodes])
   const selectedNodeId = activeNode?.id ?? null
+  
+  // Broadcast seleção de nó para colaboradores
+  useEffect(() => {
+    broadcastNodeSelect(selectedNodeId)
+  }, [selectedNodeId, broadcastNodeSelect])
+  
   const selectedNodeLabel = activeNode ? getRawLabel(activeNode) : ""
   const selectedNodeStyle = ensureNodeStyle(activeNode?.style)
   const selectedNodeAlignment = selectedNodeStyle.textAlign ?? "left"
@@ -454,8 +477,8 @@ export default function FlowEditor() {
         ),
       )
       
-      // Broadcast alteração de label
-      broadcastNodeUpdate(selectedNodeId, { data: newData })
+      // Broadcast apenas o rawLabel (serializável), não o JSX
+      broadcastNodeUpdate(selectedNodeId, { data: { rawLabel: value } })
     },
     [selectedNodeId, setNodes, broadcastNodeUpdate],
   )
@@ -512,8 +535,11 @@ export default function FlowEditor() {
     setNodes((nds) => [...nds, newNode])
     setNodeLabel("")
     
-    // Broadcast novo nó
-    broadcastNodeAdd(newNode)
+    // Broadcast novo nó (apenas com rawLabel, sem JSX)
+    broadcastNodeAdd({
+      ...newNode,
+      data: { rawLabel },
+    })
   }, [nodeLabel, nodes.length, setNodes, broadcastNodeAdd])
 
   const handleBack = useCallback(() => {
@@ -547,6 +573,8 @@ export default function FlowEditor() {
       if (result.success) {
         setLastSavedSnapshot(snapshotAtSave)
         toast.success("Fluxo salvo com sucesso!")
+        // Notifica outros colaboradores que o flow foi salvo
+        broadcastFlowSaved(snapshotAtSave)
       } else {
         toast.error(result.error || "Não foi possível salvar o fluxo.")
       }
@@ -556,7 +584,7 @@ export default function FlowEditor() {
     } finally {
       setIsSaving(false)
     }
-  }, [currentSnapshot, funnelId, hasUnsavedChanges, isHydrating, isSaving, user?.id])
+  }, [currentSnapshot, funnelId, hasUnsavedChanges, isHydrating, isSaving, user?.id, broadcastFlowSaved])
 
   useEffect(() => {
     const actions = (
@@ -736,53 +764,45 @@ export default function FlowEditor() {
               Carregando fluxo...
             </div>
           ) : (
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onMove={handleViewportChange}
-              onInit={handleInit}
-              fitView
-              colorMode="dark"
-            >
-              <Background variant={BackgroundVariant.Dots} />
-              <Controls />
-              <MiniMap />
-              {/* Painel de colaboração */}
-              <Panel position="top-center" className="bg-card/80 backdrop-blur-sm border rounded-lg px-4 py-2">
-                <FlowCollaborators 
-                  collaborators={collaborators}
-                  isConnected={isCollabConnected}
-                />
-              </Panel>
-              {isFullscreen && (
-                <Panel position="top-left" className="bg-card border rounded-lg p-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => setIsFullscreen(false)}
-                  >
-                    <Minimize2 className="w-4 h-4" />
-                    Sair de Tela Cheia
-                  </Button>
+            <ReactFlowProvider>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onMove={handleViewportChange}
+                onInit={handleInit}
+                fitView
+                colorMode="dark"
+              >
+                <Background variant={BackgroundVariant.Dots} />
+                <Controls />
+                {/* Overlay de seleção dos colaboradores */}
+                <NodeSelectionOverlay collaborators={collaborators} />
+                {/* Painel de colaboração */}
+                <Panel position="top-center" className="bg-card/80 backdrop-blur-sm border rounded-lg px-4 py-2">
+                  <FlowCollaborators 
+                    collaborators={collaborators}
+                    isConnected={isCollabConnected}
+                  />
                 </Panel>
-              )}
-              <Panel position="bottom-right" className="bg-card border rounded-lg p-3">
-                <div className="text-sm space-y-2">
-                  <p className="font-semibold">Instruções</p>
-                  <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Arraste para mover nós</li>
-                    <li>Clique para selecionar</li>
-                    <li>Arraste de um ponto para conectar</li>
-                    <li>Delete com Backspace/Delete</li>
-                  </ul>
-                </div>
-              </Panel>
-            </ReactFlow>
+                {isFullscreen && (
+                  <Panel position="top-left" className="bg-card border rounded-lg p-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => setIsFullscreen(false)}
+                    >
+                      <Minimize2 className="w-4 h-4" />
+                      Sair de Tela Cheia
+                    </Button>
+                  </Panel>
+                )}
+              </ReactFlow>
+            </ReactFlowProvider>
           )}
         </div>
       </div>

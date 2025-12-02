@@ -30,7 +30,7 @@ const HeroSectionComponent = React.forwardRef<HTMLDivElement, HeroSectionProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -47,6 +47,7 @@ const HeroSectionComponent = React.forwardRef<HTMLDivElement, HeroSectionProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           background: backgroundImage ? `url(${backgroundImage})` : backgroundColor,
           backgroundSize: 'cover',
@@ -134,7 +135,7 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -150,6 +151,7 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           padding: `${padding}px`,
           width: fullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
@@ -245,7 +247,7 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -277,6 +279,7 @@ const CTAButtonComponent = React.forwardRef<HTMLDivElement, CTAButtonProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           padding: '20px',
           textAlign: 'center',
@@ -437,7 +440,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
     const resolvedMinHeightProp = resolveResponsiveProp(minHeight, 200)
     
     // Subscrever a TODAS as mudanças de props + eventos para garantir re-renderização em tempo real
-    const { connectors: { connect, drag }, isSelected, parentId } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, parentId, id } = useNode((node) => ({
       isSelected: node.events.selected,
       parentId: node.data.parent,
       // Subscrever a todas as props para forçar re-render quando mudam
@@ -579,6 +582,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
           }
         }}
         id={sectionId || undefined}
+        data-node-id={id}
         style={{ ...baseStyle, ...flexStyle }}
       >
         {children}
@@ -641,7 +645,7 @@ interface DividerProps {
 
 const DividerComponent = React.forwardRef<HTMLDivElement, DividerProps>(
   ({ color = '#e5e7eb', height = 1, margin = 20 }, ref) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -657,6 +661,7 @@ const DividerComponent = React.forwardRef<HTMLDivElement, DividerProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           backgroundColor: color,
           height: `${height}px`,
@@ -734,7 +739,7 @@ const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -752,6 +757,7 @@ const FooterComponent = React.forwardRef<HTMLDivElement, FooterProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           width: '100%',
           padding: `${padding}px`,

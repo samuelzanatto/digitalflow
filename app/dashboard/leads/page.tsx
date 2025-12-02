@@ -101,6 +101,13 @@ export default function LeadsPage() {
   const [newGroupColor, setNewGroupColor] = useState("#6366f1")
   const [creatingGroup, setCreatingGroup] = useState(false)
   
+  // Edit group states
+  const [editingGroup, setEditingGroup] = useState<LeadGroup | null>(null)
+  const [editGroupName, setEditGroupName] = useState("")
+  const [editGroupDescription, setEditGroupDescription] = useState("")
+  const [editGroupColor, setEditGroupColor] = useState("#6366f1")
+  const [savingGroup, setSavingGroup] = useState(false)
+  
   const [newLeadGroupId, setNewLeadGroupId] = useState("")
   const [newLeadName, setNewLeadName] = useState("")
   const [newLeadEmail, setNewLeadEmail] = useState("")
@@ -245,6 +252,39 @@ export default function LeadsPage() {
       loadData()
     } catch (error) {
       console.error("Erro ao deletar grupo:", error)
+    }
+  }
+
+  const handleEditGroup = (group: LeadGroup) => {
+    setEditingGroup(group)
+    setEditGroupName(group.name)
+    setEditGroupDescription(group.description || "")
+    setEditGroupColor(group.color)
+  }
+
+  const handleSaveGroup = async () => {
+    if (!editingGroup || !editGroupName.trim()) return
+    
+    setSavingGroup(true)
+    try {
+      const response = await fetch(`/api/lead-groups/${editingGroup.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editGroupName,
+          description: editGroupDescription,
+          color: editGroupColor
+        })
+      })
+      
+      if (response.ok) {
+        setEditingGroup(null)
+        loadData()
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar grupo:", error)
+    } finally {
+      setSavingGroup(false)
     }
   }
 
@@ -506,7 +546,12 @@ export default function LeadsPage() {
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => handleEditGroup(group)}
+                          >
                             <IconEdit size={16} />
                           </Button>
                           <Button 
@@ -537,6 +582,61 @@ export default function LeadsPage() {
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* Dialog de Edição de Grupo */}
+      <Dialog open={!!editingGroup} onOpenChange={(open) => !open && setEditingGroup(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Grupo</DialogTitle>
+            <DialogDescription>
+              Altere as informações do grupo de leads
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="edit-group-name">Nome do Grupo</Label>
+              <Input 
+                id="edit-group-name" 
+                className="mt-2"
+                value={editGroupName}
+                onChange={(e) => setEditGroupName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-group-desc">Descrição (opcional)</Label>
+              <Input 
+                id="edit-group-desc" 
+                className="mt-2"
+                value={editGroupDescription}
+                onChange={(e) => setEditGroupDescription(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Cor</Label>
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {groupColors.map((color) => (
+                  <button
+                    key={color}
+                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                      editGroupColor === color ? "border-foreground scale-110" : "border-transparent"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => setEditGroupColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingGroup(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveGroup} disabled={savingGroup || !editGroupName.trim()}>
+              {savingGroup ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

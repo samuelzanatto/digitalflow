@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
-import { Editor, Frame, Element, SerializedNodes } from '@craftjs/core'
+import { Editor, Frame, Element, SerializedNodes, useEditor } from '@craftjs/core'
 import { ComponentsToolbox } from './components-toolbox'
 import { LayersPanel } from './layers-panel'
 import { PropertiesPanel } from './properties-panel'
@@ -20,6 +20,11 @@ import { EditorViewportProvider } from '@/lib/responsive-props'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
+import { usePageBuilderCollaboration } from '@/hooks/usePageBuilderCollaboration'
+import { PageBuilderCollaborators } from '@/components/collaboration/page-builder-collaborators'
+import { CollaboratorSelectionOverlay } from '@/components/collaboration/collaborator-selection-overlay'
+import { PageBuilderCollaborationProvider, usePageBuilderCollaborationContext } from '@/contexts/page-builder-collaboration-context'
 import {
   Container,
   TextBlock,
@@ -112,6 +117,158 @@ function ViewportSync({ targetViewport }: { targetViewport: ViewportMode }) {
 
   return null
 }
+
+/**
+ * Componente interno que gerencia a colaboração em tempo real
+ * Precisa estar dentro do Editor para usar useEditor
+ */
+interface CollaborationManagerProps {
+  pageId: string
+  onRemoteChange?: () => void
+}
+
+function CollaborationManager({ pageId, onRemoteChange }: CollaborationManagerProps) {
+  const { query, actions } = useEditor()
+  const isProcessingRemoteRef = useRef(false)
+  const lastSelectedNodeRef = useRef<string | null>(null)
+  const { setBroadcastPageSaved } = usePageBuilderCollaborationContext()
+
+  // Função para obter o estado serializado
+  const getSerializedState = useCallback(() => {
+    try {
+      return query.serialize()
+    } catch (error) {
+      console.error('[CollaborationManager] Error serializing state:', error)
+      return null
+    }
+  }, [query])
+
+  // Função para aplicar estado serializado
+  const applySerializedState = useCallback((serialized: string) => {
+    try {
+      isProcessingRemoteRef.current = true
+      actions.deserialize(serialized)
+      onRemoteChange?.()
+    } catch (error) {
+      console.error('[CollaborationManager] Error deserializing state:', error)
+    } finally {
+      setTimeout(() => {
+        isProcessingRemoteRef.current = false
+      }, 100)
+    }
+  }, [actions, onRemoteChange])
+
+  const {
+    isConnected,
+    collaborators,
+    broadcastFullSync,
+    broadcastNodeSelect,
+    broadcastPageSaved,
+    isProcessingRemote,
+  } = usePageBuilderCollaboration({
+    pageId,
+    getSerializedState,
+    applySerializedState,
+    onRemoteChange,
+    onRemoteSave: (savedBy) => {
+      // Outro colaborador salvou - marca como não dirty e notifica
+      onRemoteChange?.()
+      toast.success(`${savedBy} salvou a página`)
+    },
+  })
+
+  // Registra a função de broadcast no contexto
+  useEffect(() => {
+    setBroadcastPageSaved(broadcastPageSaved)
+  }, [broadcastPageSaved, setBroadcastPageSaved])
+
+  // Observa mudanças locais e faz broadcast
+  const { nodes, selectedNodeId, selectedNodeName } = useEditor((state) => {
+    const selectedId = state.events.selected.values().next().value as string | undefined
+    let nodeName: string | null = null
+    
+    if (selectedId && state.nodes[selectedId]) {
+      const node = state.nodes[selectedId]
+      // Tenta obter o nome do componente
+      nodeName = node.data.displayName || 
+                 node.data.custom?.displayName ||
+                 (node.data.type as { craft?: { displayName?: string } })?.craft?.displayName ||
+                 (typeof node.data.type === 'function' ? node.data.type.name : null) ||
+                 'Componente'
+    }
+    
+    return {
+      nodes: state.nodes,
+      selectedNodeId: selectedId || null,
+      selectedNodeName: nodeName,
+    }
+  })
+
+  const prevNodesRef = useRef<string>('')
+
+  // Broadcast quando a seleção muda
+  useEffect(() => {
+    if (selectedNodeId !== lastSelectedNodeRef.current) {
+      lastSelectedNodeRef.current = selectedNodeId
+      broadcastNodeSelect(selectedNodeId, selectedNodeName)
+    }
+  }, [selectedNodeId, selectedNodeName, broadcastNodeSelect])
+
+  useEffect(() => {
+    // Só faz broadcast se não estiver processando mudança remota
+    if (isProcessingRemote()) return
+
+    const currentSerialized = getSerializedState()
+    if (!currentSerialized) return
+    
+    // Evita broadcast se o estado não mudou
+    if (currentSerialized === prevNodesRef.current) return
+    prevNodesRef.current = currentSerialized
+
+    broadcastFullSync()
+  }, [nodes, getSerializedState, broadcastFullSync, isProcessingRemote])
+
+  return (
+    <>
+      <PageBuilderCollaborators 
+        collaborators={collaborators} 
+        isConnected={isConnected} 
+      />
+    </>
+  )
+}
+
+/**
+ * Componente que renderiza o overlay de seleção dentro do canvas
+ * Deve ser renderizado dentro do craftjs-frame
+ */
+interface SelectionOverlayWrapperProps {
+  pageId: string
+}
+
+function SelectionOverlayWrapper({ pageId }: SelectionOverlayWrapperProps) {
+  const { query } = useEditor()
+  
+  // Função para obter o estado serializado (necessário para o hook)
+  const getSerializedState = useCallback(() => {
+    try {
+      return query.serialize()
+    } catch {
+      return null
+    }
+  }, [query])
+
+  // Função vazia para aplicar estado (não usada neste componente)
+  const applySerializedState = useCallback(() => {}, [])
+
+  const { collaborators } = usePageBuilderCollaboration({
+    pageId,
+    getSerializedState,
+    applySerializedState,
+  })
+
+  return <CollaboratorSelectionOverlay collaborators={collaborators} />
+}
 export function EditorLayout({ 
   pageId, 
   pageTitle,
@@ -196,6 +353,7 @@ export function EditorLayout({
             setIsDirty(true)
           }}
         >
+          <PageBuilderCollaborationProvider>
           {/* Minimal Header - Page Builder */}
           <header className="flex h-12 shrink-0 items-center justify-between border-b bg-card px-4 gap-2">
             <div className="flex items-center gap-3">
@@ -210,7 +368,15 @@ export function EditorLayout({
               </div>
             </div>
 
-            <SaveButton pageId={pageId} isDirty={isDirty} onSaveSuccess={handleSaveSuccess} />
+            <div className="flex items-center gap-4">
+              {/* Colaboradores em tempo real */}
+              <CollaborationManager 
+                pageId={pageId} 
+                onRemoteChange={() => setIsDirty(false)} 
+              />
+              
+              <SaveButton pageId={pageId} isDirty={isDirty} onSaveSuccess={handleSaveSuccess} />
+            </div>
           </header>
 
           {/* Main Editor Area */}
@@ -249,8 +415,8 @@ export function EditorLayout({
                 >
                   <EditorViewportProvider viewport={viewportMode}>
                     <div 
-                      className="craftjs-frame bg-white min-h-full"
-                      style={{ width: '100%' }}
+                      className="craftjs-frame bg-white min-h-full relative"
+                      style={{ width: '100%', overflow: 'hidden' }}
                     >
                       <Frame data={parsedLayout ?? undefined}>
                         <Element
@@ -271,6 +437,9 @@ export function EditorLayout({
                           )}
                         </Element>
                       </Frame>
+                      
+                      {/* Overlay de seleção de colaboradores - DEPOIS do Frame, sobre o conteúdo */}
+                      <SelectionOverlayWrapper pageId={pageId} />
                     </div>
                   </EditorViewportProvider>
                 </DeviceFrame>
@@ -296,6 +465,7 @@ export function EditorLayout({
               </ResizablePanelGroup>
             </ResizablePanel>
           </ResizablePanelGroup>
+          </PageBuilderCollaborationProvider>
         </Editor>
       </div>
     </ViewportProvider>

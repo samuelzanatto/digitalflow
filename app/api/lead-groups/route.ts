@@ -11,9 +11,9 @@ export async function GET() {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
+    // Grupos são globais - todos os usuários veem todos os grupos
     const groups = await withRetry(() =>
       prisma.leadGroup.findMany({
-        where: { userId: user.id },
         include: {
           _count: {
             select: { leads: true }
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const group = await withRetry(() =>
       prisma.leadGroup.create({
         data: {
-          userId: user.id,
+          userId: user.id, // Registra quem criou para histórico
           name,
           description,
           color: color || "#6366f1"

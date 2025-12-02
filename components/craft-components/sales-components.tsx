@@ -136,7 +136,7 @@ const PricingCardComponent = React.forwardRef<HTMLDivElement, PricingCardProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -246,6 +246,7 @@ const PricingCardComponent = React.forwardRef<HTMLDivElement, PricingCardProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
@@ -442,7 +443,7 @@ const TestimonialCardComponent = React.forwardRef<HTMLDivElement, TestimonialCar
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -458,6 +459,7 @@ const TestimonialCardComponent = React.forwardRef<HTMLDivElement, TestimonialCar
             }
           }
         }}
+        data-node-id={id}
         style={{
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
@@ -565,7 +567,7 @@ const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -591,6 +593,7 @@ const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           width: cardFullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
           height: cardAutoHeight ? 'auto' : (typeof height === 'number' ? `${height}px` : height),
@@ -785,7 +788,7 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected, actions: { setProp } } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id, actions: { setProp } } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
     const { enabled: isEditorEnabled } = useEditor((state) => ({
@@ -955,6 +958,7 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           position: 'relative',
           width: computedWidth,
@@ -1326,7 +1330,7 @@ const StatsCounterComponent = React.forwardRef<HTMLDivElement, StatsCounterProps
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -1342,6 +1346,7 @@ const StatsCounterComponent = React.forwardRef<HTMLDivElement, StatsCounterProps
             }
           }
         }}
+        data-node-id={id}
         style={{
           backgroundColor,
           padding: '24px',
@@ -1417,7 +1422,7 @@ const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -1435,6 +1440,7 @@ const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           backgroundColor,
           border: isSelected ? `2px solid #3b82f6` : `${borderWidth}px solid ${borderColor}`,
@@ -1529,7 +1535,7 @@ const TrustBadgesComponent = React.forwardRef<HTMLDivElement, TrustBadgesProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -1545,6 +1551,7 @@ const TrustBadgesComponent = React.forwardRef<HTMLDivElement, TrustBadgesProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           backgroundColor,
           padding: '24px',
@@ -1635,7 +1642,7 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
     
@@ -1663,6 +1670,7 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
             }
           }
         }}
+        data-node-id={id}
         style={{
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
@@ -1841,7 +1849,7 @@ const VSLComponent = React.forwardRef<HTMLDivElement, VSLProps>(
     },
     ref
   ) => {
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
     const [showPlayer, setShowPlayer] = React.useState(!showThumbnail || !thumbnailUrl)
@@ -1882,6 +1890,7 @@ const VSLComponent = React.forwardRef<HTMLDivElement, VSLProps>(
             }
           }
         }}
+        data-node-id={id}
         style={{
           padding: `${resolvedPaddingTop}px ${resolvedPaddingRight}px ${resolvedPaddingBottom}px ${resolvedPaddingLeft}px`,
           border: isSelected ? '2px solid #3b82f6' : 'none',
@@ -2140,7 +2149,7 @@ const CountdownTimerComponent = React.forwardRef<HTMLDivElement, CountdownTimerP
 
     const [isExpired, setIsExpired] = React.useState(false)
 
-    const { connectors: { connect, drag }, isSelected } = useNode((node) => ({
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
       isSelected: node.events.selected,
     }))
 
@@ -2205,6 +2214,7 @@ const CountdownTimerComponent = React.forwardRef<HTMLDivElement, CountdownTimerP
             }
           }
         }}
+        data-node-id={id}
         style={{
           width: cardFullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
           height: cardAutoHeight ? 'auto' : (typeof height === 'number' ? `${height}px` : height),

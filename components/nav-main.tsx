@@ -50,10 +50,26 @@ export function NavMain({
           <SidebarGroupContent>
             <SidebarMenu>
               {group.items.map((item) => {
-                // Marcar como ativo apenas se for correspondência exata (não incluir subrotas)
-                const isActive = pathname === item.url
+                // Marcar como ativo: correspondência exata OU subrota (apenas se não for /dashboard raiz)
+                const isExactMatch = pathname === item.url
+                const isSubRoute = item.url !== "/dashboard" && pathname.startsWith(item.url + "/")
+                const isActive = isExactMatch || isSubRoute
                 const isTeamPage = item.title === "Equipe"
-                const collaboratorsOnThisPage = collaboratorsByPath[item.url] || []
+                
+                // Pegar colaboradores da página atual e de suas subrotas (exceto /dashboard raiz)
+                const collaboratorsOnThisPage = Object.entries(collaboratorsByPath)
+                  .filter(([path]) => {
+                    if (item.url === "/dashboard") {
+                      // Para o Dashboard, só mostrar se estiver exatamente em /dashboard
+                      return path === item.url
+                    }
+                    return path === item.url || path.startsWith(item.url + "/")
+                  })
+                  .flatMap(([, collabs]) => collabs)
+                  // Remover duplicatas pelo ID
+                  .filter((collab, index, self) => 
+                    index === self.findIndex(c => c.id === collab.id)
+                  )
                 
                 return (
                   <SidebarMenuItem key={item.title}>

@@ -23,6 +23,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import {
   createSalesPage,
@@ -33,6 +40,7 @@ import {
 } from '@/lib/actions/pages'
 import { cn } from '@/lib/utils'
 import { useSupabaseUser } from '@/hooks/useSupabaseUser'
+import { useCollaboration } from '@/contexts/collaboration-context'
 
 interface SectionPreview {
   id: string
@@ -202,12 +210,19 @@ const formatUserId = (id: string) => {
 export default function PaginasPage() {
   const { setPageHeader } = usePageHeader()
   const { user, loading: isUserLoading } = useSupabaseUser()
+  const { collaborators } = useCollaboration()
   const [pages, setPages] = useState<SalesPage[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [refreshingPageId, setRefreshingPageId] = useState<string | null>(null)
   const [deletingPageId, setDeletingPageId] = useState<string | null>(null)
   const dialogRef = useRef<CreateDialogHandle>(null)
+
+  // Função para obter colaboradores editando uma página específica
+  const getEditingCollaborators = useCallback((pageId: string) => {
+    const editorPath = `/editor/${pageId}`
+    return collaborators.filter((c) => c.currentPath === editorPath)
+  }, [collaborators])
 
   const loadPages = useCallback(async () => {
     try {
@@ -380,12 +395,65 @@ export default function PaginasPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 md:gap-6">
             {pages.map((page) => {
               const previewImage = getPagePreviewImage(page)
+              const editingCollaborators = getEditingCollaborators(page.id)
 
               return (
-                <Card
-                  key={page.id}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(80,80,120,0.35),rgba(0,0,0,0.9))] p-0 transition-all duration-300 hover:border-primary/50 hover:shadow-xl"
-                >
+                <div key={page.id} className="relative">
+                  {/* Avatares dos colaboradores editando esta página - fora do card para não ser cortado */}
+                  {editingCollaborators.length > 0 && (
+                    <div className="absolute -top-2 -right-2 z-50 flex -space-x-2">
+                      <TooltipProvider>
+                        {editingCollaborators.slice(0, 3).map((collaborator) => (
+                          <Tooltip key={collaborator.id}>
+                            <TooltipTrigger asChild>
+                              <Avatar 
+                                className="h-7 w-7 border-2 border-background ring-2 shadow-lg cursor-default"
+                                style={{ "--tw-ring-color": collaborator.color } as React.CSSProperties}
+                              >
+                                <AvatarImage src={collaborator.avatarUrl ?? undefined} alt={collaborator.name} />
+                                <AvatarFallback 
+                                  className="text-xs font-medium text-white"
+                                  style={{ backgroundColor: collaborator.color }}
+                                >
+                                  {collaborator.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()
+                                    .slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {collaborator.name} está editando
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                        {editingCollaborators.length > 3 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted text-xs font-medium shadow-lg">
+                                +{editingCollaborators.length - 3}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {editingCollaborators.slice(3).map((c) => c.name).join(", ")}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TooltipProvider>
+                    </div>
+                  )}
+                  
+                  <Card
+                    className={cn(
+                      "group flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top,rgba(80,80,120,0.35),rgba(0,0,0,0.9))] p-0 transition-all duration-300 hover:border-primary/50 hover:shadow-xl",
+                      editingCollaborators.length > 0 && "ring-2 ring-offset-2 ring-offset-background"
+                    )}
+                    style={editingCollaborators.length > 0 ? { 
+                      "--tw-ring-color": editingCollaborators[0]?.color 
+                    } as React.CSSProperties : undefined}
+                  >
                   <div className="relative aspect-video w-full">
                     {previewImage ? (
                       <div
@@ -494,6 +562,7 @@ export default function PaginasPage() {
                     </div>
                   </div>
                 </Card>
+                </div>
               )
             })}
           </div>

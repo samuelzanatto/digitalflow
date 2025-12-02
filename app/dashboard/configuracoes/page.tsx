@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { AvatarCropperDialog } from "@/components/ui/avatar-cropper-dialog"
 import { motion } from "framer-motion"
 import { IconDeviceFloppy, IconCamera, IconTrash, IconLoader2 } from "@tabler/icons-react"
 import { createSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -20,6 +21,8 @@ export default function ConfiguracoesPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [nome, setNome] = useState("")
+  const [cropperOpen, setCropperOpen] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const supabase = useMemo(() => {
@@ -54,11 +57,24 @@ export default function ConfiguracoesPage() {
       return
     }
 
+    // Criar URL temporária para o cropper
+    const imageUrl = URL.createObjectURL(file)
+    setSelectedImage(imageUrl)
+    setCropperOpen(true)
+
+    // Limpar input para permitir selecionar o mesmo arquivo novamente
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const handleCroppedImage = async (croppedBlob: Blob) => {
     setIsUploading(true)
 
     try {
+      // Criar FormData com a imagem recortada
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("file", croppedBlob, "avatar.jpg")
 
       const response = await fetch("/api/avatar", {
         method: "POST",
@@ -83,8 +99,10 @@ export default function ConfiguracoesPage() {
       toast.error(error instanceof Error ? error.message : "Erro ao fazer upload do avatar")
     } finally {
       setIsUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+      // Limpar URL temporária
+      if (selectedImage) {
+        URL.revokeObjectURL(selectedImage)
+        setSelectedImage(null)
       }
     }
   }
@@ -268,6 +286,22 @@ export default function ConfiguracoesPage() {
           </div>
         </Card>
       </motion.div>
+
+      {/* Avatar Cropper Dialog */}
+      {selectedImage && (
+        <AvatarCropperDialog
+          open={cropperOpen}
+          onOpenChange={(open) => {
+            setCropperOpen(open)
+            if (!open && selectedImage) {
+              URL.revokeObjectURL(selectedImage)
+              setSelectedImage(null)
+            }
+          }}
+          imageSrc={selectedImage}
+          onCropComplete={handleCroppedImage}
+        />
+      )}
     </div>
   )
 }

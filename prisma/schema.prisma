@@ -198,10 +198,10 @@ model Sale {
   @@index([createdAt])
 }
 
-// Modelo para grupos de leads
+// Modelo para grupos de leads (GLOBAL - compartilhado entre todos os usuários)
 model LeadGroup {
   id          String   @id @default(uuid()) @db.Uuid
-  userId      String
+  userId      String?  // Nullable - quem criou o grupo (para histórico)
   name        String
   description String?
   color       String   @default("#6366f1")
@@ -214,10 +214,10 @@ model LeadGroup {
   @@index([userId])
 }
 
-// Modelo para leads
+// Modelo para leads (GLOBAL - compartilhado entre todos os usuários)
 model Lead {
   id           String    @id @default(uuid()) @db.Uuid
-  userId       String
+  userId       String?   // Nullable - quem criou o lead (para histórico)
   groupId      String    @db.Uuid
   group        LeadGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   
@@ -239,10 +239,10 @@ model Lead {
   @@index([createdAt])
 }
 
-// Modelo para automações de email
+// Modelo para automações de email (GLOBAL - compartilhado entre todos os usuários)
 model Automation {
   id           String    @id @default(uuid()) @db.Uuid
-  userId       String
+  userId       String?   // Nullable - quem criou a automação (para histórico)
   name         String
   type         String    @default("email") // Tipo: email (por enquanto só email)
   subject      String    // Assunto do email

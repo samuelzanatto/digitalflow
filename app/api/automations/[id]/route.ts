@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma, withRetry } from "@/lib/db/prisma"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-// GET - Obter automação por ID
+// GET - Obter automação por ID (global)
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -16,12 +16,10 @@ export async function GET(
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
+    // Automações são globais - qualquer usuário autenticado pode acessar
     const automation = await withRetry(() =>
-      prisma.automation.findFirst({
-        where: { 
-          id,
-          userId: user.id 
-        },
+      prisma.automation.findUnique({
+        where: { id },
       })
     )
 
@@ -39,7 +37,7 @@ export async function GET(
   }
 }
 
-// PUT - Atualizar automação
+// PUT - Atualizar automação (global)
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -56,20 +54,7 @@ export async function PUT(
     const body = await request.json()
     const { name, type, subject, message, enabled } = body
 
-    // Verificar se a automação pertence ao usuário
-    const existing = await withRetry(() =>
-      prisma.automation.findFirst({
-        where: { 
-          id,
-          userId: user.id 
-        },
-      })
-    )
-
-    if (!existing) {
-      return NextResponse.json({ error: "Automação não encontrada" }, { status: 404 })
-    }
-
+    // Automações são globais - qualquer usuário autenticado pode editar
     const automation = await withRetry(() =>
       prisma.automation.update({
         where: { id },
@@ -93,7 +78,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Excluir automação
+// DELETE - Excluir automação (global)
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -107,20 +92,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
-    // Verificar se a automação pertence ao usuário
-    const existing = await withRetry(() =>
-      prisma.automation.findFirst({
-        where: { 
-          id,
-          userId: user.id 
-        },
-      })
-    )
-
-    if (!existing) {
-      return NextResponse.json({ error: "Automação não encontrada" }, { status: 404 })
-    }
-
+    // Automações são globais - qualquer usuário autenticado pode deletar
     await withRetry(() =>
       prisma.automation.delete({
         where: { id },

@@ -18,9 +18,10 @@ export async function PATCH(
     const body = await request.json()
     const { name, description, color } = body
 
+    // Grupos são globais - qualquer usuário autenticado pode atualizar
     const group = await withRetry(() =>
       prisma.leadGroup.update({
-        where: { id, userId: user.id },
+        where: { id },
         data: {
           ...(name && { name }),
           ...(description !== undefined && { description }),
@@ -53,9 +54,10 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Grupos são globais - qualquer usuário autenticado pode deletar
     await withRetry(() =>
       prisma.leadGroup.delete({
-        where: { id, userId: user.id }
+        where: { id }
       })
     )
 

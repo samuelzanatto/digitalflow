@@ -84,6 +84,11 @@ const navGroups: NavGroup[] = [
         url: "/dashboard/automacoes",
         icon: IconRobotFace,
       },
+      {
+        title: "Assistente IA",
+        url: "/dashboard/criativos",
+        icon: IconRobotFace,
+      },
     ],
   },
   {
@@ -145,23 +150,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center justify-between w-full">
-              <SidebarMenuButton
-                asChild
-                className="data-[slot=sidebar-menu-button]:p-1.5! shrink-0"
-              >
-                <Link href="/" className="flex items-center gap-2">
-                  <Image
-                    src="/logo.png"
-                    alt="Flow Logo"
-                    width={32}
-                    height={32}
-                    className="w-6 h-6 object-contain"
-                  />
-                  <span className="text-base font-semibold">flow</span>
-                </Link>
-              </SidebarMenuButton>
-              <OnlineAvatarGroup className="absolute ml-52" />
+            <div className="flex items-center justify-between w-full px-1.5 py-1.5">
+              <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Image
+                  src="/logo.png"
+                  alt="Flow Logo"
+                  width={32}
+                  height={32}
+                  className="w-6 h-6 object-contain"
+                />
+                <span className="text-base font-semibold">flow</span>
+              </Link>
+              <OnlineAvatarGroup maxAvatars={3} />
             </div>
           </SidebarMenuItem>
         </SidebarMenu>

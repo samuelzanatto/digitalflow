@@ -18,9 +18,10 @@ export async function PATCH(
     const body = await request.json()
     const { name, email, phone, status, score, groupId, customFields } = body
 
+    // Leads são globais - qualquer usuário autenticado pode atualizar
     const lead = await withRetry(() =>
       prisma.lead.update({
-        where: { id, userId: user.id },
+        where: { id },
         data: {
           ...(name && { name }),
           ...(email && { email }),
@@ -66,9 +67,10 @@ export async function DELETE(
 
     const { id } = await params
 
+    // Leads são globais - qualquer usuário autenticado pode deletar
     await withRetry(() =>
       prisma.lead.delete({
-        where: { id, userId: user.id }
+        where: { id }
       })
     )
 

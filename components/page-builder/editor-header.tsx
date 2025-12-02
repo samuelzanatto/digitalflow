@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { usePageBuilderCollaborationContext } from '@/contexts/page-builder-collaboration-context'
 
 interface EditorHeaderProps {
   pageId: string
@@ -232,6 +233,7 @@ export function SaveButton({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const { query } = useEditor()
   const router = useRouter()
+  const { broadcastPageSaved } = usePageBuilderCollaborationContext()
 
   const handleSave = useCallback(async () => {
     if (!isDirty) return
@@ -267,6 +269,8 @@ export function SaveButton({
       if (result.success) {
         toast.success('Página salva com sucesso!')
         onSaveSuccess?.()
+        // Notifica outros colaboradores que a página foi salva
+        broadcastPageSaved()
       } else {
         toast.error(result.error || 'Erro ao salvar página')
       }
@@ -276,7 +280,7 @@ export function SaveButton({
     } finally {
       setIsSaving(false)
     }
-  }, [pageId, query, isDirty, onSaveSuccess])
+  }, [pageId, query, isDirty, onSaveSuccess, broadcastPageSaved])
 
   const handlePreview = useCallback(() => {
     window.open(`/preview/${pageId}`, '_blank')

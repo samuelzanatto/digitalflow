@@ -16,10 +16,10 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
     const search = searchParams.get('search')
 
+    // Leads são globais - não filtramos por userId
     const leads = await withRetry(() =>
       prisma.lead.findMany({
         where: {
-          userId: user.id,
           ...(groupId && { groupId }),
           ...(status && { status }),
           ...(search && {
@@ -42,25 +42,23 @@ export async function GET(request: Request) {
       })
     )
 
-    // Estatísticas
+    // Estatísticas globais
     const stats = await withRetry(async () => {
       const [total, newLeads, qualified] = await Promise.all([
-        prisma.lead.count({ where: { userId: user.id } }),
+        prisma.lead.count(),
         prisma.lead.count({
           where: {
-            userId: user.id,
             createdAt: {
               gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
             }
           }
         }),
         prisma.lead.count({
-          where: { userId: user.id, status: 'qualified' }
+          where: { status: 'qualified' }
         })
       ])
 
       const avgScore = await prisma.lead.aggregate({
-        where: { userId: user.id },
         _avg: { score: true }
       })
 
@@ -102,10 +100,10 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verificar se o grupo pertence ao usuário
+    // Verificar se o grupo existe (global, não mais por userId)
     const group = await withRetry(() =>
       prisma.leadGroup.findFirst({
-        where: { id: groupId, userId: user.id }
+        where: { id: groupId }
       })
     )
 
@@ -119,7 +117,7 @@ export async function POST(request: Request) {
     const lead = await withRetry(() =>
       prisma.lead.create({
         data: {
-          userId: user.id,
+          userId: user.id, // Registra quem criou para histórico
           groupId,
           name,
           email,

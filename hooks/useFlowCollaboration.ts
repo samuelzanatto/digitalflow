@@ -15,7 +15,9 @@ type FlowEventType =
   | "edge_remove"
   | "edge_update"
   | "viewport_change"
+  | "node_select"
   | "full_sync"
+  | "flow_saved"
 
 interface FlowEventPayload {
   type: FlowEventType
@@ -53,6 +55,10 @@ interface EdgeAddPayload {
 
 interface EdgeRemovePayload {
   edgeId: string
+}
+
+interface NodeSelectPayload {
+  nodeId: string | null
 }
 
 interface ViewportPayload {
@@ -93,6 +99,10 @@ interface UseFlowCollaborationProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setEdges: React.Dispatch<React.SetStateAction<any[]>>
   onRemoteChange?: () => void
+  // Função para hidratar dados do nó (converter rawLabel em label JSX)
+  hydrateNodeData?: (data: Record<string, unknown>) => Record<string, unknown>
+  // Callback quando outro colaborador salvar o flow
+  onRemoteSave?: (savedBy: string, snapshot: string) => void
 }
 
 // Cliente Supabase singleton para evitar múltiplas instâncias
@@ -111,6 +121,8 @@ export function useFlowCollaboration({
   setNodes,
   setEdges,
   onRemoteChange,
+  hydrateNodeData,
+  onRemoteSave,
 }: UseFlowCollaborationProps) {
   const { user } = useUser()
   const [collaborators, setCollaborators] = useState<FlowCollaborator[]>([])
@@ -128,6 +140,8 @@ export function useFlowCollaboration({
   const setNodesRef = useRef(setNodes)
   const setEdgesRef = useRef(setEdges)
   const onRemoteChangeRef = useRef(onRemoteChange)
+  const hydrateNodeDataRef = useRef(hydrateNodeData)
+  const onRemoteSaveRef = useRef(onRemoteSave)
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
 
@@ -138,9 +152,11 @@ export function useFlowCollaboration({
     setNodesRef.current = setNodes
     setEdgesRef.current = setEdges
     onRemoteChangeRef.current = onRemoteChange
+    hydrateNodeDataRef.current = hydrateNodeData
+    onRemoteSaveRef.current = onRemoteSave
     nodesRef.current = nodes
     edgesRef.current = edges
-  }, [user, funnelId, setNodes, setEdges, onRemoteChange, nodes, edges])
+  }, [user, funnelId, setNodes, setEdges, onRemoteChange, hydrateNodeData, onRemoteSave, nodes, edges])
 
   // Função para enviar evento (usando refs para evitar dependências)
   const sendFlowEvent = useCallback((type: FlowEventType, data: unknown) => {
@@ -241,6 +257,27 @@ export function useFlowCollaboration({
   // Broadcast viewport
   const broadcastViewport = useCallback((viewport: ViewportPayload) => {
     sendFlowEvent("viewport_change", viewport)
+  }, [sendFlowEvent])
+
+  // Broadcast seleção de nó
+  const broadcastNodeSelect = useCallback((nodeId: string | null) => {
+    sendFlowEvent("node_select", { nodeId })
+    // Atualiza o presence com o nó selecionado
+    if (channelRef.current) {
+      channelRef.current.track({
+        id: userRef.current?.id,
+        email: userRef.current?.email,
+        name: userRef.current?.user_metadata?.name || userRef.current?.email?.split("@")[0],
+        avatar: userRef.current?.user_metadata?.avatar_url,
+        selectedNodeId: nodeId,
+        lastActive: new Date().toISOString(),
+      })
+    }
+  }, [sendFlowEvent])
+
+  // Broadcast que o flow foi salvo
+  const broadcastFlowSaved = useCallback((snapshot: string) => {
+    sendFlowEvent("flow_saved", { snapshot })
   }, [sendFlowEvent])
 
   // Envia sync completo
@@ -350,19 +387,43 @@ export function useFlowCollaboration({
 
           case "node_update": {
             const { nodeId, changes } = eventPayload.data as NodeUpdatePayload
+            const hydrate = hydrateNodeDataRef.current
+            
             setNodesRef.current((nds) =>
-              nds.map((node) =>
-                node.id === nodeId ? { ...node, ...changes } : node
-              )
+              nds.map((node) => {
+                if (node.id !== nodeId) return node
+                
+                // Se tem changes.data e temos função de hidratação, usa ela
+                let finalChanges = changes
+                if (changes.data && hydrate) {
+                  finalChanges = {
+                    ...changes,
+                    data: {
+                      ...(node.data as Record<string, unknown>),
+                      ...hydrate(changes.data as Record<string, unknown>),
+                    },
+                  }
+                }
+                
+                return { ...node, ...finalChanges }
+              })
             )
             break
           }
 
           case "node_add": {
             const { node } = eventPayload.data as NodeAddPayload
+            const hydrate = hydrateNodeDataRef.current
+            
             setNodesRef.current((nds) => {
               if (nds.some((n) => n.id === node.id)) return nds
-              return [...nds, node]
+              
+              // Hidrata os dados do nó se tiver função de hidratação
+              const hydratedNode = hydrate && node.data
+                ? { ...node, data: hydrate(node.data as Record<string, unknown>) }
+                : node
+                
+              return [...nds, hydratedNode]
             })
             break
           }
@@ -392,6 +453,26 @@ export function useFlowCollaboration({
             const { nodes: syncNodes, edges: syncEdges } = eventPayload.data as FullSyncPayload
             setNodesRef.current(syncNodes)
             setEdgesRef.current(syncEdges)
+            break
+          }
+
+          case "node_select": {
+            const { nodeId } = eventPayload.data as NodeSelectPayload
+            // Atualiza o collaborator com o nó selecionado
+            setCollaborators((prev) =>
+              prev.map((collab) =>
+                collab.id === eventPayload.userId
+                  ? { ...collab, selectedNodeId: nodeId }
+                  : collab
+              )
+            )
+            break
+          }
+
+          case "flow_saved": {
+            const { snapshot } = eventPayload.data as { snapshot: string }
+            // Notifica que outro colaborador salvou
+            onRemoteSaveRef.current?.(eventPayload.userName, snapshot)
             break
           }
         }
@@ -516,6 +597,8 @@ export function useFlowCollaboration({
     broadcastEdgeRemove,
     broadcastEdgeUpdate,
     broadcastViewport,
+    broadcastNodeSelect,
+    broadcastFlowSaved,
     sendFullSync,
   }
 }

@@ -10,7 +10,7 @@ import {
 import { useOnlineUsers, type OnlineUser } from "@/contexts/online-users-context"
 import { cn } from "@/lib/utils"
 
-const MAX_VISIBLE_AVATARS = 4
+const DEFAULT_MAX_AVATARS = 4
 
 function getInitials(name: string) {
   return name
@@ -78,7 +78,12 @@ function ExtraAvatarsIndicator({ count, users }: { count: number; users: OnlineU
   )
 }
 
-export function OnlineAvatarGroup({ className }: { className?: string }) {
+interface OnlineAvatarGroupProps {
+  className?: string
+  maxAvatars?: number
+}
+
+export function OnlineAvatarGroup({ className, maxAvatars = DEFAULT_MAX_AVATARS }: OnlineAvatarGroupProps) {
   const { onlineUsers, isConnected } = useOnlineUsers()
 
   // Não mostrar nada se não estiver conectado ou não houver usuários
@@ -86,23 +91,26 @@ export function OnlineAvatarGroup({ className }: { className?: string }) {
     return null
   }
 
-  const visibleUsers = onlineUsers.slice(0, MAX_VISIBLE_AVATARS)
-  const extraUsers = onlineUsers.slice(MAX_VISIBLE_AVATARS)
+  const visibleUsers = onlineUsers.slice(0, maxAvatars)
+  const extraUsers = onlineUsers.slice(maxAvatars)
   const extraCount = extraUsers.length
 
   return (
-    <div className={cn("flex items-center justify-end", className)}>
-      <div className="flex -space-x-2">
-        {visibleUsers.map((user, index) => (
-          <AvatarItem 
-            key={user.id} 
-            user={user} 
-            showIndicator={index === 0} 
-          />
-        ))}
+    <div className={cn("flex items-center shrink-0", className)}>
+      <div className="flex">
         {extraCount > 0 && (
-          <ExtraAvatarsIndicator count={extraCount} users={extraUsers} />
+          <div className="-mr-1">
+            <ExtraAvatarsIndicator count={extraCount} users={extraUsers} />
+          </div>
         )}
+        {visibleUsers.map((user, index) => (
+          <div key={user.id} className={index > 0 ? "-ml-1" : ""}>
+            <AvatarItem 
+              user={user} 
+              showIndicator={index === 0} 
+            />
+          </div>
+        ))}
       </div>
     </div>
   )

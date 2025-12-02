@@ -32,10 +32,10 @@ export default function DashboardLayout({
                 }
               >
                 <AppSidebar variant="inset" />
-                <SidebarInset>
+                <SidebarInset className="overflow-hidden">
                   <PageHeaderProvider>
                     <SiteHeader />
-                    <div className="flex flex-1 flex-col rounded-b-2xl bg-black">
+                    <div className="flex flex-1 flex-col overflow-hidden rounded-b-2xl bg-black">
                       {children}
                     </div>
                   </PageHeaderProvider>

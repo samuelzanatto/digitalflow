@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma, withRetry } from "@/lib/db/prisma"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-// GET - Listar automações do usuário
+// GET - Listar automações (globais)
 export async function GET() {
   try {
     const supabase = await createSupabaseServerClient()
@@ -12,9 +12,9 @@ export async function GET() {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
     }
 
+    // Automações são globais - todos os usuários veem todas
     const automations = await withRetry(() =>
       prisma.automation.findMany({
-        where: { userId: user.id },
         orderBy: { createdAt: "desc" },
       })
     )
@@ -29,7 +29,7 @@ export async function GET() {
   }
 }
 
-// POST - Criar nova automação
+// POST - Criar nova automação (global)
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseServerClient()
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     const automation = await withRetry(() =>
       prisma.automation.create({
         data: {
-          userId: user.id,
+          userId: user.id, // Registra quem criou para histórico
           name,
           type: type || "email",
           subject,
