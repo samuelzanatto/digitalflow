@@ -20,25 +20,18 @@ function getInitials(name: string) {
     .slice(0, 2)
 }
 
-function OnlineIndicator() {
-  return (
-    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
-  )
-}
-
-function AvatarItem({ user, showIndicator = false }: { user: OnlineUser; showIndicator?: boolean }) {
+function AvatarItem({ user }: { user: OnlineUser }) {
   return (
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
           <div className="relative">
-            <Avatar className="h-7 w-7 border-2 border-sidebar ring-0 transition-transform hover:scale-110 hover:z-10">
+            <Avatar className="h-6 w-6 border-2 border-sidebar ring-0 transition-transform hover:scale-110 hover:z-10">
               <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
               <AvatarFallback className="bg-primary/20 text-[10px] font-semibold text-primary">
                 {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
-            {showIndicator && <OnlineIndicator />}
           </div>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="text-xs">
@@ -105,10 +98,7 @@ export function OnlineAvatarGroup({ className, maxAvatars = DEFAULT_MAX_AVATARS 
         )}
         {visibleUsers.map((user, index) => (
           <div key={user.id} className={index > 0 ? "-ml-1" : ""}>
-            <AvatarItem 
-              user={user} 
-              showIndicator={index === 0} 
-            />
+            <AvatarItem user={user} />
           </div>
         ))}
       </div>

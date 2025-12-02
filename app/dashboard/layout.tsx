@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AuroraBanner } from "@/components/aurora-banner"
 import { PageHeaderProvider } from "@/components/page-header-context"
+import { AuroraBannerProvider } from "@/contexts/aurora-banner-context"
 import { UnreadMessagesProvider } from "@/contexts/unread-messages"
 import { UserProvider } from "@/contexts/user-context"
 import { OnlineUsersProvider } from "@/contexts/online-users-context"
@@ -10,6 +11,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { DashboardContent } from "./dashboard-content"
 
 export default function DashboardLayout({
   children,
@@ -23,24 +25,26 @@ export default function DashboardLayout({
           <CollaborationProvider>
             <UnreadMessagesProvider>
               <ChatNotificationsProvider>
-                <SidebarProvider
-                style={
-                  {
-                    "--sidebar-width": "calc(var(--spacing) * 72)",
-                    "--header-height": "calc(var(--spacing) * 12)",
-                  } as React.CSSProperties
-                }
-              >
+                <AuroraBannerProvider>
+                  <SidebarProvider
+                  style={
+                    {
+                      "--sidebar-width": "calc(var(--spacing) * 72)",
+                      "--header-height": "calc(var(--spacing) * 12)",
+                    } as React.CSSProperties
+                  }
+                >
                 <AppSidebar variant="inset" />
-                <SidebarInset className="overflow-hidden">
-                  <PageHeaderProvider>
-                    <SiteHeader />
-                    <div className="flex flex-1 flex-col overflow-hidden rounded-b-2xl bg-black">
-                      {children}
-                    </div>
-                  </PageHeaderProvider>
-                </SidebarInset>
-              </SidebarProvider>
+                <SidebarInset className="relative bg-sidebar">
+                  <AuroraBanner />
+                    <PageHeaderProvider>
+                      <DashboardContent>
+                        {children}
+                      </DashboardContent>
+                    </PageHeaderProvider>
+                  </SidebarInset>
+                </SidebarProvider>
+                </AuroraBannerProvider>
               </ChatNotificationsProvider>
             </UnreadMessagesProvider>
           </CollaborationProvider>

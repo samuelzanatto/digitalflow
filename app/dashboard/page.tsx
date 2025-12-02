@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { SalesDataTable } from "@/components/sales-data-table"
 import { SectionCards } from "@/components/section-cards"
+import { useAuroraBanner } from "@/contexts/aurora-banner-context"
 import { usePageHeader } from "@/hooks/usePageHeader"
 
 interface DashboardStats {
@@ -43,6 +44,7 @@ interface Sale {
 
 export default function Page() {
   const { setPageHeader } = usePageHeader()
+  const { setShowAurora } = useAuroraBanner()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [chartData, setChartData] = useState<ChartDataPoint[]>([])
   const [sales, setSales] = useState<Sale[]>([])
@@ -50,7 +52,9 @@ export default function Page() {
 
   useEffect(() => {
     setPageHeader("Dashboard", "Visão geral do seu negócio")
-  }, [setPageHeader])
+    setShowAurora(true)
+    return () => setShowAurora(false)
+  }, [setPageHeader, setShowAurora])
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -77,10 +81,10 @@ export default function Page() {
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <SectionCards stats={stats} loading={loading} />
         <div className="px-4 lg:px-6">
-          <ChartAreaInteractive data={chartData} loading={loading} />
+            <ChartAreaInteractive data={chartData} loading={loading} />
+          </div>
+          <SalesDataTable data={sales} loading={loading} />
         </div>
-        <SalesDataTable data={sales} loading={loading} />
       </div>
-    </div>
   )
 }

@@ -18,6 +18,9 @@ import {
   IconRouteSquare2,
   IconTargetArrow,
   IconBrandHipchat,
+  IconBrandGithubCopilot,
+  IconSparkles,
+  IconMap,
 } from "@tabler/icons-react"
 
 import { NavMain, type NavGroup } from "@/components/nav-main"
@@ -31,7 +34,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
@@ -85,9 +87,9 @@ const navGroups: NavGroup[] = [
         icon: IconRobotFace,
       },
       {
-        title: "Assistente IA",
+        title: "IA Flow",
         url: "/dashboard/criativos",
-        icon: IconRobotFace,
+        icon: IconBrandGithubCopilot,
       },
     ],
   },
@@ -113,6 +115,11 @@ const navGroups: NavGroup[] = [
         title: "Análise",
         url: "/dashboard/analise",
         icon: IconChartBar,
+      },
+      {
+        title: "Mapa",
+        url: "/dashboard/mapa",
+        icon: IconMap,
       },
       {
         title: "Integrações",
