@@ -151,6 +151,41 @@ export async function POST(
         },
         create: saleData
       })
+
+      // Se a venda foi aprovada, marcar checkout intents como convertidos
+      if (payload.status === "APPROVED" && payload.customer?.email) {
+        try {
+          // Marcar checkout intents pendentes deste email como convertidos
+          await prisma.checkoutIntent.updateMany({
+            where: {
+              email: payload.customer.email,
+              status: "pending",
+            },
+            data: {
+              status: "converted",
+              convertedAt: new Date(),
+            },
+          })
+
+          // Cancelar jobs de recuperação de carrinho pendentes
+          await prisma.automationJob.updateMany({
+            where: {
+              recipientEmail: payload.customer.email,
+              status: "pending",
+              automation: {
+                triggerType: "checkout_abandoned",
+              },
+            },
+            data: {
+              status: "cancelled",
+            },
+          })
+
+          console.log(`[Kirvano] Conversão registrada para ${payload.customer.email}`)
+        } catch (conversionError) {
+          console.error("[Kirvano] Erro ao marcar conversão:", conversionError)
+        }
+      }
     } else if (payload.event === "ABANDONED_CART" && payload.customer) {
       // Para carrinhos abandonados, não temos sale_id, usar checkout_id
       const abandonedCartId = payload.checkout_id || `cart_${Date.now()}`

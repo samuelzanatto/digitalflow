@@ -18,6 +18,7 @@ import {
   HelpCircle,
   Shield,
   Clock,
+  ShoppingCart,
 } from 'lucide-react'
 import { 
   Container, 
@@ -36,6 +37,7 @@ import {
   ImageComponent,
   VSL,
   CountdownTimer,
+  CheckoutButton,
 } from '@/components/craft-components'
 
 interface ComponentItem {
@@ -159,6 +161,13 @@ const COMPONENTS: ComponentItem[] = [
     icon: <Clock className="w-5 h-5" />,
     description: 'Timer com urgência',
     component: CountdownTimer,
+  },
+  {
+    id: 'checkout-button',
+    name: 'Botão Checkout',
+    icon: <ShoppingCart className="w-5 h-5" />,
+    description: 'Botão de compra com tracking de carrinho abandonado',
+    component: CheckoutButton,
   },
 ]
 
@@ -304,6 +313,22 @@ export function ComponentsToolbox() {
             backgroundColor="#ffffff"
             borderRadius={12}
             padding={24}
+          />
+        )
+      case 'checkout-button':
+        return (
+          <CheckoutButton
+            text="Comprar Agora"
+            backgroundColor="#22c55e"
+            textColor="#ffffff"
+            padding={16}
+            borderRadius={8}
+            checkoutUrl=""
+            productName=""
+            productPrice=""
+            openInNewTab={true}
+            fontSize={16}
+            fontWeight="bold"
           />
         )
       default:

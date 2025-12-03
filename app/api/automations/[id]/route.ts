@@ -52,7 +52,16 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, type, subject, message, enabled } = body
+    const { 
+      name, 
+      type, 
+      subject, 
+      message, 
+      enabled, 
+      triggerType, 
+      triggerConfig, 
+      delaySeconds 
+    } = body
 
     // Automações são globais - qualquer usuário autenticado pode editar
     const automation = await withRetry(() =>
@@ -64,6 +73,9 @@ export async function PUT(
           ...(subject !== undefined && { subject }),
           ...(message !== undefined && { message }),
           ...(enabled !== undefined && { enabled }),
+          ...(triggerType !== undefined && { triggerType }),
+          ...(triggerConfig !== undefined && { triggerConfig }),
+          ...(delaySeconds !== undefined && { delaySeconds }),
         },
       })
     )

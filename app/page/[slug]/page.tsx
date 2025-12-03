@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { PageRenderer } from '@/components/page-builder/page-renderer'
 import { getSalesPageBySlug } from '@/lib/actions/pages'
 import { prisma } from '@/lib/db/prisma'
+import { VisitorTracker } from '@/components/visitor-tracker'
 
 interface PublicPageProps {
   params: Promise<{
@@ -53,7 +54,12 @@ export default async function PublicPage({ params }: PublicPageProps) {
     layout = page.layout
   }
 
-  return <PageRenderer layout={layout} />
+  return (
+    <>
+      <VisitorTracker pageId={page.id} pageSlug={slug} />
+      <PageRenderer layout={layout} />
+    </>
+  )
 }
 
 // Gerar metadados da página

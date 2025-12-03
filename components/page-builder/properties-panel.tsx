@@ -855,6 +855,9 @@ function categorizeProps(props: Record<string, unknown>) {
     'answer',
     'sectionId',
     'buttonText',
+    'checkoutUrl',
+    'productName',
+    'productPrice',
   ]
   const visibilityKeys = ['showLinks', 'showDays', 'showHours', 'showMinutes', 'showSeconds']
   const styleKeys = ['fontSize', 'borderWidth', 'alignment', 'fontFamily', 'fontWeight', 'titleFontSize', 'titleColor', 'descriptionFontSize', 'descriptionColor', 'iconFontSize', 'brandNameFontSize', 'brandNameColor', 'descriptionFontSize', 'descriptionColor', 'linksFontSize', 'linksColor', 'linksHoverColor', 'copyrightFontSize', 'copyrightColor', 'headingFontSize', 'headingColor', 'questionFontSize', 'questionFontWeight', 'answerFontSize', 'answerLineHeight', 'iconSize', 'subtitleFontSize', 'buttonFontSize', 'formContainerBorderWidth', 'buttonPadding']
@@ -3127,6 +3130,89 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
           </div>
         </div>
       )
+    }
+
+    // Handler especial para checkoutUrl do CheckoutButton
+    if (key === 'checkoutUrl') {
+      const productNameValue = String((props as Record<string, unknown>).productName || '')
+      const productPriceValue = String((props as Record<string, unknown>).productPrice || '')
+      const openInNewTabValue = Boolean((props as Record<string, unknown>).openInNewTab)
+      
+      return (
+        <div key="checkout-settings" className="space-y-3">
+          <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-xs text-green-400 mb-2">
+              🛒 <strong>Botão com Tracking</strong><br/>
+              Rastreia cliques e recupera carrinhos abandonados automaticamente.
+            </p>
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">URL do Checkout *</Label>
+            <Input
+              type="url"
+              value={String(value || '')}
+              onChange={(e) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.checkoutUrl = e.target.value
+                })
+              }
+              placeholder="https://pay.kirvano.com/..."
+              className="text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Link do checkout externo (ex: Kirvano, Hotmart, etc.)
+            </p>
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Nome do Produto</Label>
+            <Input
+              type="text"
+              value={productNameValue}
+              onChange={(e) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.productName = e.target.value
+                })
+              }
+              placeholder="Curso de Marketing Digital"
+              className="text-xs"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Preço do Produto</Label>
+            <Input
+              type="text"
+              value={productPriceValue}
+              onChange={(e) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.productPrice = e.target.value
+                })
+              }
+              placeholder="R$ 197,00"
+              className="text-xs"
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium">Abrir em nova aba</Label>
+            <Switch
+              checked={openInNewTabValue}
+              onCheckedChange={(checked) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.openInNewTab = checked
+                })
+              }
+            />
+          </div>
+        </div>
+      )
+    }
+
+    // Pular as propriedades individuais de checkout (são renderizadas pelo handler acima)
+    if (key === 'productName' || key === 'productPrice') {
+      return null
     }
 
     // Também pular padding geral se estiver na seção de Padding

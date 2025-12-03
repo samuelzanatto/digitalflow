@@ -61,11 +61,6 @@ const navGroups: NavGroup[] = [
         url: "/dashboard/leads",
         icon: IconUsers,
       },
-      {
-        title: "Clientes",
-        url: "/dashboard/clientes",
-        icon: IconDatabase,
-      },
     ],
   },
   {

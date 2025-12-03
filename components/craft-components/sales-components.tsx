@@ -909,6 +909,17 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
         if (response.ok) {
           setSubmitStatus('success')
           
+          // Salvar dados do lead no localStorage para uso pelo CheckoutButton
+          try {
+            localStorage.setItem('df_lead_data', JSON.stringify({
+              email: payload.email,
+              name: payload.name,
+              phone: payload.phone,
+            }))
+          } catch {
+            // Ignora erro de localStorage
+          }
+          
           // Verificar se vai pular para redirecionamento
           const willSkipToRedirect = enableRedirect && redirectUrl && skipThankYouScreen
           

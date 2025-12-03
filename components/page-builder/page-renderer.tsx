@@ -19,6 +19,7 @@ import {
   ImageComponent,
   VSL,
   CountdownTimer,
+  CheckoutButton,
 } from '@/components/craft-components'
 import { EditorViewportProvider } from '@/lib/responsive-props'
 
@@ -127,6 +128,7 @@ export function PageRenderer({ layout }: PageRendererProps) {
             ImageComponent,
             VSL,
             CountdownTimer,
+            CheckoutButton,
           }}
         >
           <div className="flex-1">

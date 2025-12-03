@@ -884,6 +884,191 @@ export const Footer = FooterComponent
   displayName: 'Footer',
 }
 
+// ==========================================
+// CheckoutButton - Botão de Checkout com Tracking
+// ==========================================
+
+interface CheckoutButtonProps {
+  text?: string
+  backgroundColor?: string
+  textColor?: string
+  padding?: number
+  borderRadius?: number
+  checkoutUrl?: string
+  productName?: string
+  productPrice?: string
+  openInNewTab?: boolean
+  width?: string | number
+  height?: string | number
+  fontSize?: number
+  fontWeight?: React.CSSProperties['fontWeight']
+}
+
+// Função para obter/criar ID do visitante
+function getCheckoutVisitorId(): string {
+  if (typeof window === 'undefined') return ''
+  
+  let visitorId = localStorage.getItem('df_visitor_id')
+  if (!visitorId) {
+    visitorId = `v_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+    localStorage.setItem('df_visitor_id', visitorId)
+  }
+  return visitorId
+}
+
+const CheckoutButtonComponent = React.forwardRef<HTMLDivElement, CheckoutButtonProps>(
+  (
+    {
+      text = 'Comprar Agora',
+      backgroundColor = '#22c55e',
+      textColor = '#ffffff',
+      padding = 16,
+      borderRadius = 8,
+      checkoutUrl = '',
+      productName = '',
+      productPrice = '',
+      openInNewTab = true,
+      width = 'auto',
+      height = 'auto',
+      fontSize = 16,
+      fontWeight = 'bold',
+    },
+    ref
+  ) => {
+    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+      isSelected: node.events.selected,
+    }))
+    const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }))
+
+    const handleClick = React.useCallback(async (e: React.MouseEvent) => {
+      // No modo editor, não faz nada
+      if (enabled) {
+        e.preventDefault()
+        return
+      }
+
+      // Se não tem URL de checkout, não faz nada
+      if (!checkoutUrl) {
+        e.preventDefault()
+        return
+      }
+
+      // Registrar a intenção de checkout
+      try {
+        const visitorId = getCheckoutVisitorId()
+        const pageSlug = window.location.pathname.replace('/page/', '')
+        
+        // Tentar pegar dados do lead do localStorage (se preencheu form antes)
+        let leadData = { email: '', name: '', phone: '' }
+        try {
+          const stored = localStorage.getItem('df_lead_data')
+          if (stored) {
+            leadData = JSON.parse(stored)
+          }
+        } catch {
+          // Ignora erro de parsing
+        }
+
+        await fetch('/api/checkout-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitorId,
+            checkoutUrl,
+            productName,
+            productPrice,
+            pageSlug,
+            pageUrl: window.location.href,
+            email: leadData.email || undefined,
+            name: leadData.name || undefined,
+            phone: leadData.phone || undefined,
+          }),
+        })
+      } catch (error) {
+        console.error('[CheckoutButton] Erro ao registrar intent:', error)
+      }
+
+      // Abrir o checkout
+      if (openInNewTab) {
+        window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+      } else {
+        window.location.href = checkoutUrl
+      }
+    }, [enabled, checkoutUrl, productName, productPrice, openInNewTab])
+
+    return (
+      <div
+        ref={(el) => {
+          if (el) {
+            connect(drag(el))
+            if (typeof ref === 'function') {
+              ref(el)
+            } else if (ref) {
+              ref.current = el
+            }
+          }
+        }}
+        data-node-id={id}
+        style={{
+          padding: '20px',
+          textAlign: 'center',
+          border: isSelected ? '2px solid #3b82f6' : 'none',
+          cursor: enabled ? 'move' : 'default',
+          width: typeof width === 'number' ? `${width}px` : width,
+          height: typeof height === 'number' ? `${height}px` : height,
+          boxSizing: 'border-box' as const,
+        }}
+        className="w-full"
+      >
+        <button
+          onClick={handleClick}
+          style={{
+            backgroundColor,
+            color: textColor,
+            padding: `${padding}px ${padding * 2}px`,
+            borderRadius: `${borderRadius}px`,
+            display: 'inline-block',
+            textDecoration: 'none',
+            fontWeight,
+            fontSize: `${fontSize}px`,
+            cursor: enabled ? 'move' : 'pointer',
+            transition: 'all 0.3s',
+            border: 'none',
+            width: typeof width === 'number' ? `${width - 40}px` : 'auto',
+            textAlign: 'center',
+          }}
+          className="hover:opacity-90 hover:scale-105"
+        >
+          {text}
+        </button>
+      </div>
+    )
+  }
+)
+
+CheckoutButtonComponent.displayName = 'CheckoutButton'
+
+export const CheckoutButton = CheckoutButtonComponent
+
+;(CheckoutButton as unknown as Record<string, unknown>).craft = {
+  props: {
+    text: 'Comprar Agora',
+    backgroundColor: '#22c55e',
+    textColor: '#ffffff',
+    padding: 16,
+    borderRadius: 8,
+    checkoutUrl: '',
+    productName: '',
+    productPrice: '',
+    openInNewTab: true,
+    width: 'auto',
+    height: 'auto',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  displayName: 'Botão Checkout',
+}
+
 
 // Export sales-specific components
 export {

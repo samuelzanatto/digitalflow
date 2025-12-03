@@ -65,6 +65,7 @@ export default function MapaPage() {
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [inputValue, setInputValue] = useState('')
   const [hasSentPendingSearch, setHasSentPendingSearch] = useState(false)
+  const [isHydrated, setIsHydrated] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status } = useChat({
@@ -81,6 +82,11 @@ export default function MapaPage() {
   })
 
   const isLoading = status === 'streaming' || status === 'submitted'
+
+  // Controlar hidratação do componente
+  useEffect(() => {
+    setIsHydrated(true)
+  }, [])
 
   // Verificar se há busca pendente do assistente IA
   useEffect(() => {
@@ -251,10 +257,10 @@ export default function MapaPage() {
       <div 
         className={cn(
           "absolute top-0 right-0 h-full bg-zinc-950/95 backdrop-blur-sm border-l border-zinc-800 transition-all duration-300 flex flex-col",
-          isChatOpen ? "w-[400px]" : "w-0"
+          isHydrated && isChatOpen ? "w-[400px]" : "w-0"
         )}
       >
-        {isChatOpen && (
+        {isHydrated && isChatOpen && (
           <>
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-zinc-800">
@@ -367,7 +373,7 @@ export default function MapaPage() {
       </div>
 
       {/* Toggle Chat Button */}
-      {!isChatOpen && (
+      {isHydrated && !isChatOpen && (
         <Button
           className="absolute top-4 right-4 bg-violet-600 hover:bg-violet-700 shadow-lg"
           onClick={() => setIsChatOpen(true)}

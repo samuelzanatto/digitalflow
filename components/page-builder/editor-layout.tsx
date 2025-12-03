@@ -42,6 +42,7 @@ import {
   ImageComponent,
   VSL,
   CountdownTimer,
+  CheckoutButton,
 } from '@/components/craft-components'
 
 interface EditorLayoutProps {
@@ -343,6 +344,7 @@ export function EditorLayout({
             ImageComponent,
             VSL,
             CountdownTimer,
+            CheckoutButton,
             ...components,
           }}
           onNodesChange={() => {

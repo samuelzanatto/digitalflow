@@ -244,16 +244,121 @@ model Automation {
   id           String    @id @default(uuid()) @db.Uuid
   userId       String?   // Nullable - quem criou a automação (para histórico)
   name         String
-  type         String    @default("email") // Tipo: email (por enquanto só email)
+  type         String    @default("email") // Tipo: email, behavior
   subject      String    // Assunto do email
   message      String    // Conteúdo do email (HTML)
   enabled      Boolean   @default(true)
   
+  // Configuração de gatilho comportamental
+  triggerType  String    @default("form_submit") // form_submit, page_exit, time_on_page
+  triggerConfig Json     @default("{}") // Configurações do gatilho
+  
+  // Delay para envio
+  delaySeconds Int       @default(0) // Delay em segundos antes de enviar
+  
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  
+  // Relação com jobs agendados
+  scheduledJobs AutomationJob[]
 
   @@index([userId])
   @@index([enabled])
+  @@index([triggerType])
+}
+
+// Modelo para jobs de automação agendados
+model AutomationJob {
+  id            String    @id @default(uuid()) @db.Uuid
+  automationId  String    @db.Uuid
+  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  
+  // Dados do destinatário
+  recipientEmail String
+  recipientName  String?
+  recipientData  Json      @default("{}") // Dados extras para variáveis do template
+  
+  // Agendamento
+  scheduledFor   DateTime  // Quando deve ser executado
+  status         String    @default("pending") // pending, processing, completed, failed, cancelled
+  
+  // Tracking
+  processedAt    DateTime?
+  errorMessage   String?
+  attempts       Int       @default(0)
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@index([automationId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+// Modelo para tracking de visitantes nas páginas
+model VisitorSession {
+  id            String    @id @default(uuid()) @db.Uuid
+  
+  // Identificação do visitante
+  visitorId     String    // ID único do visitante (cookie/localStorage)
+  email         String?   // Email se capturado
+  name          String?   // Nome se capturado
+  
+  // Página visitada
+  pageId        String?   @db.Uuid
+  pageSlug      String?
+  pageUrl       String
+  
+  // Métricas de tempo
+  enteredAt     DateTime  @default(now())
+  exitedAt      DateTime?
+  timeOnPage    Int       @default(0) // Segundos na página
+  
+  // Comportamento
+  scrollDepth   Int       @default(0) // Percentual de scroll (0-100)
+  exitIntent    Boolean   @default(false) // Detectou intenção de saída
+  convertedTo   String?   // Página para qual converteu (ex: checkout)
+  
+  // Dados extras
+  referrer      String?
+  userAgent     String?
+  deviceType    String?   // desktop, mobile, tablet
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([visitorId])
+  @@index([email])
+  @@index([pageSlug])
+  @@index([enteredAt])
+  @@index([exitIntent])
+}
+
+// Modelo para rastrear intenções de checkout (cliques em botões de checkout externo)
+model CheckoutIntent {
+  id                  String    @id @default(uuid()) @db.Uuid
+  visitorId           String
+  email               String?
+  name                String?
+  phone               String?
+  pageSlug            String?
+  pageUrl             String?
+  checkoutUrl         String
+  productName         String?
+  productPrice        String?
+  clickedAt           DateTime  @default(now())
+  convertedAt         DateTime?
+  status              String    @default("pending") // pending, converted, abandoned
+  automationTriggered Boolean   @default(false)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  @@index([visitorId])
+  @@index([email])
+  @@index([status])
+  @@index([clickedAt])
+  @@index([automationTriggered])
 }
 
 // Modelo para stages do pipeline de vendas

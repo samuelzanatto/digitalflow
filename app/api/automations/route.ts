@@ -16,10 +16,26 @@ export async function GET() {
     const automations = await withRetry(() =>
       prisma.automation.findMany({
         orderBy: { createdAt: "desc" },
+        include: {
+          _count: {
+            select: {
+              scheduledJobs: {
+                where: { status: "pending" },
+              },
+            },
+          },
+        },
       })
     )
 
-    return NextResponse.json({ automations })
+    // Formatar resposta
+    const formattedAutomations = automations.map((automation) => ({
+      ...automation,
+      pendingJobs: automation._count.scheduledJobs,
+      _count: undefined,
+    }))
+
+    return NextResponse.json({ automations: formattedAutomations })
   } catch (error) {
     console.error("Erro ao listar automações:", error)
     return NextResponse.json(
@@ -40,7 +56,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, type, subject, message } = body
+    const { 
+      name, 
+      type, 
+      subject, 
+      message, 
+      triggerType,
+      triggerConfig,
+      delaySeconds,
+    } = body
 
     if (!name || !subject || !message) {
       return NextResponse.json(
@@ -57,6 +81,9 @@ export async function POST(request: Request) {
           type: type || "email",
           subject,
           message,
+          triggerType: triggerType || "form_submit",
+          triggerConfig: triggerConfig || {},
+          delaySeconds: delaySeconds || 0,
           enabled: true,
         },
       })
