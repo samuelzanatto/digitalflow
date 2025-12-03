@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { 
   IconSend, 
   IconLoader2,
@@ -16,6 +17,7 @@ import {
   IconBrandInstagram,
   IconTrash,
   IconSparkles,
+  IconMapPin,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 import { useRef, useEffect, useState, useCallback } from 'react'
@@ -40,18 +42,20 @@ const promptSuggestions = [
     prompt: "Escreva um email de lançamento para um novo produto digital com headline impactante"
   },
   {
-    icon: IconSparkles,
-    title: "Brainstorm de Ideias",
-    prompt: "Me ajude a fazer um brainstorm de ideias para uma campanha de marketing para minha marca"
+    icon: IconMapPin,
+    title: "Buscar Lugares",
+    prompt: "Encontre restaurantes próximos de mim"
   },
 ]
 
 export default function AssistenteIAPage() {
   const { setPageHeader } = usePageHeader()
+  const router = useRouter()
   const [inputValue, setInputValue] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const hasRedirectedRef = useRef(false)
 
   const { messages, sendMessage, status, setMessages } = useChat({
     transport: new DefaultChatTransport({
@@ -61,8 +65,43 @@ export default function AssistenteIAPage() {
   
   const isLoading = status === 'streaming' || status === 'submitted'
 
+  // Detectar redirecionamento para o mapa
+  useEffect(() => {
+    if (hasRedirectedRef.current) return
+    
+    for (const message of messages) {
+      if (message.role === 'assistant' && message.parts) {
+        for (const part of message.parts) {
+          // O tipo é 'tool-{toolName}', não 'tool-invocation'
+          if (part.type === 'tool-redirectToMap') {
+            const toolPart = part as { 
+              type: string;
+              toolCallId?: string;
+              state?: string;
+              input?: { query?: string; message?: string };
+              output?: { action?: string; query?: string; message?: string; url?: string };
+            }
+            
+            // Verificar se tem output com a ação de redirecionamento
+            if (toolPart.state === 'output-available' && toolPart.output?.action === 'REDIRECT_TO_MAP' && toolPart.output?.query) {
+              hasRedirectedRef.current = true
+              // Salvar a query de busca para o mapa
+              sessionStorage.setItem('pendingMapSearch', toolPart.output.query)
+              // Redirecionar para o mapa após um breve delay para mostrar a mensagem
+              setTimeout(() => {
+                router.push('/dashboard/mapa')
+              }, 1500)
+              return
+            }
+          }
+        }
+      }
+    }
+  }, [messages, router])
+
   const handleClearChat = useCallback(() => {
     setMessages([])
+    hasRedirectedRef.current = false
   }, [setMessages])
 
   useEffect(() => {
@@ -97,10 +136,25 @@ export default function AssistenteIAPage() {
   // Helper para extrair texto das mensagens
   const getMessageContent = useCallback((message: typeof messages[0]): string => {
     if (message.parts) {
-      return message.parts
+      const textParts = message.parts
         .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
         .map(part => part.text)
         .join('');
+      
+      // Se não houver texto mas houver tool call, mostrar mensagem da tool
+      if (!textParts) {
+        const toolPart = message.parts.find(part => part.type === 'tool-redirectToMap') as {
+          type: string;
+          input?: { message?: string };
+          output?: { message?: string };
+        } | undefined;
+        
+        if (toolPart) {
+          return toolPart.output?.message || toolPart.input?.message || '';
+        }
+      }
+      
+      return textParts;
     }
     return '';
   }, []);

@@ -84,6 +84,12 @@ const TEAM_CHAT_PATH = "/dashboard/equipe"
 // Path do chat comum (oculta status, mas mantém cursor e mensagens)
 const COMMON_CHAT_PATH = "/dashboard/chat"
 
+// Path do chat de IA (oculta status e mensagens flutuantes)
+const IA_CHAT_PATH = "/chat"
+
+// Path da tela flowAI (oculta status e mensagens flutuantes)
+const FLOW_AI_PATH = "/dashboard/ia"
+
 // Máximo de mensagens no histórico
 const MAX_MESSAGE_HISTORY = 10
 
@@ -136,8 +142,8 @@ export function useRealtimeCollaboration() {
   // Verifica se está na tela de chat em equipe (desabilita tudo)
   const isInChatPage = pathname === TEAM_CHAT_PATH
   
-  // Verifica se está em alguma tela de chat (oculta status)
-  const isInAnyChatPage = pathname === TEAM_CHAT_PATH || pathname === COMMON_CHAT_PATH
+  // Verifica se está em alguma tela de chat ou IA (oculta status e mensagens flutuantes)
+  const isInAnyChatPage = pathname === TEAM_CHAT_PATH || pathname === COMMON_CHAT_PATH || pathname === IA_CHAT_PATH || pathname === FLOW_AI_PATH
 
   const getSupabaseClient = useCallback(() => {
     if (supabaseRef.current) return supabaseRef.current

@@ -6,6 +6,26 @@ import { motion, AnimatePresence } from "framer-motion"
 import { IconArrowUp, IconLoader2 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 
+// Palavras-chave que indicam busca de lugares
+const LOCATION_KEYWORDS = [
+  'encontre', 'encontrar', 'busque', 'buscar', 'procure', 'procurar',
+  'ache', 'achar', 'mostre', 'mostrar', 'onde fica', 'onde tem',
+  'restaurante', 'restaurantes', 'farmácia', 'farmácias', 'farmacia', 'farmacias',
+  'hospital', 'hospitais', 'banco', 'bancos', 'supermercado', 'supermercados',
+  'mercado', 'mercados', 'posto', 'postos', 'gasolina', 'combustível',
+  'hotel', 'hotéis', 'hoteis', 'escola', 'escolas', 'academia', 'academias',
+  'padaria', 'padarias', 'café', 'cafeteria', 'cafeterias', 'bar', 'bares',
+  'loja', 'lojas', 'shopping', 'clínica', 'clinica', 'clínicas', 'clinicas',
+  'dentista', 'médico', 'medico', 'veterinário', 'veterinario', 'pet shop',
+  'perto de mim', 'próximo', 'proximo', 'próximos', 'proximos', 'na região',
+  'por perto', 'aqui perto', 'mais perto'
+]
+
+function isLocationSearch(text: string): boolean {
+  const lowerText = text.toLowerCase()
+  return LOCATION_KEYWORDS.some(keyword => lowerText.includes(keyword))
+}
+
 interface AIInputProps {
   className?: string
 }
@@ -31,11 +51,19 @@ export function AIInput({ className }: AIInputProps) {
 
     setIsSubmitting(true)
     
+    // Verificar se é uma busca de lugares
+    if (isLocationSearch(input.trim())) {
+      // Redirecionar diretamente para o mapa
+      sessionStorage.setItem("pendingMapSearch", input.trim())
+      router.push("/dashboard/mapa")
+      return
+    }
+    
     // Salvar a mensagem no sessionStorage para recuperar na página de chat
     sessionStorage.setItem("pendingAIMessage", input.trim())
     
     // Redirecionar para a página do Assistente IA
-    router.push("/dashboard/criativos")
+    router.push("/dashboard/ia")
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -49,8 +77,9 @@ export function AIInput({ className }: AIInputProps) {
     "Crie um anúncio persuasivo para...",
     "Me ajude a escrever um email de vendas...",
     "Sugira ideias para uma campanha de...",
-    "Como posso melhorar meu funil de vendas?",
+    "Encontre restaurantes perto de mim...",
     "Escreva um copy para Instagram sobre...",
+    "Busque farmácias próximas...",
   ]
 
   const [placeholderIndex, setPlaceholderIndex] = useState(0)

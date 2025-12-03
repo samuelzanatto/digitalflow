@@ -9,6 +9,7 @@ import {
   MapTileLayer,
   MapZoomControl,
 } from '@/components/ui/map'
+import { useMap } from 'react-leaflet'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ import {
   IconChevronRight,
   IconSearch,
   IconLoader2,
+  IconToolsKitchen2,
 } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
 
@@ -35,8 +37,21 @@ interface SearchResult {
   phone?: string | null
   website?: string | null
   openingHours?: string | null
+  cuisine?: string | null
   distance?: number
   position: [number, number]
+  source?: 'overpass' | 'nominatim' | 'foursquare'
+}
+
+// Componente para controlar o mapa (flyTo quando center muda)
+function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap()
+  
+  useEffect(() => {
+    map.flyTo(center, zoom, { duration: 1 })
+  }, [map, center, zoom])
+  
+  return null
 }
 
 // Centro padrão: Campo Grande MS
@@ -49,6 +64,7 @@ export default function MapaPage() {
   const [markers, setMarkers] = useState<SearchResult[]>([])
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [inputValue, setInputValue] = useState('')
+  const [hasSentPendingSearch, setHasSentPendingSearch] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status } = useChat({
@@ -65,6 +81,23 @@ export default function MapaPage() {
   })
 
   const isLoading = status === 'streaming' || status === 'submitted'
+
+  // Verificar se há busca pendente do assistente IA
+  useEffect(() => {
+    if (hasSentPendingSearch) return
+    
+    const pendingSearch = sessionStorage.getItem('pendingMapSearch')
+    
+    if (pendingSearch) {
+      sessionStorage.removeItem('pendingMapSearch')
+      setHasSentPendingSearch(true)
+      setIsChatOpen(true) // Garantir que o chat está aberto
+      // Pequeno delay para garantir que o chat esteja pronto
+      setTimeout(() => {
+        sendMessage({ text: pendingSearch })
+      }, 500)
+    }
+  }, [sendMessage, hasSentPendingSearch])
 
   // Helper para extrair texto das mensagens
   const getMessageContent = useCallback((message: typeof messages[0]): string => {
@@ -88,20 +121,28 @@ export default function MapaPage() {
 
   // Processar tool calls das mensagens para extrair marcadores
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1]
-    if (lastMessage?.role === 'assistant' && lastMessage.parts) {
-      for (const part of lastMessage.parts) {
-        if (part.type === 'tool-invocation' && 'output' in part && part.output) {
-          const result = part.output as { success?: boolean; results?: SearchResult[] }
-          if (result.success && result.results && result.results.length > 0) {
-            // Usar setTimeout para evitar cascading renders
-            setTimeout(() => {
-              setMarkers(result.results!)
-              if (result.results![0]?.position) {
-                setMapCenter(result.results![0].position)
-                setMapZoom(14)
+    for (const message of messages) {
+      if (message.role === 'assistant' && message.parts) {
+        for (const part of message.parts) {
+          // O tipo é 'tool-{toolName}', ex: 'tool-searchPlaces'
+          if (part.type === 'tool-searchPlaces') {
+            const toolPart = part as {
+              type: string;
+              state?: string;
+              output?: { success?: boolean; results?: SearchResult[] };
+            }
+            
+            // Verificar se tem output disponível com resultados
+            if (toolPart.state === 'output-available' && toolPart.output?.success && toolPart.output.results && toolPart.output.results.length > 0) {
+              const results = toolPart.output.results
+              setMarkers(results)
+              // Centralizar no primeiro resultado
+              if (results[0]?.position) {
+                setMapCenter(results[0].position)
+                setMapZoom(15)
               }
-            }, 0)
+              return
+            }
           }
         }
       }
@@ -142,6 +183,7 @@ export default function MapaPage() {
           zoom={mapZoom}
           className="h-full w-full brightness-125"
         >
+          <MapController center={mapCenter} zoom={mapZoom} />
           <MapTileLayer />
           <MapZoomControl className="absolute top-4 left-4" />
           
@@ -159,6 +201,12 @@ export default function MapaPage() {
                       <IconMapPin className="w-4 h-4 mt-0.5 shrink-0" />
                       <span>{marker.address || 'Endereço não disponível'}</span>
                     </p>
+                    {marker.cuisine && (
+                      <p className="flex items-center gap-2 text-zinc-600">
+                        <IconToolsKitchen2 className="w-4 h-4 shrink-0" />
+                        <span className="capitalize">{marker.cuisine.replace(/_/g, ' ')}</span>
+                      </p>
+                    )}
                     {marker.phone && (
                       <p className="flex items-center gap-2 text-zinc-600">
                         <IconPhone className="w-4 h-4 shrink-0" />

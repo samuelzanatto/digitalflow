@@ -88,7 +88,7 @@ const navGroups: NavGroup[] = [
       },
       {
         title: "IA Flow",
-        url: "/dashboard/criativos",
+        url: "/dashboard/ia",
         icon: IconBrandGithubCopilot,
       },
     ],
