@@ -15,14 +15,17 @@ const QSTASH_API_BASE = 'https://qstash.upstash.io/v2'
  * Schedule a cron job in Upstash QStash
  * 
  * API Documentation: https://upstash.com/docs/qstash/api/schedules/create
- * The destination URL is part of the path, and cron is set via header
+ * 
+ * Formato correto da API:
+ * POST https://qstash.upstash.io/v2/schedules/https://www.example.com/endpoint
+ * Header: Upstash-Cron: (expressão cron, ex: a cada 5 min)
  */
 export async function scheduleCronJob(
   destinationUrl: string,
   cronExpression: string = "*/5 * * * *",
   label: string = "automation-worker"
 ): Promise<{ scheduleId: string }> {
-  const token = process.env.QSTASH_TOKEN
+  const token = process.env.QSTASH_TOKEN?.trim()
 
   if (!token) {
     throw new Error('QSTASH_TOKEN is not configured in environment variables')
@@ -32,34 +35,48 @@ export async function scheduleCronJob(
     throw new Error('destinationUrl is required')
   }
 
-  // Garantir que a URL está limpa
+  // Garantir que a URL está limpa (sem espaços ou quebras de linha)
   const cleanUrl = destinationUrl.trim()
+  
+  // Validar que a URL começa com http:// ou https://
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    throw new Error(`Invalid destination URL: must start with http:// or https://. Got: ${cleanUrl}`)
+  }
 
   try {
-    // A API do QStash espera a URL de destino no PATH, não no body
+    // A API do QStash espera a URL de destino diretamente no PATH
     // POST /v2/schedules/{destination}
-    const response = await fetch(`${QSTASH_API_BASE}/schedules/${encodeURIComponent(cleanUrl)}`, {
+    // A URL de destino NÃO deve ser URL-encoded
+    const endpoint = `${QSTASH_API_BASE}/schedules/${cleanUrl}`
+    
+    console.log('[QStash] Creating schedule with endpoint:', endpoint)
+    console.log('[QStash] Cron expression:', cronExpression)
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Upstash-Cron': cronExpression,
         'Upstash-Retries': '3',
-        'Upstash-Forward-Authorization': `Bearer ${process.env.CRON_SECRET || 'dev-secret'}`,
+        // Forward headers para a requisição de destino
+        'Upstash-Forward-Authorization': `Bearer ${process.env.CRON_SECRET?.trim() || 'dev-secret'}`,
       },
     })
 
     if (!response.ok) {
       const errorText = await response.text()
+      console.error('[QStash] API Error Response:', errorText)
       throw new Error(`QStash API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json() as { scheduleId?: string }
 
     if (!data.scheduleId) {
+      console.error('[QStash] Response data:', data)
       throw new Error('scheduleId not returned from API')
     }
 
-    console.log(`[QStash] Schedule created: ${data.scheduleId}`)
+    console.log(`[QStash] Schedule created successfully: ${data.scheduleId}`)
     return { scheduleId: data.scheduleId }
   } catch (error) {
     console.error('[QStash] Error creating schedule:', error)
