@@ -22,9 +22,10 @@ export async function GET(request: Request) {
 
     // URL da API de worker
     // Prioridade: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost
-    let appUrl = process.env.NEXT_PUBLIC_APP_URL
+    // NOTA: Fazemos trim() para remover qualquer espaço ou quebra de linha
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
     if (!appUrl && process.env.VERCEL_URL) {
-      appUrl = `https://${process.env.VERCEL_URL}`
+      appUrl = `https://${process.env.VERCEL_URL.trim()}`
     }
     if (!appUrl) {
       appUrl = 'http://localhost:3000'
