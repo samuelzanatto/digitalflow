@@ -13,6 +13,9 @@ const QSTASH_API_BASE = 'https://qstash.upstash.io/v2'
 
 /**
  * Schedule a cron job in Upstash QStash
+ * 
+ * API Documentation: https://upstash.com/docs/qstash/api/schedules/create
+ * The destination URL is part of the path, and cron is set via header
  */
 export async function scheduleCronJob(
   destinationUrl: string,
@@ -29,22 +32,20 @@ export async function scheduleCronJob(
     throw new Error('destinationUrl is required')
   }
 
+  // Garantir que a URL está limpa
+  const cleanUrl = destinationUrl.trim()
+
   try {
-    const response = await fetch(`${QSTASH_API_BASE}/schedules`, {
+    // A API do QStash espera a URL de destino no PATH, não no body
+    // POST /v2/schedules/{destination}
+    const response = await fetch(`${QSTASH_API_BASE}/schedules/${encodeURIComponent(cleanUrl)}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Upstash-Cron': cronExpression,
+        'Upstash-Retries': '3',
+        'Upstash-Forward-Authorization': `Bearer ${process.env.CRON_SECRET || 'dev-secret'}`,
       },
-      body: JSON.stringify({
-        destination: destinationUrl,
-        cron: cronExpression,
-        headers: {
-          'Authorization': `Bearer ${process.env.CRON_SECRET || 'dev-secret'}`,
-        },
-        label,
-        retries: 3,
-      }),
     })
 
     if (!response.ok) {
