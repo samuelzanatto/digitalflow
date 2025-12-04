@@ -138,11 +138,10 @@ interface AutomationSelectProps {
   nodeId: string
   enableAutomation: boolean
   automationId: string
-  automationDelay: number
   setProp: (nodeId: string, callback: (props: Record<string, unknown>) => void) => void
 }
 
-function AutomationSelect({ nodeId, enableAutomation, automationId, automationDelay, setProp }: AutomationSelectProps) {
+function AutomationSelect({ nodeId, enableAutomation, automationId, setProp }: AutomationSelectProps) {
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -170,7 +169,7 @@ function AutomationSelect({ nodeId, enableAutomation, automationId, automationDe
     <div className="space-y-3 border p-3 rounded bg-primary/5">
       <Label className="text-xs font-medium flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-        Automação de Email
+        Automação
       </Label>
       
       {/* Toggle para habilitar automação */}
@@ -183,7 +182,6 @@ function AutomationSelect({ nodeId, enableAutomation, automationId, automationDe
               pr.enableAutomation = checked
               if (!checked) {
                 pr.automationId = ''
-                pr.automationDelay = 0
               }
             })
           }
@@ -239,29 +237,8 @@ function AutomationSelect({ nodeId, enableAutomation, automationId, automationDe
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              {/* Input de delay */}
-              <div className="space-y-1">
-                <Label className="text-xs">Delay (segundos)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={3600}
-                    value={automationDelay || 0}
-                    onChange={(e) =>
-                      setProp(nodeId, (pr: Record<string, unknown>) => {
-                        pr.automationDelay = Math.max(0, parseInt(e.target.value) || 0)
-                      })
-                    }
-                    className="text-xs"
-                    placeholder="0"
-                  />
-                  <span className="text-xs text-muted-foreground">seg</span>
-                </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Tempo de espera antes de disparar o email (0 = imediato)
+                  O delay de envio é configurado na própria automação
                 </p>
               </div>
 
@@ -3362,14 +3339,13 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
           nodeId={nodeId}
           enableAutomation={Boolean(value)}
           automationId={String(allPropsTyped.automationId || '')}
-          automationDelay={Number(allPropsTyped.automationDelay || 0)}
           setProp={setProp}
         />
       )
     }
 
     // Pular as propriedades individuais de automação (são renderizadas pelo AutomationSelect)
-    if (key === 'automationId' || key === 'automationDelay') {
+    if (key === 'automationId') {
       return null
     }
 

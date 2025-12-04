@@ -350,165 +350,157 @@ export default function IntegracoesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <IconPlug className="w-5 h-5" />
-              Integrações Disponíveis
-            </CardTitle>
-            <CardDescription>
-              Configure webhooks para receber dados de plataformas externas
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Kirvano Integration Card */}
-            <div className="border rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-linear-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-                    K
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Kirvano</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Plataforma de vendas e checkout
-                    </p>
-                  </div>
-                </div>
-                
-                {kirvanoIntegration ? (
-                  <div className="flex items-center gap-4">
-                    <Badge variant={kirvanoIntegration.enabled ? "default" : "secondary"}>
-                      {kirvanoIntegration.enabled ? "Ativo" : "Inativo"}
-                    </Badge>
-                    <Switch
-                      checked={kirvanoIntegration.enabled}
-                      onCheckedChange={() => toggleIntegration(kirvanoIntegration)}
-                    />
-                  </div>
-                ) : (
-                  <Button 
-                    onClick={createKirvanoIntegration}
-                    disabled={creatingKirvano}
+        {/* Kirvano Integration Card */}
+        <div className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center overflow-hidden border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src="https://app.kirvano.com/favicon.ico" 
+                  alt="Kirvano" 
+                  className="w-8 h-8 object-contain"
+                />
+              </div>
+              <div>
+                <h3 className="font-semibold">Kirvano</h3>
+                <p className="text-sm text-muted-foreground">
+                  Plataforma de vendas e checkout
+                </p>
+              </div>
+            </div>
+            
+            {kirvanoIntegration ? (
+              <div className="flex items-center gap-4">
+                <Badge variant={kirvanoIntegration.enabled ? "default" : "secondary"}>
+                  {kirvanoIntegration.enabled ? "Ativo" : "Inativo"}
+                </Badge>
+                <Switch
+                  checked={kirvanoIntegration.enabled}
+                  onCheckedChange={() => toggleIntegration(kirvanoIntegration)}
+                />
+              </div>
+            ) : (
+              <Button 
+                onClick={createKirvanoIntegration}
+                disabled={creatingKirvano}
+              >
+                {creatingKirvano ? "Conectando..." : "Conectar"}
+              </Button>
+            )}
+          </div>
+
+          {kirvanoIntegration && (
+            <div className="mt-4 space-y-4">
+              <div className="p-3 rounded-lg">
+                <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/kirvano/${kirvanoIntegration.webhookToken}`}
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyWebhookUrl(kirvanoIntegration.webhookToken)}
                   >
-                    {creatingKirvano ? "Conectando..." : "Conectar"}
+                    {copied ? <IconCheck className="w-4 h-4" /> : <IconCopy className="w-4 h-4" />}
                   </Button>
-                )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => regenerateToken(kirvanoIntegration)}
+                    title="Regenerar token"
+                  >
+                    <IconRefresh className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
-              {kirvanoIntegration && (
-                <div className="mt-4 space-y-4">
-                  <div className="p-3 bg-muted rounded-lg">
-                    <Label className="text-xs text-muted-foreground">URL do Webhook</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        readOnly
-                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/webhooks/kirvano/${kirvanoIntegration.webhookToken}`}
-                        className="font-mono text-xs"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => copyWebhookUrl(kirvanoIntegration.webhookToken)}
-                      >
-                        {copied ? <IconCheck className="w-4 h-4" /> : <IconCopy className="w-4 h-4" />}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => regenerateToken(kirvanoIntegration)}
-                        title="Regenerar token"
-                      >
-                        <IconRefresh className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      {kirvanoIntegration._count?.events || 0} eventos recebidos
-                    </div>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedIntegration(kirvanoIntegration)
-                            loadEvents(kirvanoIntegration.id)
-                          }}
-                        >
-                          Ver Logs
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Logs de Webhook - Kirvano</DialogTitle>
-                          <DialogDescription>
-                            Últimos eventos recebidos da integração
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-2 mt-4">
-                          {events.length === 0 ? (
-                            <p className="text-center text-muted-foreground py-8">
-                              Nenhum evento recebido ainda
-                            </p>
-                          ) : (
-                            events.map((event) => (
-                              <div 
-                                key={event.id} 
-                                className="border rounded-lg p-3 space-y-2"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <Badge className={eventColors[event.event] || "bg-gray-100 text-gray-800"}>
-                                    {eventDescriptions[event.event] || event.event}
-                                  </Badge>
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Date(event.processedAt).toLocaleString("pt-BR")}
-                                  </span>
-                                </div>
-                                <details className="text-xs">
-                                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                                    Ver payload
-                                  </summary>
-                                  <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
-                                    {JSON.stringify(event.payload, null, 2)}
-                                  </pre>
-                                </details>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-medium mb-2">Como configurar:</h4>
-                    <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                      <li>Acesse o painel da Kirvano em <a href="https://app.kirvano.com/extensions/webhooks" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">Integrações → Webhooks <IconExternalLink className="w-3 h-3" /></a></li>
-                      <li>Clique em &quot;Criar Webhook&quot;</li>
-                      <li>Cole a URL do webhook acima no campo &quot;URL do Webhook&quot;</li>
-                      <li>Selecione os produtos e eventos que deseja receber</li>
-                      <li>Salve a configuração</li>
-                    </ol>
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-medium mb-2">Eventos suportados:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(eventDescriptions).map(([event, description]) => (
-                        <Badge key={event} variant="outline" className="text-xs">
-                          {description}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {kirvanoIntegration._count?.events || 0} eventos recebidos
                 </div>
-              )}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedIntegration(kirvanoIntegration)
+                        loadEvents(kirvanoIntegration.id)
+                      }}
+                    >
+                      Ver Logs
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Logs de Webhook - Kirvano</DialogTitle>
+                      <DialogDescription>
+                        Últimos eventos recebidos da integração
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 mt-4">
+                      {events.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">
+                          Nenhum evento recebido ainda
+                        </p>
+                      ) : (
+                        events.map((event) => (
+                          <div 
+                            key={event.id} 
+                            className="border rounded-lg p-3 space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <Badge className={eventColors[event.event] || "bg-gray-100 text-gray-800"}>
+                                {eventDescriptions[event.event] || event.event}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(event.processedAt).toLocaleString("pt-BR")}
+                              </span>
+                            </div>
+                            <details className="text-xs">
+                              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                Ver payload
+                              </summary>
+                              <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
+                                {JSON.stringify(event.payload, null, 2)}
+                              </pre>
+                            </details>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-2">Como configurar:</h4>
+                <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                  <li>Acesse o painel da Kirvano em <a href="https://app.kirvano.com/extensions/webhooks" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">Integrações → Webhooks <IconExternalLink className="w-3 h-3" /></a></li>
+                  <li>Clique em &quot;Criar Webhook&quot;</li>
+                  <li>Cole a URL do webhook acima no campo &quot;URL do Webhook&quot;</li>
+                  <li>Selecione os produtos e eventos que deseja receber</li>
+                  <li>Salve a configuração</li>
+                </ol>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-2">Eventos suportados:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(eventDescriptions).map(([event, description]) => (
+                    <Badge key={event} variant="outline" className="text-xs">
+                      {description}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </motion.div>
     </div>
   )

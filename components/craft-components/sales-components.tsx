@@ -707,7 +707,6 @@ interface CaptureFormProps {
   // Automation Integration
   enableAutomation?: boolean
   automationId?: string
-  automationDelay?: number // Delay em segundos
   // Redirect after submit
   enableRedirect?: boolean
   redirectUrl?: string
@@ -777,7 +776,6 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
       successMessage = 'Obrigado! Entraremos em contato em breve.',
       enableAutomation = false,
       automationId = '',
-      automationDelay = 0,
       enableRedirect = false,
       redirectUrl = '',
       redirectDelay = 2,
@@ -908,7 +906,6 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
           // Adicionar automação se habilitada
           ...(enableAutomation && automationId && {
             automationId,
-            automationDelay: automationDelay || 0,
           }),
         }
 
@@ -1355,7 +1352,6 @@ export const CaptureForm = CaptureFormComponent
     successMessage: 'Obrigado! Entraremos em contato em breve.',
     enableAutomation: false,
     automationId: '',
-    automationDelay: 0,
     enableRedirect: false,
     redirectUrl: '',
     redirectDelay: 2,

@@ -582,7 +582,7 @@ export default function AutomacoesPage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Tempo de espera antes de enviar o email após o gatilho ser acionado
+                    Tempo adicional após o gatilho ser acionado para enviar o email (0 = imediato)
                   </p>
                 </div>
               </TabsContent>
