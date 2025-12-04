@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { usePageHeader } from "@/hooks/usePageHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { 
   IconPlug, 
   IconCopy, 
@@ -17,7 +17,8 @@ import {
   IconExternalLink,
   IconShoppingCart,
   IconCreditCard,
-  IconAlertCircle
+  IconAlertCircle,
+  IconBell
 } from "@tabler/icons-react"
 import {
   Dialog,
@@ -27,6 +28,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { createSupabaseBrowserClient } from "@/lib/supabase/client"
+import { toast } from "sonner"
 
 interface Integration {
   id: string
@@ -42,6 +45,7 @@ interface Integration {
 
 interface WebhookEvent {
   id: string
+  integrationId: string
   event: string
   status: string
   processedAt: string
@@ -96,14 +100,9 @@ export default function IntegracoesPage() {
   const [copied, setCopied] = useState(false)
   const [, setSelectedIntegration] = useState<Integration | null>(null)
   const [creatingKirvano, setCreatingKirvano] = useState(false)
+  const [newEventIndicator, setNewEventIndicator] = useState(false)
 
-  useEffect(() => {
-    setPageHeader("Integrações", "Conecte plataformas externas para sincronizar dados")
-    loadIntegrations()
-    loadStats()
-  }, [setPageHeader])
-
-  const loadIntegrations = async () => {
+  const loadIntegrations = useCallback(async () => {
     try {
       const response = await fetch("/api/integrations")
       if (response.ok) {
@@ -115,9 +114,9 @@ export default function IntegracoesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const response = await fetch("/api/integrations/stats")
       if (response.ok) {
@@ -127,7 +126,70 @@ export default function IntegracoesPage() {
     } catch (error) {
       console.error("Erro ao carregar estatísticas:", error)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    setPageHeader("Integrações", "Conecte plataformas externas para sincronizar dados")
+    loadIntegrations()
+    loadStats()
+
+    // Configurar Supabase Realtime para escutar novos eventos de webhook
+    const supabase = createSupabaseBrowserClient()
+    
+    const channel = supabase
+      .channel('webhook-events-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'WebhookEvent',
+        },
+        (payload) => {
+          console.log('[Realtime] Novo evento de webhook recebido:', payload)
+          
+          // Adicionar novo evento na lista em tempo real
+          const newEvent = payload.new as WebhookEvent
+          setEvents((prevEvents) => [newEvent, ...prevEvents].slice(0, 50))
+          
+          // Atualizar contador de eventos na integração
+          setIntegrations((prevIntegrations) => 
+            prevIntegrations.map((integration) => {
+              if (integration.id === newEvent.integrationId) {
+                return {
+                  ...integration,
+                  _count: {
+                    events: (integration._count?.events || 0) + 1
+                  }
+                }
+              }
+              return integration
+            })
+          )
+          
+          // Atualizar estatísticas
+          loadStats()
+          
+          // Mostrar indicador visual e toast
+          setNewEventIndicator(true)
+          setTimeout(() => setNewEventIndicator(false), 3000)
+          
+          const eventName = eventDescriptions[newEvent.event] || newEvent.event
+          toast.success(`Novo evento: ${eventName}`, {
+            description: `Evento recebido da Kirvano`,
+            duration: 5000,
+          })
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Status da conexão:', status)
+      })
+
+    // Cleanup: remover subscription ao desmontar
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [setPageHeader, loadIntegrations, loadStats])
 
   const loadEvents = async (integrationId: string) => {
     try {
@@ -262,6 +324,25 @@ export default function IntegracoesPage() {
           </Card>
         </motion.div>
       )}
+
+      {/* Realtime Event Indicator */}
+      <AnimatePresence>
+        {newEventIndicator && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="fixed top-20 right-4 z-50"
+          >
+            <Card className="p-3 bg-green-500/10 border-green-500/50 shadow-lg">
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                <IconBell className="w-5 h-5 animate-bounce" />
+                <span className="font-medium text-sm">Novo evento recebido!</span>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Integrations */}
       <motion.div
