@@ -3,8 +3,10 @@ import { prisma, withRetry } from "@/lib/db/prisma"
 import { sendAutomationEmail, processTemplateVariables, hasGmailTransport } from "@/lib/email/gmail"
 
 // Esta API é chamada por um cron job para processar automações agendadas
-// No Vercel, você pode configurar um cron em vercel.json
-// Ou usar um serviço externo como cron-job.org para chamar esta API
+// Pode ser acionado por:
+// - Upstash QStash (recomendado para plano gratuito) - veja UPSTASH_SETUP.md
+// - Vercel Cron Jobs (requer plano Pro)
+// - Serviço externo como cron-job.org
 
 // Processar checkouts abandonados e criar jobs de automação
 async function processAbandonedCheckouts() {
