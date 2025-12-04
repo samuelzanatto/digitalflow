@@ -31,10 +31,21 @@ export async function GET(request: Request) {
     }
     const workerUrl = `${appUrl}/api/automations/worker`
 
-    console.log('[Schedule] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
-    console.log('[Schedule] VERCEL_URL:', process.env.VERCEL_URL)
-    console.log('[Schedule] Final App URL:', appUrl)
-    console.log('[Schedule] Worker URL:', workerUrl)
+    // Debug: retornar as URLs para verificar
+    const debug = {
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'not set',
+      VERCEL_URL: process.env.VERCEL_URL || 'not set',
+      finalAppUrl: appUrl,
+      workerUrl,
+    }
+
+    // Validar se a URL é válida
+    if (!workerUrl.startsWith('http://') && !workerUrl.startsWith('https://')) {
+      return NextResponse.json({
+        error: 'URL inválida',
+        debug,
+      }, { status: 400 })
+    }
 
     // Agendar o cron job no Upstash
     // A cada 5 minutos: */5 * * * *
@@ -46,6 +57,7 @@ export async function GET(request: Request) {
       scheduleId: result.scheduleId,
       workerUrl,
       schedule: '*/5 * * * * (a cada 5 minutos)',
+      debug,
     })
   } catch (error) {
     console.error('[Schedule] Erro ao agendar cron job:', error)
@@ -53,6 +65,10 @@ export async function GET(request: Request) {
       {
         error: 'Erro ao agendar cron job',
         message: error instanceof Error ? error.message : 'Erro desconhecido',
+        debug: {
+          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'not set',
+          VERCEL_URL: process.env.VERCEL_URL || 'not set',
+        },
       },
       { status: 500 }
     )
