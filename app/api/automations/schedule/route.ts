@@ -22,7 +22,6 @@ export async function GET(request: Request) {
 
     // URL da API de worker
     // Prioridade: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost
-    // NOTA: Fazemos trim() para remover qualquer espaço ou quebra de linha
     let appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
     if (!appUrl && process.env.VERCEL_URL) {
       appUrl = `https://${process.env.VERCEL_URL.trim()}`
@@ -32,25 +31,14 @@ export async function GET(request: Request) {
     }
     const workerUrl = `${appUrl}/api/automations/worker`
 
-    // Debug: retornar as URLs para verificar
-    const debug = {
-      NEXT_PUBLIC_APP_URL_RAW: process.env.NEXT_PUBLIC_APP_URL || 'not set',
-      NEXT_PUBLIC_APP_URL_TRIMMED: process.env.NEXT_PUBLIC_APP_URL?.trim() || 'not set',
-      VERCEL_URL: process.env.VERCEL_URL || 'not set',
-      finalAppUrl: appUrl,
-      workerUrl,
-    }
-
     // Validar se a URL é válida
     if (!workerUrl.startsWith('http://') && !workerUrl.startsWith('https://')) {
       return NextResponse.json({
-        error: 'URL inválida',
-        debug,
+        error: 'URL inválida - deve começar com http:// ou https://',
       }, { status: 400 })
     }
 
-    // Agendar o cron job no Upstash
-    // A cada 5 minutos: */5 * * * *
+    // Agendar o cron job no Upstash (a cada 5 minutos)
     const result = await scheduleCronJob(workerUrl, '*/5 * * * *')
 
     return NextResponse.json({
@@ -59,7 +47,6 @@ export async function GET(request: Request) {
       scheduleId: result.scheduleId,
       workerUrl,
       schedule: '*/5 * * * * (a cada 5 minutos)',
-      debug,
     })
   } catch (error) {
     console.error('[Schedule] Erro ao agendar cron job:', error)
@@ -67,10 +54,6 @@ export async function GET(request: Request) {
       {
         error: 'Erro ao agendar cron job',
         message: error instanceof Error ? error.message : 'Erro desconhecido',
-        debug: {
-          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'not set',
-          VERCEL_URL: process.env.VERCEL_URL || 'not set',
-        },
       },
       { status: 500 }
     )
@@ -94,7 +77,14 @@ export async function POST(request: Request) {
     }
 
     // Chamar o automation worker
-    const workerUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/automations/worker`
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
+    if (!appUrl && process.env.VERCEL_URL) {
+      appUrl = `https://${process.env.VERCEL_URL.trim()}`
+    }
+    if (!appUrl) {
+      appUrl = 'http://localhost:3000'
+    }
+    const workerUrl = `${appUrl}/api/automations/worker`
     
     const response = await fetch(workerUrl, {
       method: 'GET',
