@@ -21,15 +21,20 @@ export async function GET(request: Request) {
     }
 
     // URL da API de worker
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL || 'localhost:3000'}`
-      : 'http://localhost:3000'
-    
-    const workerUrl = `${baseUrl}/api/automations/worker`
+    // Prioridade: NEXT_PUBLIC_APP_URL > VERCEL_URL > localhost
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL
+    if (!appUrl && process.env.VERCEL_URL) {
+      appUrl = `https://${process.env.VERCEL_URL}`
+    }
+    if (!appUrl) {
+      appUrl = 'http://localhost:3000'
+    }
+    const workerUrl = `${appUrl}/api/automations/worker`
 
-    console.log('[Schedule] Worker URL:', workerUrl)
     console.log('[Schedule] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
     console.log('[Schedule] VERCEL_URL:', process.env.VERCEL_URL)
+    console.log('[Schedule] Final App URL:', appUrl)
+    console.log('[Schedule] Worker URL:', workerUrl)
 
     // Agendar o cron job no Upstash
     // A cada 5 minutos: */5 * * * *
