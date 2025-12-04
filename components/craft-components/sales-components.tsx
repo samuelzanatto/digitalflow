@@ -712,6 +712,12 @@ interface CaptureFormProps {
   enableRedirect?: boolean
   redirectUrl?: string
   redirectDelay?: number // Delay em segundos antes do redirecionamento
+  // Checkout Tracking (Carrinho Abandonado)
+  enableCheckoutTracking?: boolean
+  checkoutUrl?: string
+  productName?: string
+  productPrice?: string
+  openCheckoutInNewTab?: boolean
   // Thank You Screen
   skipThankYouScreen?: boolean // Só funciona quando enableRedirect está ativo
   thankYouTitle?: string
@@ -775,6 +781,12 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
       enableRedirect = false,
       redirectUrl = '',
       redirectDelay = 2,
+      // Checkout Tracking defaults
+      enableCheckoutTracking = false,
+      checkoutUrl = '',
+      productName = '',
+      productPrice = '',
+      openCheckoutInNewTab = true,
       // Thank You Screen defaults
       skipThankYouScreen = false, // Pular agradecimento (só funciona com redirecionamento ativo)
       thankYouTitle = 'Obrigado!',
@@ -909,7 +921,7 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
         if (response.ok) {
           setSubmitStatus('success')
           
-          // Salvar dados do lead no localStorage para uso pelo CheckoutButton
+          // Salvar dados do lead no localStorage
           try {
             localStorage.setItem('df_lead_data', JSON.stringify({
               email: payload.email,
@@ -920,7 +932,48 @@ const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
             // Ignora erro de localStorage
           }
           
-          // Verificar se vai pular para redirecionamento
+          // Se checkout tracking estiver ativo, registrar a intenção de checkout
+          if (enableCheckoutTracking && checkoutUrl) {
+            try {
+              // Obter/criar ID do visitante
+              let visitorId = localStorage.getItem('df_visitor_id')
+              if (!visitorId) {
+                visitorId = `v_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+                localStorage.setItem('df_visitor_id', visitorId)
+              }
+              
+              const pageSlug = window.location.pathname.replace('/page/', '')
+              
+              await fetch('/api/checkout-intent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  visitorId,
+                  checkoutUrl,
+                  productName: productName || '',
+                  productPrice: productPrice || '',
+                  pageSlug,
+                  pageUrl: window.location.href,
+                  email: payload.email,
+                  name: payload.name,
+                  phone: payload.phone,
+                }),
+              })
+            } catch (error) {
+              console.error('[CaptureForm] Erro ao registrar checkout intent:', error)
+            }
+            
+            // Redirecionar para o checkout
+            setIsSubmitting(false)
+            if (openCheckoutInNewTab) {
+              window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+            } else {
+              window.location.href = checkoutUrl
+            }
+            return // Não continua para o fluxo normal de redirect/thank you
+          }
+          
+          // Verificar se vai pular para redirecionamento (fluxo normal sem checkout tracking)
           const willSkipToRedirect = enableRedirect && redirectUrl && skipThankYouScreen
           
           // Só limpa os campos se não estiver pulando para redirecionamento
@@ -1306,6 +1359,12 @@ export const CaptureForm = CaptureFormComponent
     enableRedirect: false,
     redirectUrl: '',
     redirectDelay: 2,
+    // Checkout Tracking
+    enableCheckoutTracking: false,
+    checkoutUrl: '',
+    productName: '',
+    productPrice: '',
+    openCheckoutInNewTab: true,
     // Thank You Screen
     skipThankYouScreen: false,
     thankYouTitle: 'Obrigado!',

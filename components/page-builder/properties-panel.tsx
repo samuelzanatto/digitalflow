@@ -279,6 +279,134 @@ function AutomationSelect({ nodeId, enableAutomation, automationId, automationDe
 }
 
 /**
+ * Componente para configurar tracking de checkout (carrinho abandonado)
+ */
+interface CheckoutTrackingSelectProps {
+  nodeId: string
+  enableCheckoutTracking: boolean
+  checkoutUrl: string
+  productName: string
+  productPrice: string
+  openCheckoutInNewTab: boolean
+  setProp: (nodeId: string, callback: (props: Record<string, unknown>) => void) => void
+}
+
+function CheckoutTrackingSelect({ 
+  nodeId, 
+  enableCheckoutTracking, 
+  checkoutUrl, 
+  productName, 
+  productPrice, 
+  openCheckoutInNewTab,
+  setProp 
+}: CheckoutTrackingSelectProps) {
+  return (
+    <div className="space-y-3 border p-3 rounded bg-green-500/5">
+      <Label className="text-xs font-medium flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+        Tracking de Checkout
+      </Label>
+      
+      {/* Toggle para habilitar tracking */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label className="text-xs">Rastrear checkout</Label>
+          <p className="text-[10px] text-muted-foreground">
+            Registra intenção de compra para recuperação de carrinho
+          </p>
+        </div>
+        <Switch
+          checked={enableCheckoutTracking}
+          onCheckedChange={(checked) =>
+            setProp(nodeId, (pr: Record<string, unknown>) => {
+              pr.enableCheckoutTracking = checked
+            })
+          }
+        />
+      </div>
+
+      {enableCheckoutTracking && (
+        <>
+          <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-600 dark:text-amber-400">
+            🛒 Quando ativo, o formulário registra a intenção de checkout e redireciona para a URL de pagamento. A automação de carrinho abandonado será ativada se o usuário não concluir a compra.
+          </div>
+
+          {/* URL do Checkout */}
+          <div className="space-y-1">
+            <Label className="text-xs">URL do Checkout *</Label>
+            <Input
+              type="url"
+              value={checkoutUrl || ''}
+              onChange={(e) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.checkoutUrl = e.target.value
+                })
+              }
+              className="text-xs"
+              placeholder="https://pay.kirvano.com/..."
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Link do checkout externo (Kirvano, Hotmart, etc.)
+            </p>
+          </div>
+
+          {/* Nome do Produto */}
+          <div className="space-y-1">
+            <Label className="text-xs">Nome do Produto</Label>
+            <Input
+              type="text"
+              value={productName || ''}
+              onChange={(e) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.productName = e.target.value
+                })
+              }
+              className="text-xs"
+              placeholder="Curso de Marketing Digital"
+            />
+          </div>
+
+          {/* Preço do Produto */}
+          <div className="space-y-1">
+            <Label className="text-xs">Preço do Produto</Label>
+            <Input
+              type="text"
+              value={productPrice || ''}
+              onChange={(e) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.productPrice = e.target.value
+                })
+              }
+              className="text-xs"
+              placeholder="R$ 197,00"
+            />
+          </div>
+
+          {/* Abrir em nova aba */}
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Abrir checkout em nova aba</Label>
+            <Switch
+              checked={openCheckoutInNewTab}
+              onCheckedChange={(checked) =>
+                setProp(nodeId, (pr: Record<string, unknown>) => {
+                  pr.openCheckoutInNewTab = checked
+                })
+              }
+            />
+          </div>
+
+          {!checkoutUrl && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              ⚠️ Insira a URL do checkout para ativar o tracking
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
  * Componente para configurar redirecionamento após envio do formulário
  */
 interface RedirectSelectProps {
@@ -3132,7 +3260,7 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       )
     }
 
-    // Handler especial para checkoutUrl do CheckoutButton
+    // Handler especial para checkoutUrl do CaptureForm
     if (key === 'checkoutUrl') {
       const productNameValue = String((props as Record<string, unknown>).productName || '')
       const productPriceValue = String((props as Record<string, unknown>).productPrice || '')
@@ -3262,6 +3390,28 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
 
     // Pular as propriedades individuais de redirecionamento (são renderizadas pelo RedirectSelect)
     if (key === 'redirectUrl' || key === 'redirectDelay') {
+      return null
+    }
+
+    // Handler especial para checkout tracking do CaptureForm
+    if (key === 'enableCheckoutTracking') {
+      const allPropsTyped = props as Record<string, unknown>
+      return (
+        <CheckoutTrackingSelect
+          key={key}
+          nodeId={nodeId}
+          enableCheckoutTracking={Boolean(value)}
+          checkoutUrl={String(allPropsTyped.checkoutUrl || '')}
+          productName={String(allPropsTyped.productName || '')}
+          productPrice={String(allPropsTyped.productPrice || '')}
+          openCheckoutInNewTab={Boolean(allPropsTyped.openCheckoutInNewTab ?? true)}
+          setProp={setProp}
+        />
+      )
+    }
+
+    // Pular as propriedades individuais de checkout tracking (são renderizadas pelo CheckoutTrackingSelect)
+    if (key === 'checkoutUrl' || key === 'productName' || key === 'productPrice' || key === 'openCheckoutInNewTab') {
       return null
     }
 
