@@ -34,7 +34,8 @@ export async function GET(request: Request) {
 
     // Debug: retornar as URLs para verificar
     const debug = {
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'not set',
+      NEXT_PUBLIC_APP_URL_RAW: process.env.NEXT_PUBLIC_APP_URL || 'not set',
+      NEXT_PUBLIC_APP_URL_TRIMMED: process.env.NEXT_PUBLIC_APP_URL?.trim() || 'not set',
       VERCEL_URL: process.env.VERCEL_URL || 'not set',
       finalAppUrl: appUrl,
       workerUrl,
