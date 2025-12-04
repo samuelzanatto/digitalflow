@@ -1,100 +1,184 @@
 /**
- * Upstash QStash - Cliente para agendamento de tarefas
+ * Upstash QStash - Client for scheduling tasks
+ * Uses the QStash REST API to schedule automation worker execution
  * 
- * Este cliente é usado para agendar a execução do automation worker
- * usando o serviço gratuito Upstash QStash.
+ * Documentation: https://upstash.com/docs/qstash/api/schedules/create
  * 
- * Documentação: https://upstash.com/docs/qstash/overall/getstarted
- * 
- * Variáveis de ambiente necessárias:
- * - QSTASH_TOKEN: Token de autenticação do Upstash (get from https://console.upstash.com)
- * - AUTOMATION_WORKER_URL: URL da API do worker (ex: https://seu-app.vercel.app/api/automations/worker)
+ * Environment variables:
+ * - QSTASH_TOKEN: Upstash authentication token
+ * - NEXT_PUBLIC_APP_URL: Application base URL
  */
 
 const QSTASH_API_BASE = 'https://qstash.upstash.io/v2'
 
-interface ScheduleJobOptions {
-  delay?: number // delay em segundos
-  cron?: string // expressão cron
-  headers?: Record<string, string>
-}
-
 /**
- * Agenda um job no Upstash QStash
+ * Schedule a cron job in Upstash QStash
  */
-export async function scheduleJob(
-  url: string,
-  options: ScheduleJobOptions = {}
-): Promise<{ messageId: string }> {
-  const qstashToken = process.env.QSTASH_TOKEN
+export async function scheduleCronJob(
+  destinationUrl: string,
+  cronExpression: string = "*/5 * * * *",
+  label: string = "automation-worker"
+): Promise<{ scheduleId: string }> {
+  const token = process.env.QSTASH_TOKEN
 
-  if (!qstashToken) {
-    throw new Error('QSTASH_TOKEN não está configurado nas variáveis de ambiente')
+  if (!token) {
+    throw new Error('QSTASH_TOKEN is not configured in environment variables')
   }
 
-  if (!url) {
-    throw new Error('URL do job é obrigatória')
-  }
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${qstashToken}`,
-    'Content-Type': 'application/json',
-    ...options.headers,
-  }
-
-  // Se é um cron job
-  if (options.cron) {
-    headers['Upstash-Cron'] = options.cron
-  }
-
-  // Se é um delay (em segundos)
-  if (options.delay) {
-    headers['Upstash-Delay'] = `${options.delay}s`
+  if (!destinationUrl) {
+    throw new Error('destinationUrl is required')
   }
 
   try {
-    const response = await fetch(`${QSTASH_API_BASE}/publish/${btoa(url).toString()}`, {
+    const response = await fetch(`${QSTASH_API_BASE}/schedules`, {
       method: 'POST',
-      headers,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        // Body pode estar vazio ou conter dados
+        destination: destinationUrl,
+        cron: cronExpression,
+        headers: {
+          'Authorization': `Bearer ${process.env.CRON_SECRET || 'dev-secret'}`,
+        },
+        label,
+        retries: 3,
       }),
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`Upstash error: ${response.status} - ${error}`)
+      const errorText = await response.text()
+      throw new Error(`QStash API error: ${response.status} - ${errorText}`)
     }
 
-    const data = (await response.json()) as { messageId?: string }
-    return {
-      messageId: data.messageId || 'unknown',
+    const data = await response.json() as { scheduleId?: string }
+
+    if (!data.scheduleId) {
+      throw new Error('scheduleId not returned from API')
     }
+
+    console.log(`[QStash] Schedule created: ${data.scheduleId}`)
+    return { scheduleId: data.scheduleId }
   } catch (error) {
-    console.error('[Upstash] Erro ao agendar job:', error)
+    console.error('[QStash] Error creating schedule:', error)
     throw error
   }
 }
 
 /**
- * Cron job helper - agenda uma tarefa para executar em um intervalo regular
- * usando Upstash QStash
+ * List all schedules
  */
-export async function scheduleCronJob(
-  url: string,
-  cronExpression: string = '*/5 * * * *' // padrão: a cada 5 minutos
-): Promise<{ messageId: string }> {
-  return scheduleJob(url, { cron: cronExpression })
+export async function listSchedules(): Promise<Array<{ scheduleId: string; cron: string; destination: string; label?: string }>> {
+  const token = process.env.QSTASH_TOKEN
+
+  if (!token) {
+    throw new Error('QSTASH_TOKEN is not configured in environment variables')
+  }
+
+  try {
+    const response = await fetch(`${QSTASH_API_BASE}/schedules`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`QStash API error: ${response.status}`)
+    }
+
+    const data = await response.json() as Array<{ scheduleId: string; cron: string; destination: string; label?: string }>
+    return data
+  } catch (error) {
+    console.error('[QStash] Error listing schedules:', error)
+    throw error
+  }
 }
 
 /**
- * Valida se a URL é válida
+ * Get schedule details
  */
-export function isValidUrl(url: string): boolean {
+export async function getSchedule(scheduleId: string) {
+  const token = process.env.QSTASH_TOKEN
+
+  if (!token) {
+    throw new Error('QSTASH_TOKEN is not configured in environment variables')
+  }
+
   try {
-    new URL(url)
-    return true
-  } catch {
-    return false
+    const response = await fetch(`${QSTASH_API_BASE}/schedules/${scheduleId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`QStash API error: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('[QStash] Error getting schedule:', error)
+    throw error
+  }
+}
+
+/**
+ * Delete a schedule
+ */
+export async function deleteSchedule(scheduleId: string): Promise<void> {
+  const token = process.env.QSTASH_TOKEN
+
+  if (!token) {
+    throw new Error('QSTASH_TOKEN is not configured in environment variables')
+  }
+
+  try {
+    const response = await fetch(`${QSTASH_API_BASE}/schedules/${scheduleId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`QStash API error: ${response.status}`)
+    }
+
+    console.log(`[QStash] Schedule deleted: ${scheduleId}`)
+  } catch (error) {
+    console.error('[QStash] Error deleting schedule:', error)
+    throw error
+  }
+}
+
+/**
+ * Pause a schedule
+ */
+export async function pauseSchedule(scheduleId: string): Promise<void> {
+  const token = process.env.QSTASH_TOKEN
+
+  if (!token) {
+    throw new Error('QSTASH_TOKEN is not configured in environment variables')
+  }
+
+  try {
+    const response = await fetch(`${QSTASH_API_BASE}/schedules/${scheduleId}/pause`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`QStash API error: ${response.status}`)
+    }
+
+    console.log(`[QStash] Schedule paused: ${scheduleId}`)
+  } catch (error) {
+    console.error('[QStash] Error pausing schedule:', error)
+    throw error
   }
 }

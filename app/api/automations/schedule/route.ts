@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'Cron job agendado com sucesso no Upstash QStash',
-      messageId: result.messageId,
+      scheduleId: result.scheduleId,
       workerUrl,
       schedule: '*/5 * * * * (a cada 5 minutos)',
     })
