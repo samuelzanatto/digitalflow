@@ -115,10 +115,7 @@ interface TextBlockProps {
 }
 
 const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
-  (
-    { children: _children },
-    ref
-  ) => {
+  (_props, ref) => {
     const { resolveResponsiveProp } = useEditorViewport()
     
     const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
