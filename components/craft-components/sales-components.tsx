@@ -33,112 +33,114 @@ interface PricingCardProps {
   discountPercentage?: number
   showDiscount?: boolean
   
-  // Personalizações de texto
-  titleFontSize?: number
+  // Personalizações de texto (responsivas)
+  titleFontSize?: ResponsiveProp<number>
   titleFontWeight?: 'normal' | 'bold' | '600' | '700'
   titleColor?: string
   titleAlignment?: 'left' | 'center' | 'right'
   
-  descriptionFontSize?: number
+  descriptionFontSize?: ResponsiveProp<number>
   descriptionColor?: string
   descriptionAlignment?: 'left' | 'center' | 'right'
   
-  priceFontSize?: number
+  priceFontSize?: ResponsiveProp<number>
   priceColor?: string
   priceAlignment?: 'left' | 'center' | 'right' | 'column' | 'column-reverse'
   
-  periodFontSize?: number
+  periodFontSize?: ResponsiveProp<number>
   periodColor?: string
   
-  originalPriceFontSize?: number
+  originalPriceFontSize?: ResponsiveProp<number>
   originalPriceColor?: string
   
-  discountPercentageFontSize?: number
+  discountPercentageFontSize?: ResponsiveProp<number>
   discountPercentageColor?: string
   discountPercentageBackgroundColor?: string
   
-  featuresFontSize?: number
+  featuresFontSize?: ResponsiveProp<number>
   featuresColor?: string
   featuresCheckColor?: string
   
-  // Personalização de cores e espaçamento
+  // Personalização de cores e espaçamento (responsivas)
   backgroundColor?: string
   borderColor?: string
-  borderWidth?: number
-  borderRadius?: number
-  padding?: number
+  borderWidth?: ResponsiveProp<number>
+  borderRadius?: ResponsiveProp<number>
+  padding?: ResponsiveProp<number>
   
-  // CTA Button
+  // CTA Button (responsivas)
   buttonBackgroundColor?: string
   buttonTextColor?: string
-  buttonBorderRadius?: number
-  buttonPadding?: number
-  buttonFontSize?: number
+  buttonBorderRadius?: ResponsiveProp<number>
+  buttonPadding?: ResponsiveProp<number>
+  buttonFontSize?: ResponsiveProp<number>
 }
 
 const PricingCardComponent = React.forwardRef<HTMLDivElement, PricingCardProps>(
-  (
-    {
-      mode = 'plan',
-      title = 'Plan Name',
-      price = '99',
-      period = '/month',
-      description = 'Plan description',
-      features = ['Feature 1', 'Feature 2', 'Feature 3'],
-      buttonText = 'Get Started',
-      isPopular = false,
-      
-      width = '100%',
-      height = 'auto',
-      
-      originalPrice = '149',
-      discountPercentage = 33,
-      showDiscount = false,
-      
-      titleFontSize = 24,
-      titleFontWeight = 'bold',
-      titleColor = '#000000',
-      titleAlignment = 'center',
-      
-      descriptionFontSize = 14,
-      descriptionColor = '#666666',
-      descriptionAlignment = 'center',
-      
-      priceFontSize = 48,
-      priceColor = '#000000',
-      priceAlignment = 'center',
-      
-      periodFontSize = 14,
-      periodColor = '#666666',
-      
-      originalPriceFontSize = 16,
-      originalPriceColor = '#999999',
-      
-      discountPercentageFontSize = 14,
-      discountPercentageColor = '#ffffff',
-      discountPercentageBackgroundColor = '#ef4444',
-      
-      featuresFontSize = 14,
-      featuresColor = '#333333',
-      featuresCheckColor = '#7c3aed',
-      
-      backgroundColor = '#ffffff',
-      borderColor = '#e5e7eb',
-      borderWidth = 1,
-      borderRadius = 8,
-      padding = 24,
-      
-      buttonBackgroundColor = '#7c3aed',
-      buttonTextColor = '#ffffff',
-      buttonBorderRadius = 6,
-      buttonPadding = 12,
-      buttonFontSize = 14,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as PricingCardProps,
     }))
+    
+    const { resolveResponsiveProp } = useEditorViewport()
+    
+    // Extrair props de nodeProps com defaults
+    const mode = nodeProps.mode ?? 'plan'
+    const title = nodeProps.title ?? 'Plan Name'
+    const price = nodeProps.price ?? '99'
+    const period = nodeProps.period ?? '/month'
+    const description = nodeProps.description ?? 'Plan description'
+    const features = nodeProps.features ?? ['Feature 1', 'Feature 2', 'Feature 3']
+    const buttonText = nodeProps.buttonText ?? 'Get Started'
+    const isPopular = nodeProps.isPopular ?? false
+    
+    const width = nodeProps.width ?? '100%'
+    const height = nodeProps.height ?? 'auto'
+    
+    const originalPrice = nodeProps.originalPrice ?? '149'
+    const discountPercentage = nodeProps.discountPercentage ?? 33
+    const showDiscount = nodeProps.showDiscount ?? false
+    
+    // Propriedades responsivas - usar resolveResponsiveProp para cada uma
+    const titleFontSize = resolveResponsiveProp(nodeProps.titleFontSize as ResponsiveProp<number>, 24)
+    const titleFontWeight = nodeProps.titleFontWeight ?? 'bold'
+    const titleColor = nodeProps.titleColor ?? '#000000'
+    const titleAlignment = nodeProps.titleAlignment ?? 'center'
+    
+    const descriptionFontSize = resolveResponsiveProp(nodeProps.descriptionFontSize as ResponsiveProp<number>, 14)
+    const descriptionColor = nodeProps.descriptionColor ?? '#666666'
+    const descriptionAlignment = nodeProps.descriptionAlignment ?? 'center'
+    
+    const priceFontSize = resolveResponsiveProp(nodeProps.priceFontSize as ResponsiveProp<number>, 48)
+    const priceColor = nodeProps.priceColor ?? '#000000'
+    const priceAlignment = nodeProps.priceAlignment ?? 'center'
+    
+    const periodFontSize = resolveResponsiveProp(nodeProps.periodFontSize as ResponsiveProp<number>, 14)
+    const periodColor = nodeProps.periodColor ?? '#666666'
+    
+    const originalPriceFontSize = resolveResponsiveProp(nodeProps.originalPriceFontSize as ResponsiveProp<number>, 16)
+    const originalPriceColor = nodeProps.originalPriceColor ?? '#999999'
+    
+    const discountPercentageFontSize = resolveResponsiveProp(nodeProps.discountPercentageFontSize as ResponsiveProp<number>, 14)
+    const discountPercentageColor = nodeProps.discountPercentageColor ?? '#ffffff'
+    const discountPercentageBackgroundColor = nodeProps.discountPercentageBackgroundColor ?? '#ef4444'
+    
+    const featuresFontSize = resolveResponsiveProp(nodeProps.featuresFontSize as ResponsiveProp<number>, 14)
+    const featuresColor = nodeProps.featuresColor ?? '#333333'
+    const featuresCheckColor = nodeProps.featuresCheckColor ?? '#7c3aed'
+    
+    const backgroundColor = nodeProps.backgroundColor ?? '#ffffff'
+    const borderColor = nodeProps.borderColor ?? '#e5e7eb'
+    const borderWidth = resolveResponsiveProp(nodeProps.borderWidth as ResponsiveProp<number>, 1)
+    const borderRadius = resolveResponsiveProp(nodeProps.borderRadius as ResponsiveProp<number>, 8)
+    const padding = resolveResponsiveProp(nodeProps.padding as ResponsiveProp<number>, 24)
+    
+    const buttonBackgroundColor = nodeProps.buttonBackgroundColor ?? '#7c3aed'
+    const buttonTextColor = nodeProps.buttonTextColor ?? '#ffffff'
+    const buttonBorderRadius = resolveResponsiveProp(nodeProps.buttonBorderRadius as ResponsiveProp<number>, 6)
+    const buttonPadding = resolveResponsiveProp(nodeProps.buttonPadding as ResponsiveProp<number>, 12)
+    const buttonFontSize = resolveResponsiveProp(nodeProps.buttonFontSize as ResponsiveProp<number>, 14)
 
     const cardStyle: React.CSSProperties = {
       backgroundColor,
@@ -431,21 +433,20 @@ interface TestimonialCardProps {
 }
 
 const TestimonialCardComponent = React.forwardRef<HTMLDivElement, TestimonialCardProps>(
-  (
-    {
-      quote = 'This is an amazing product! Highly recommended.',
-      author = 'John Doe',
-      role = 'CEO',
-      company = 'Company Inc',
-      avatar = '👤',
-      rating = 5,
-      backgroundColor = '#f9fafb',
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as TestimonialCardProps,
     }))
+
+    // Extrair props com defaults
+    const quote = nodeProps.quote ?? 'This is an amazing product! Highly recommended.'
+    const author = nodeProps.author ?? 'John Doe'
+    const role = nodeProps.role ?? 'CEO'
+    const company = nodeProps.company ?? 'Company Inc'
+    const avatar = nodeProps.avatar ?? '👤'
+    const rating = nodeProps.rating ?? 5
+    const backgroundColor = nodeProps.backgroundColor ?? '#f9fafb'
 
     return (
       <div
@@ -539,37 +540,40 @@ interface FeatureCardProps {
   cardFullWidth?: boolean
   cardAutoHeight?: boolean
   
-  // Personalizações de texto
-  titleFontSize?: number
+  // Personalizações de texto (responsivas)
+  titleFontSize?: ResponsiveProp<number>
   titleColor?: string
-  descriptionFontSize?: number
+  descriptionFontSize?: ResponsiveProp<number>
   descriptionColor?: string
-  iconFontSize?: number
+  iconFontSize?: ResponsiveProp<number>
 }
 
 const FeatureCardComponent = React.forwardRef<HTMLDivElement, FeatureCardProps>(
-  (
-    {
-      icon = '⚡',
-      title = 'Feature Title',
-      description = 'Feature description goes here',
-      backgroundColor = '#ffffff',
-      iconBackgroundColor = '#e0e7ff',
-      width = '100%',
-      height = 'auto',
-      cardFullWidth = false,
-      cardAutoHeight = true,
-      titleFontSize = 18,
-      titleColor = '#000000',
-      descriptionFontSize = 14,
-      descriptionColor = '#666666',
-      iconFontSize = 28,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as FeatureCardProps,
     }))
+    
+    const { resolveResponsiveProp } = useEditorViewport()
+
+    // Extrair props com defaults
+    const icon = nodeProps.icon ?? '⚡'
+    const title = nodeProps.title ?? 'Feature Title'
+    const description = nodeProps.description ?? 'Feature description goes here'
+    const backgroundColor = nodeProps.backgroundColor ?? '#ffffff'
+    const iconBackgroundColor = nodeProps.iconBackgroundColor ?? '#e0e7ff'
+    const width = nodeProps.width ?? '100%'
+    const height = nodeProps.height ?? 'auto'
+    const cardFullWidth = nodeProps.cardFullWidth ?? false
+    const cardAutoHeight = nodeProps.cardAutoHeight ?? true
+    const titleColor = nodeProps.titleColor ?? '#000000'
+    const descriptionColor = nodeProps.descriptionColor ?? '#666666'
+    
+    // Props responsivas
+    const titleFontSize = resolveResponsiveProp(nodeProps.titleFontSize as ResponsiveProp<number>, 18)
+    const descriptionFontSize = resolveResponsiveProp(nodeProps.descriptionFontSize as ResponsiveProp<number>, 14)
+    const iconFontSize = resolveResponsiveProp(nodeProps.iconFontSize as ResponsiveProp<number>, 28)
 
     // Helper para renderizar quebras de linha
     const renderTextWithLineBreaks = (text: string) => {
@@ -730,81 +734,80 @@ interface CaptureFormProps {
 }
 
 const CaptureFormComponent = React.forwardRef<HTMLDivElement, CaptureFormProps>(
-  (
-    {
-      title = 'Get Started Today',
-      subtitle = 'Join thousands of happy customers',
-      buttonText = 'Sign Up',
-      buttonColor = '#7c3aed',
-      backgroundColor = '#f3f4f6',
-      width = '100%',
-      height = 'auto',
-      fullWidth = true,
-      formContainerBorderRadius = 12,
-      formContainerBorderWidth = 1,
-      formContainerBorderColor = '#d1d5db',
-      formPaddingTop = 40,
-      formPaddingBottom = 40,
-      formPaddingLeft = 20,
-      formPaddingRight = 20,
-      inputsDirection = 'column',
-      inputGap = 12,
-      inputFields = [
-        {
-          id: '1',
-          type: 'email',
-          label: 'Email',
-          placeholder: 'Enter your email',
-          placeholderColor: '#9ca3af',
-          borderRadius: 6,
-          borderColor: '#d1d5db',
-          borderWidth: 1,
-          required: true,
-        },
-      ],
-      inputPlaceholderColor = '#9ca3af',
-      titleFontSize = 28,
-      titleColor = '#000000',
-      subtitleFontSize = 16,
-      subtitleColor = '#666666',
-      buttonBorderRadius = 6,
-      buttonPadding = 12,
-      buttonFontSize = 14,
-      textColor = '#ffffff',
-      inputTextColor = '#000000',
-      leadGroupId = '',
-      successMessage = 'Obrigado! Entraremos em contato em breve.',
-      enableAutomation = false,
-      automationId = '',
-      enableRedirect = false,
-      redirectUrl = '',
-      redirectDelay = 2,
-      // Checkout Tracking defaults
-      enableCheckoutTracking = false,
-      checkoutUrl = '',
-      productName = '',
-      productPrice = '',
-      openCheckoutInNewTab = true,
-      // Thank You Screen defaults
-      skipThankYouScreen = false, // Pular agradecimento (só funciona com redirecionamento ativo)
-      thankYouTitle = 'Obrigado!',
-      thankYouSubtitle = 'Entraremos em contato em breve.',
-      thankYouIcon = 'checkmark',
-      thankYouIconColor = '#22c55e',
-      thankYouIconSize = 48,
-      thankYouButtonText = 'Voltar',
-      thankYouButtonColor = '#7c3aed',
-      thankYouShowButton = false,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id, actions: { setProp } } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, actions: { setProp }, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as CaptureFormProps,
     }))
     const { enabled: isEditorEnabled } = useEditor((state) => ({
       enabled: state.options.enabled,
     }))
     const { resolveResponsiveProp } = useEditorViewport()
+
+    // Extrair props de nodeProps com defaults
+    const title = nodeProps.title ?? 'Get Started Today'
+    const subtitle = nodeProps.subtitle ?? 'Join thousands of happy customers'
+    const buttonText = nodeProps.buttonText ?? 'Sign Up'
+    const buttonColor = nodeProps.buttonColor ?? '#7c3aed'
+    const backgroundColor = nodeProps.backgroundColor ?? '#f3f4f6'
+    const width = nodeProps.width ?? '100%'
+    const height = nodeProps.height ?? 'auto'
+    const fullWidth = nodeProps.fullWidth ?? true
+    const formContainerBorderRadius = nodeProps.formContainerBorderRadius ?? 12
+    const formContainerBorderWidth = nodeProps.formContainerBorderWidth ?? 1
+    const formContainerBorderColor = nodeProps.formContainerBorderColor ?? '#d1d5db'
+    const formPaddingTop = nodeProps.formPaddingTop ?? 40
+    const formPaddingBottom = nodeProps.formPaddingBottom ?? 40
+    const formPaddingLeft = nodeProps.formPaddingLeft ?? 20
+    const formPaddingRight = nodeProps.formPaddingRight ?? 20
+    const inputsDirection = nodeProps.inputsDirection ?? 'column'
+    const inputGap = nodeProps.inputGap ?? 12
+    const inputFields = nodeProps.inputFields ?? [
+      {
+        id: '1',
+        type: 'email' as const,
+        label: 'Email',
+        placeholder: 'Enter your email',
+        placeholderColor: '#9ca3af',
+        borderRadius: 6,
+        borderColor: '#d1d5db',
+        borderWidth: 1,
+        required: true,
+      },
+    ]
+    const inputPlaceholderColor = nodeProps.inputPlaceholderColor ?? '#9ca3af'
+    const titleFontSize = nodeProps.titleFontSize ?? 28
+    const titleColor = nodeProps.titleColor ?? '#000000'
+    const subtitleFontSize = nodeProps.subtitleFontSize ?? 16
+    const subtitleColor = nodeProps.subtitleColor ?? '#666666'
+    const buttonBorderRadius = nodeProps.buttonBorderRadius ?? 6
+    const buttonPadding = nodeProps.buttonPadding ?? 12
+    const buttonFontSize = nodeProps.buttonFontSize ?? 14
+    const textColor = nodeProps.textColor ?? '#ffffff'
+    const inputTextColor = nodeProps.inputTextColor ?? '#000000'
+    const leadGroupId = nodeProps.leadGroupId ?? ''
+    const successMessage = nodeProps.successMessage ?? 'Obrigado! Entraremos em contato em breve.'
+    const enableAutomation = nodeProps.enableAutomation ?? false
+    const automationId = nodeProps.automationId ?? ''
+    const enableRedirect = nodeProps.enableRedirect ?? false
+    const redirectUrl = nodeProps.redirectUrl ?? ''
+    const redirectDelay = nodeProps.redirectDelay ?? 2
+    // Checkout Tracking
+    const enableCheckoutTracking = nodeProps.enableCheckoutTracking ?? false
+    const checkoutUrl = nodeProps.checkoutUrl ?? ''
+    const productName = nodeProps.productName ?? ''
+    const productPrice = nodeProps.productPrice ?? ''
+    const openCheckoutInNewTab = nodeProps.openCheckoutInNewTab ?? true
+    // Thank You Screen
+    const skipThankYouScreen = nodeProps.skipThankYouScreen ?? false
+    const thankYouTitle = nodeProps.thankYouTitle ?? 'Obrigado!'
+    const thankYouSubtitle = nodeProps.thankYouSubtitle ?? 'Entraremos em contato em breve.'
+    const thankYouIcon = nodeProps.thankYouIcon ?? 'checkmark'
+    const thankYouIconColor = nodeProps.thankYouIconColor ?? '#22c55e'
+    const thankYouIconSize = nodeProps.thankYouIconSize ?? 48
+    const thankYouButtonText = nodeProps.thankYouButtonText ?? 'Voltar'
+    const thankYouButtonColor = nodeProps.thankYouButtonColor ?? '#7c3aed'
+    const thankYouShowButton = nodeProps.thankYouShowButton ?? false
     
     // Form state
     const [formData, setFormData] = React.useState<Record<string, string>>({})
@@ -1387,18 +1390,17 @@ interface StatsCounterProps {
 }
 
 const StatsCounterComponent = React.forwardRef<HTMLDivElement, StatsCounterProps>(
-  (
-    {
-      label = 'Happy Customers',
-      value = '10K',
-      suffix = '+',
-      backgroundColor = '#f9fafb',
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as StatsCounterProps,
     }))
+
+    // Extrair props com defaults
+    const label = nodeProps.label ?? 'Happy Customers'
+    const value = nodeProps.value ?? '10K'
+    const suffix = nodeProps.suffix ?? '+'
+    const backgroundColor = nodeProps.backgroundColor ?? '#f9fafb'
 
     return (
       <div
@@ -1454,43 +1456,46 @@ interface FAQItemProps {
   answer?: string
   backgroundColor?: string
   borderColor?: string
-  borderWidth?: number
-  borderRadius?: number
-  padding?: number
-  questionFontSize?: number
+  borderWidth?: ResponsiveProp<number>
+  borderRadius?: ResponsiveProp<number>
+  padding?: ResponsiveProp<number>
+  questionFontSize?: ResponsiveProp<number>
   questionColor?: string
   questionFontWeight?: 'normal' | 'bold' | '500' | '600' | '700'
-  answerFontSize?: number
+  answerFontSize?: ResponsiveProp<number>
   answerColor?: string
-  answerLineHeight?: number
+  answerLineHeight?: ResponsiveProp<number>
   iconColor?: string
-  iconSize?: number
+  iconSize?: ResponsiveProp<number>
 }
 
 const FAQItemComponent = React.forwardRef<HTMLDivElement, FAQItemProps>(
-  (
-    {
-      question = 'What is this product?',
-      answer = 'This is a great product that solves your problems.',
-      backgroundColor = '#ffffff',
-      borderColor = '#e5e7eb',
-      borderWidth = 1,
-      borderRadius = 8,
-      padding = 16,
-      questionFontSize = 16,
-      questionColor = '#1a1a1a',
-      questionFontWeight = 'bold',
-      answerFontSize = 14,
-      answerColor = '#666666',
-      answerLineHeight = 1.6,
-      iconColor = '#1a1a1a',
-      iconSize = 16,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as FAQItemProps,
     }))
+    
+    const { resolveResponsiveProp } = useEditorViewport()
+
+    // Extrair props com defaults
+    const question = nodeProps.question ?? 'What is this product?'
+    const answer = nodeProps.answer ?? 'This is a great product that solves your problems.'
+    const backgroundColor = nodeProps.backgroundColor ?? '#ffffff'
+    const borderColor = nodeProps.borderColor ?? '#e5e7eb'
+    const questionColor = nodeProps.questionColor ?? '#1a1a1a'
+    const questionFontWeight = nodeProps.questionFontWeight ?? 'bold'
+    const answerColor = nodeProps.answerColor ?? '#666666'
+    const iconColor = nodeProps.iconColor ?? '#1a1a1a'
+    
+    // Props responsivas
+    const borderWidth = resolveResponsiveProp(nodeProps.borderWidth as ResponsiveProp<number>, 1)
+    const borderRadius = resolveResponsiveProp(nodeProps.borderRadius as ResponsiveProp<number>, 8)
+    const padding = resolveResponsiveProp(nodeProps.padding as ResponsiveProp<number>, 16)
+    const questionFontSize = resolveResponsiveProp(nodeProps.questionFontSize as ResponsiveProp<number>, 16)
+    const answerFontSize = resolveResponsiveProp(nodeProps.answerFontSize as ResponsiveProp<number>, 14)
+    const answerLineHeight = resolveResponsiveProp(nodeProps.answerLineHeight as ResponsiveProp<number>, 1.6)
+    const iconSize = resolveResponsiveProp(nodeProps.iconSize as ResponsiveProp<number>, 16)
 
     const [isOpen, setIsOpen] = React.useState(false)
 
@@ -1594,16 +1599,15 @@ interface TrustBadgesProps {
 }
 
 const TrustBadgesComponent = React.forwardRef<HTMLDivElement, TrustBadgesProps>(
-  (
-    {
-      badges = ['🔒 SSL Secured', '✓ Money-Back Guarantee', '⭐ 4.9/5 Rating'],
-      backgroundColor = '#f9fafb',
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as TrustBadgesProps,
     }))
+
+    // Extrair props com defaults
+    const badges = nodeProps.badges ?? ['🔒 SSL Secured', '✓ Money-Back Guarantee', '⭐ 4.9/5 Rating']
+    const backgroundColor = nodeProps.backgroundColor ?? '#f9fafb'
 
     return (
       <div
@@ -1676,41 +1680,66 @@ export const TrustBadges = TrustBadgesComponent
 interface ImageComponentProps {
   src?: string
   alt?: string
-  width?: string | number
-  height?: string | number
+  width?: ResponsiveProp<string | number>
+  height?: ResponsiveProp<string | number>
   objectFit?: 'cover' | 'contain' | 'fill' | 'scale-down'
-  borderRadius?: number
+  borderRadius?: ResponsiveProp<number>
   caption?: string
   captionPosition?: 'bottom' | 'top'
   showBorder?: boolean
   borderColor?: string
-  borderWidth?: number
+  borderWidth?: ResponsiveProp<number>
   shadow?: 'none' | 'sm' | 'md' | 'lg'
-  maxWidth?: string | number
+  maxWidth?: ResponsiveProp<string | number>
 }
 
 const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps>(
-  (
-    {
-      src = 'https://via.placeholder.com/600x400?text=Image',
-      alt = 'Image',
-      width = '100%',
-      height = '400px',
-      objectFit = 'cover',
-      borderRadius = 12,
-      caption = '',
-      captionPosition = 'bottom',
-      showBorder = false,
-      borderColor = '#e5e7eb',
-      borderWidth = 1,
-      shadow = 'md',
-      maxWidth = '100%',
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as ImageComponentProps,
     }))
+    
+    const { resolveResponsiveProp } = useEditorViewport()
+
+    // Extrair props com defaults
+    const src = nodeProps.src ?? 'https://via.placeholder.com/600x400?text=Image'
+    const alt = nodeProps.alt ?? 'Image'
+    const objectFit = nodeProps.objectFit ?? 'cover'
+    const caption = nodeProps.caption ?? ''
+    const captionPosition = nodeProps.captionPosition ?? 'bottom'
+    const showBorder = nodeProps.showBorder ?? false
+    const borderColor = nodeProps.borderColor ?? '#e5e7eb'
+    const shadow = nodeProps.shadow ?? 'md'
+    const maxWidth = nodeProps.maxWidth ?? undefined
+    
+    // Props responsivas
+    const borderRadius = resolveResponsiveProp(nodeProps.borderRadius as ResponsiveProp<number>, 12)
+    const borderWidth = resolveResponsiveProp(nodeProps.borderWidth as ResponsiveProp<number>, 1)
+    
+    // Processar width e height corretamente
+    const rawWidth = resolveResponsiveProp(nodeProps.width as ResponsiveProp<string | number>, '100%')
+    const rawHeight = resolveResponsiveProp(nodeProps.height as ResponsiveProp<string | number>, 400)
+    
+    // Converter para valores CSS válidos
+    const computedWidth = typeof rawWidth === 'number' 
+      ? `${rawWidth}px` 
+      : (rawWidth === 'auto' ? 'auto' : String(rawWidth))
+    
+    const computedHeight = typeof rawHeight === 'number' 
+      ? `${rawHeight}px` 
+      : (rawHeight === 'auto' ? 'auto' : String(rawHeight))
+    
+    // Para o sizes do Next Image
+    const numericWidth = typeof rawWidth === 'number' 
+      ? rawWidth 
+      : (typeof rawWidth === 'string' && rawWidth.endsWith('%') ? 600 : parseInt(String(rawWidth)) || 600)
+
+    // Max width opcional (quando não definido, não limitar)
+    const resolvedMaxWidth = resolveResponsiveProp(maxWidth as ResponsiveProp<string | number>, 'none' as string | number)
+    const computedMaxWidth = resolvedMaxWidth === 'none'
+      ? 'none'
+      : (typeof resolvedMaxWidth === 'number' ? `${resolvedMaxWidth}px` : String(resolvedMaxWidth))
     
     const [imageError, setImageError] = React.useState(false)
 
@@ -1720,9 +1749,6 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
       md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
       lg: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
     }
-
-    // Converter dimensões para números se necessário
-    const numericWidth = typeof width === 'string' && width.endsWith('%') ? 600 : (typeof width === 'string' ? parseInt(width) : width)
 
     return (
       <div
@@ -1743,7 +1769,7 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
           display: 'flex',
           flexDirection: 'column',
           gap: caption ? '12px' : '0',
-          maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth,
+          maxWidth: computedMaxWidth,
         }}
       >
         {caption && captionPosition === 'top' && (
@@ -1763,8 +1789,8 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
         <div
           style={{
             position: 'relative',
-            width: typeof width === 'number' ? `${width}px` : width,
-            height: typeof height === 'number' ? `${height}px` : height,
+            width: computedWidth,
+            height: computedHeight,
             borderRadius: `${borderRadius}px`,
             overflow: 'hidden',
             border: showBorder ? `${borderWidth}px solid ${borderColor}` : 'none',
@@ -1777,7 +1803,7 @@ const ImageComponentInner = React.forwardRef<HTMLDivElement, ImageComponentProps
               src={src}
               alt={alt}
               fill
-              sizes={typeof width === 'string' && width.endsWith('%') ? '100vw' : `${numericWidth}px`}
+              sizes={computedWidth.endsWith('%') ? '100vw' : `${numericWidth}px`}
               style={{
                 objectFit: objectFit as React.CSSProperties['objectFit'],
                 objectPosition: 'center',
@@ -1844,7 +1870,7 @@ export const ImageComponent = ImageComponentInner
     src: 'https://via.placeholder.com/600x400?text=Image',
     alt: 'Image',
     width: '100%',
-    height: '400px',
+    height: 400,
     objectFit: 'cover',
     borderRadius: 12,
     caption: '',
@@ -1873,7 +1899,7 @@ interface VSLProps {
   controls?: boolean
   muted?: boolean
   loop?: boolean
-  borderRadius?: number
+  borderRadius?: ResponsiveProp<number>
   backgroundColor?: string
   playButtonColor?: string
   playButtonSize?: number
@@ -1884,40 +1910,43 @@ interface VSLProps {
   paddingBottom?: number
   paddingLeft?: number
   paddingRight?: number
-  playerWidth?: number
+  playerWidth?: ResponsiveProp<number>
 }
 
 const VSLComponent = React.forwardRef<HTMLDivElement, VSLProps>(
-  (
-    {
-      videoSource = 'youtube',
-      youtubeUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-      videoUrl = '',
-      width = '100%',
-      height = 500,
-      aspectRatio = '16 / 9',
-      autoplay = false,
-      controls = true,
-      muted = false,
-      loop = false,
-      borderRadius = 12,
-      backgroundColor = '#000000',
-      playButtonColor = '#ff0000',
-      playButtonSize = 80,
-      showThumbnail = true,
-      thumbnailUrl = '',
-      padding = 20,
-      paddingTop,
-      paddingBottom,
-      paddingLeft,
-      paddingRight,
-      playerWidth = 960,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
       isSelected: node.events.selected,
+      nodeProps: node.data.props as VSLProps,
     }))
+    
+    const { resolveResponsiveProp } = useEditorViewport()
+
+    // Extrair props com defaults
+    const videoSource = nodeProps.videoSource ?? 'youtube'
+    const youtubeUrl = nodeProps.youtubeUrl ?? 'https://www.youtube.com/embed/dQw4w9WgXcQ'
+    const videoUrl = nodeProps.videoUrl ?? ''
+    const width = nodeProps.width ?? '100%'
+    const height = nodeProps.height ?? 500
+    const aspectRatio = nodeProps.aspectRatio ?? '16 / 9'
+    const autoplay = nodeProps.autoplay ?? false
+    const controls = nodeProps.controls ?? true
+    const muted = nodeProps.muted ?? false
+    const loop = nodeProps.loop ?? false
+    const backgroundColor = nodeProps.backgroundColor ?? '#000000'
+    const playButtonColor = nodeProps.playButtonColor ?? '#ff0000'
+    const playButtonSize = nodeProps.playButtonSize ?? 80
+    const showThumbnail = nodeProps.showThumbnail ?? true
+    const thumbnailUrl = nodeProps.thumbnailUrl ?? ''
+    const padding = nodeProps.padding ?? 20
+    const paddingTop = nodeProps.paddingTop
+    const paddingBottom = nodeProps.paddingBottom
+    const paddingLeft = nodeProps.paddingLeft
+    const paddingRight = nodeProps.paddingRight
+    
+    // Props responsivas
+    const borderRadius = resolveResponsiveProp(nodeProps.borderRadius as ResponsiveProp<number>, 12)
+    const playerWidth = resolveResponsiveProp(nodeProps.playerWidth as ResponsiveProp<number>, 960)
     const [showPlayer, setShowPlayer] = React.useState(!showThumbnail || !thumbnailUrl)
     const videoRef = React.useRef<HTMLVideoElement>(null)
 
@@ -2137,7 +2166,7 @@ export const VSL = VSLComponent
 interface CountdownTimerProps {
   targetDate?: string // ISO date string
   title?: string
-  titleFontSize?: number
+  titleFontSize?: ResponsiveProp<number>
   titleColor?: string
   
   // Exibição
@@ -2146,15 +2175,15 @@ interface CountdownTimerProps {
   showMinutes?: boolean
   showSeconds?: boolean
   
-  // Estilos dos dígitos
-  digitFontSize?: number
+  // Estilos dos dígitos (responsivos)
+  digitFontSize?: ResponsiveProp<number>
   digitColor?: string
   digitBackgroundColor?: string
-  digitBorderRadius?: number
-  digitPadding?: number
+  digitBorderRadius?: ResponsiveProp<number>
+  digitPadding?: ResponsiveProp<number>
   
-  // Estilos dos labels
-  labelFontSize?: number
+  // Estilos dos labels (responsivos)
+  labelFontSize?: ResponsiveProp<number>
   labelColor?: string
   
   // Dimensões
@@ -2163,49 +2192,56 @@ interface CountdownTimerProps {
   cardFullWidth?: boolean
   cardAutoHeight?: boolean
   
-  // Layout
+  // Layout (responsivos)
   alignment?: 'left' | 'center' | 'right'
-  gapBetweenUnits?: number
+  gapBetweenUnits?: ResponsiveProp<number>
   backgroundColor?: string
-  borderRadius?: number
-  padding?: number
+  borderRadius?: ResponsiveProp<number>
+  padding?: ResponsiveProp<number>
 }
 
 const CountdownTimerComponent = React.forwardRef<HTMLDivElement, CountdownTimerProps>(
-  (
-    {
-      targetDate = new Date(Date.now() + 86400000).toISOString(), // 24 horas a partir de agora
-      title = 'Oferta termina em:',
-      titleFontSize = 20,
-      titleColor = '#000000',
-      
-      showDays = true,
-      showHours = true,
-      showMinutes = true,
-      showSeconds = true,
-      
-      digitFontSize = 32,
-      digitColor = '#ffffff',
-      digitBackgroundColor = '#ff6b35',
-      digitBorderRadius = 8,
-      digitPadding = 12,
-      
-      labelFontSize = 12,
-      labelColor = '#666666',
-      
-      width = '100%',
-      height = 'auto',
-      cardFullWidth = true,
-      cardAutoHeight = true,
-      
-      alignment = 'center',
-      gapBetweenUnits = 16,
-      backgroundColor = '#ffffff',
-      borderRadius = 12,
-      padding = 24,
-    },
-    ref
-  ) => {
+  (_, ref) => {
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
+      isSelected: node.events.selected,
+      nodeProps: node.data.props as CountdownTimerProps,
+    }))
+    
+    const { resolveResponsiveProp } = useEditorViewport()
+
+    // Extrair props com defaults
+    const targetDate = nodeProps.targetDate ?? new Date(Date.now() + 86400000).toISOString()
+    const title = nodeProps.title ?? 'Oferta termina em:'
+    const titleColor = nodeProps.titleColor ?? '#000000'
+    
+    const showDays = nodeProps.showDays ?? true
+    const showHours = nodeProps.showHours ?? true
+    const showMinutes = nodeProps.showMinutes ?? true
+    const showSeconds = nodeProps.showSeconds ?? true
+    
+    const digitColor = nodeProps.digitColor ?? '#ffffff'
+    const digitBackgroundColor = nodeProps.digitBackgroundColor ?? '#ff6b35'
+    
+    const labelColor = nodeProps.labelColor ?? '#666666'
+    
+    const width = nodeProps.width ?? '100%'
+    const height = nodeProps.height ?? 'auto'
+    const cardFullWidth = nodeProps.cardFullWidth ?? true
+    const cardAutoHeight = nodeProps.cardAutoHeight ?? true
+    
+    const alignment = nodeProps.alignment ?? 'center'
+    const backgroundColor = nodeProps.backgroundColor ?? '#ffffff'
+    
+    // Props responsivas
+    const titleFontSize = resolveResponsiveProp(nodeProps.titleFontSize as ResponsiveProp<number>, 20)
+    const digitFontSize = resolveResponsiveProp(nodeProps.digitFontSize as ResponsiveProp<number>, 32)
+    const digitBorderRadius = resolveResponsiveProp(nodeProps.digitBorderRadius as ResponsiveProp<number>, 8)
+    const digitPadding = resolveResponsiveProp(nodeProps.digitPadding as ResponsiveProp<number>, 12)
+    const labelFontSize = resolveResponsiveProp(nodeProps.labelFontSize as ResponsiveProp<number>, 12)
+    const gapBetweenUnits = resolveResponsiveProp(nodeProps.gapBetweenUnits as ResponsiveProp<number>, 16)
+    const borderRadius = resolveResponsiveProp(nodeProps.borderRadius as ResponsiveProp<number>, 12)
+    const padding = resolveResponsiveProp(nodeProps.padding as ResponsiveProp<number>, 24)
+
     const [timeLeft, setTimeLeft] = React.useState({
       days: 0,
       hours: 0,
@@ -2214,10 +2250,6 @@ const CountdownTimerComponent = React.forwardRef<HTMLDivElement, CountdownTimerP
     })
 
     const [isExpired, setIsExpired] = React.useState(false)
-
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
-      isSelected: node.events.selected,
-    }))
 
     React.useEffect(() => {
       const calculateTimeLeft = () => {

@@ -150,23 +150,72 @@ export function useResolvedProps<T extends Record<string, unknown>>(
  * Lista de propriedades que suportam valores responsivos
  */
 export const RESPONSIVE_PROPS = [
+  // Padding
   'paddingTop',
   'paddingBottom',
   'paddingLeft',
   'paddingRight',
+  'padding',
+  'formPaddingTop',
+  'formPaddingBottom',
+  'formPaddingLeft',
+  'formPaddingRight',
+  'digitPadding',
+  // Margins
   'marginTop',
   'marginBottom',
   'marginLeft',
   'marginRight',
-  'gap',
-  'fontSize',
+  'margin',
+  // Dimensões
   'width',
   'height',
   'minHeight',
+  'playerWidth',
+  // Layout
+  'gap',
+  'inputGap',
+  'gapBetweenUnits',
   'flexDirection',
   'display',
   'justifyContent',
   'alignItems',
+  // Tipografia - Geral
+  'fontSize',
+  'titleFontSize',
+  'subtitleFontSize',
+  'descriptionFontSize',
+  'iconFontSize',
+  'brandNameFontSize',
+  'linksFontSize',
+  'copyrightFontSize',
+  'headingFontSize',
+  'questionFontSize',
+  'answerFontSize',
+  'buttonFontSize',
+  'originalPriceFontSize',
+  'discountPercentageFontSize',
+  'answerLineHeight',
+  // Tipografia - Preços e Valores
+  'priceFontSize',
+  'periodFontSize',
+  'featuresFontSize',
+  'labelFontSize',
+  'digitFontSize',
+  // Bordas
+  'borderRadius',
+  'borderRadiusTopLeft',
+  'borderRadiusTopRight',
+  'borderRadiusBottomRight',
+  'borderRadiusBottomLeft',
+  'formContainerBorderRadius',
+  'buttonBorderRadius',
+  'digitBorderRadius',
+  'borderWidth',
+  'formContainerBorderWidth',
+  // Outros
+  'iconSize',
+  'buttonPadding',
 ] as const
 
 export type ResponsivePropName = typeof RESPONSIVE_PROPS[number]

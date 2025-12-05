@@ -97,26 +97,37 @@ export const HeroSection = HeroSectionComponent
 
 interface TextBlockProps {
   content?: string
-  fontSize?: number
+  fontSize?: ResponsiveProp<number>
   color?: string
   alignment?: 'left' | 'center' | 'right'
-  width?: string | number
-  height?: string | number
+  width?: ResponsiveProp<number> | string
+  height?: ResponsiveProp<number> | string
   fullWidth?: boolean
   autoHeight?: boolean
-  padding?: number
+  padding?: ResponsiveProp<number>
   fontFamily?: string
   fontWeight?: React.CSSProperties['fontWeight']
-  marginTop?: number
-  marginBottom?: number
-  marginLeft?: number
-  marginRight?: number
+  marginTop?: ResponsiveProp<number>
+  marginBottom?: ResponsiveProp<number>
+  marginLeft?: ResponsiveProp<number>
+  marginRight?: ResponsiveProp<number>
   marginLinked?: boolean
 }
 
 const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
   (
-    {
+    { children: _children },
+    ref
+  ) => {
+    const { resolveResponsiveProp } = useEditorViewport()
+    
+    const { connectors: { connect, drag }, isSelected, id, nodeProps } = useNode((node) => ({
+      isSelected: node.events.selected,
+      nodeProps: node.data.props as TextBlockProps,
+    }))
+    
+    // Extrair props do nó com valores padrão
+    const {
       content = 'Edite este texto',
       fontSize = 16,
       color = '#000000',
@@ -132,12 +143,21 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
       marginBottom = 0,
       marginLeft = 0,
       marginRight = 0,
-    },
-    ref
-  ) => {
-    const { connectors: { connect, drag }, isSelected, id } = useNode((node) => ({
-      isSelected: node.events.selected,
-    }))
+    } = nodeProps || {}
+    
+    // Resolver valores responsivos
+    const resolvedFontSize = resolveResponsiveProp(fontSize, 16)
+    const resolvedPadding = resolveResponsiveProp(padding, 20)
+    const resolvedMarginTop = resolveResponsiveProp(marginTop, 0)
+    const resolvedMarginBottom = resolveResponsiveProp(marginBottom, 0)
+    const resolvedMarginLeft = resolveResponsiveProp(marginLeft, 0)
+    const resolvedMarginRight = resolveResponsiveProp(marginRight, 0)
+    const resolvedWidth = typeof width === 'number' || typeof width === 'object' 
+      ? resolveResponsiveProp(width as ResponsiveProp<number>, 300) 
+      : width
+    const resolvedHeight = typeof height === 'number' || typeof height === 'object'
+      ? resolveResponsiveProp(height as ResponsiveProp<number>, 0)
+      : height
 
     return (
       <div
@@ -153,23 +173,23 @@ const TextBlockComponent = React.forwardRef<HTMLDivElement, TextBlockProps>(
         }}
         data-node-id={id}
         style={{
-          padding: `${padding}px`,
-          width: fullWidth ? '100%' : (typeof width === 'number' ? `${width}px` : width),
-          height: autoHeight ? 'auto' : (typeof height === 'number' ? `${height}px` : height),
+          padding: `${resolvedPadding}px`,
+          width: fullWidth ? '100%' : (typeof resolvedWidth === 'number' ? `${resolvedWidth}px` : resolvedWidth),
+          height: autoHeight ? 'auto' : (typeof resolvedHeight === 'number' && resolvedHeight > 0 ? `${resolvedHeight}px` : 'auto'),
           border: isSelected ? '2px solid #3b82f6' : 'none',
           cursor: 'move',
           boxSizing: 'border-box' as const,
-          marginTop: `${marginTop}px`,
-          marginBottom: `${marginBottom}px`,
-          marginLeft: `${marginLeft}px`,
-          marginRight: `${marginRight}px`,
+          marginTop: `${resolvedMarginTop}px`,
+          marginBottom: `${resolvedMarginBottom}px`,
+          marginLeft: `${resolvedMarginLeft}px`,
+          marginRight: `${resolvedMarginRight}px`,
         }}
         className="w-full"
       >
         <p
           style={{
             color,
-            fontSize: `${fontSize}px`,
+            fontSize: `${resolvedFontSize}px`,
             textAlign: alignment,
             margin: '0',
             lineHeight: '1.6',
@@ -383,6 +403,31 @@ interface ContainerProps {
 const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
   (
     {
+      children,
+    },
+    ref
+  ) => {
+    // Hook para resolver props responsivas baseado no viewport atual
+    const { resolveResponsiveProp } = useEditorViewport()
+    
+    // Subscrever a TODAS as mudanças de props + eventos para garantir re-renderização em tempo real
+    // IMPORTANTE: Precisamos retornar os valores das props para usá-los na renderização
+    const { 
+      connectors: { connect, drag }, 
+      isSelected, 
+      parentId, 
+      id,
+      // Props do nó - estas são as props atualizadas em tempo real
+      nodeProps
+    } = useNode((node) => ({
+      isSelected: node.events.selected,
+      parentId: node.data.parent,
+      // Retorna todas as props do nó para uso na renderização
+      nodeProps: node.data.props as ContainerProps,
+    }))
+    
+    // Extrair props do nó com valores padrão
+    const {
       backgroundColor = '#ffffff',
       backgroundImage = '',
       paddingTop = 20,
@@ -414,12 +459,7 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
       minHeight = 200,
       screenHeight = false,
       sectionId = '',
-      children,
-    },
-    ref
-  ) => {
-    // Hook para resolver props responsivas baseado no viewport atual
-    const { resolveResponsiveProp } = useEditorViewport()
+    } = nodeProps || {}
     
     // Resolver todas as props responsivas para o viewport atual
     const resolvedPaddingTop = resolveResponsiveProp(paddingTop, 20)
@@ -438,45 +478,6 @@ const ContainerComponent = React.forwardRef<HTMLDivElement, ContainerProps>(
     const resolvedJustifyContent = resolveResponsiveProp(justifyContent, 'flex-start')
     const resolvedAlignItems = resolveResponsiveProp(alignItems, 'stretch')
     const resolvedMinHeightProp = resolveResponsiveProp(minHeight, 200)
-    
-    // Subscrever a TODAS as mudanças de props + eventos para garantir re-renderização em tempo real
-    const { connectors: { connect, drag }, isSelected, parentId, id } = useNode((node) => ({
-      isSelected: node.events.selected,
-      parentId: node.data.parent,
-      // Subscrever a todas as props para forçar re-render quando mudam
-      backgroundColor: node.data.props.backgroundColor,
-      backgroundImage: node.data.props.backgroundImage,
-      paddingTop: node.data.props.paddingTop,
-      paddingBottom: node.data.props.paddingBottom,
-      paddingLeft: node.data.props.paddingLeft,
-      paddingRight: node.data.props.paddingRight,
-      paddingLinked: node.data.props.paddingLinked,
-      marginTop: node.data.props.marginTop,
-      marginBottom: node.data.props.marginBottom,
-      marginLeft: node.data.props.marginLeft,
-      marginRight: node.data.props.marginRight,
-      marginLinked: node.data.props.marginLinked,
-      fullBleed: node.data.props.fullBleed,
-      display: node.data.props.display,
-      flexDirection: node.data.props.flexDirection,
-      gap: node.data.props.gap,
-      width: node.data.props.width,
-      height: node.data.props.height,
-      fullWidth: node.data.props.fullWidth,
-      flex: node.data.props.flex,
-      justifyContent: node.data.props.justifyContent,
-      alignItems: node.data.props.alignItems,
-      borderRadius: node.data.props.borderRadius,
-      borderRadiusTopLeft: node.data.props.borderRadiusTopLeft,
-      borderRadiusTopRight: node.data.props.borderRadiusTopRight,
-      borderRadiusBottomRight: node.data.props.borderRadiusBottomRight,
-      borderRadiusBottomLeft: node.data.props.borderRadiusBottomLeft,
-      borderRadiusLinked: node.data.props.borderRadiusLinked,
-      borderColor: node.data.props.borderColor,
-      borderWidth: node.data.props.borderWidth,
-      minHeight: node.data.props.minHeight,
-      screenHeight: node.data.props.screenHeight,
-    }))
     
     const { parentSpacing } = useEditor((state) => {
       const parentNode = parentId ? state.nodes[parentId] : undefined

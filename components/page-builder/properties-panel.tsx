@@ -12,12 +12,13 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { ChevronDown, Calendar as CalendarIcon, Monitor, Tablet, Smartphone } from 'lucide-react'
+import { ChevronDown, Calendar as CalendarIcon, Monitor, Tablet, Smartphone, ImageIcon } from 'lucide-react'
 import { AVAILABLE_FONTS } from '@/lib/fonts'
 import { getUserPages } from '@/lib/actions/pages'
-import { useViewport, ViewportMode, ResponsiveProp } from '@/contexts/viewport-context'
-import { setResponsiveValue, getViewportValue, hasViewportOverride } from '@/lib/responsive-props'
+import { useViewport, ViewportMode, ResponsiveProp, isResponsiveValue } from '@/contexts/viewport-context'
+import { setResponsiveValue, getViewportValue, hasViewportOverride, isResponsivePropName } from '@/lib/responsive-props'
 import { cn } from '@/lib/utils'
+import { ImageGalleryDialog } from './image-gallery-dialog'
 
 /**
  * Componente para selecionar grupo de leads no CaptureForm
@@ -251,6 +252,60 @@ function AutomationSelect({ nodeId, enableAutomation, automationId, setProp }: A
           )}
         </>
       )}
+    </div>
+  )
+}
+
+/**
+ * Componente para selecionar imagem da galeria ou URL externa
+ */
+interface ImageSourceInputProps {
+  nodeId: string
+  value: string
+  setProp: (nodeId: string, callback: (props: Record<string, unknown>) => void) => void
+}
+
+function ImageSourceInput({ nodeId, value, setProp }: ImageSourceInputProps) {
+  const [galleryOpen, setGalleryOpen] = useState(false)
+
+  const handleSelectImage = (url: string) => {
+    setProp(nodeId, (pr: Record<string, unknown>) => {
+      pr.src = url
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium">URL da Imagem</Label>
+      <div className="flex gap-2">
+        <Input
+          type="url"
+          value={value}
+          onChange={(e) =>
+            setProp(nodeId, (pr: Record<string, unknown>) => {
+              pr.src = e.target.value
+            })
+          }
+          className="text-xs flex-1"
+          placeholder="https://exemplo.com/imagem.jpg"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => setGalleryOpen(true)}
+          title="Abrir galeria de imagens"
+        >
+          <ImageIcon className="w-4 h-4" />
+        </Button>
+      </div>
+      
+      <ImageGalleryDialog
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+        onSelectImage={handleSelectImage}
+        currentUrl={value}
+      />
     </div>
   )
 }
@@ -3968,6 +4023,18 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       if (['src', 'alt'].includes(key)) {
         const labelText = key === 'src' ? 'URL da Imagem' : 'Texto Alternativo'
         
+        // Renderizar src com botão de galeria
+        if (key === 'src') {
+          return (
+            <ImageSourceInput
+              key={key}
+              nodeId={nodeId}
+              value={String(value) || ''}
+              setProp={setProp}
+            />
+          )
+        }
+        
         return (
           <div key={key} className="space-y-2">
             <Label className="text-xs font-medium">{labelText}</Label>
@@ -4060,12 +4127,29 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
     }
 
     // Números (sliders para propriedades específicas)
-    if (typeof processedValue === 'number' && key !== 'fontWeight') {
+    // Detectar se o valor é responsivo ou número simples
+    const rawValue = value
+    const isResponsive = isResponsivePropName(key)
+    const numericValue = isResponsive 
+      ? getViewportValue(rawValue as ResponsiveProp<number>, currentViewport, typeof processedValue === 'number' ? processedValue : 0)
+      : (typeof processedValue === 'number' ? processedValue : 0)
+    
+    if ((typeof processedValue === 'number' || (isResponsive && (typeof rawValue === 'number' || isResponsiveValue(rawValue)))) && key !== 'fontWeight') {
       const isSlider = [
         'fontSize',
         'titleFontSize',
+        'subtitleFontSize',
         'descriptionFontSize',
         'iconFontSize',
+        'brandNameFontSize',
+        'linksFontSize',
+        'copyrightFontSize',
+        'headingFontSize',
+        'questionFontSize',
+        'answerFontSize',
+        'buttonFontSize',
+        'originalPriceFontSize',
+        'discountPercentageFontSize',
         'padding',
         'paddingTop',
         'paddingBottom',
@@ -4073,35 +4157,67 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
         'paddingRight',
         'margin',
         'borderRadius',
+        'borderRadiusTopLeft',
+        'borderRadiusTopRight',
+        'borderRadiusBottomRight',
+        'borderRadiusBottomLeft',
+        'formContainerBorderRadius',
+        'buttonBorderRadius',
         'borderWidth',
+        'formContainerBorderWidth',
         'gap',
+        'inputGap',
         'flex',
         'width',
         'height',
         'minHeight',
         'playerWidth',
+        'iconSize',
+        'buttonPadding',
+        'answerLineHeight',
       ].includes(key)
 
       if (isSlider) {
         const maxValues: Record<string, number> = {
-          fontSize: 72,
-          titleFontSize: 72,
-          descriptionFontSize: 72,
-          iconFontSize: 100,
+          fontSize: 120,
+          titleFontSize: 120,
+          subtitleFontSize: 120,
+          descriptionFontSize: 120,
+          iconFontSize: 200,
+          brandNameFontSize: 72,
+          linksFontSize: 48,
+          copyrightFontSize: 48,
+          headingFontSize: 120,
+          questionFontSize: 72,
+          answerFontSize: 48,
+          buttonFontSize: 48,
+          originalPriceFontSize: 72,
+          discountPercentageFontSize: 48,
           padding: 500,
           paddingTop: 500,
           paddingBottom: 500,
           paddingLeft: 500,
           paddingRight: 500,
           margin: 500,
-          borderRadius: 50,
-          borderWidth: 10,
+          borderRadius: 100,
+          borderRadiusTopLeft: 100,
+          borderRadiusTopRight: 100,
+          borderRadiusBottomRight: 100,
+          borderRadiusBottomLeft: 100,
+          formContainerBorderRadius: 100,
+          buttonBorderRadius: 100,
+          borderWidth: 20,
+          formContainerBorderWidth: 20,
           gap: 200,
+          inputGap: 100,
           flex: 10,
           width: 1200,
           height: 800,
           minHeight: 1600,
           playerWidth: 2000,
+          iconSize: 200,
+          buttonPadding: 100,
+          answerLineHeight: 3,
         }
 
         // Se width e fullWidth está ativo, desabilita o controle
@@ -4114,28 +4230,81 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
             ? 'Full Width ativado'
             : null
 
+        // Handler para atualizar valores (responsivo ou simples)
+        const handleValueChange = (newValue: number) => {
+          const max = maxValues[key] || 100
+          const clampedValue = Math.min(Math.max(newValue, 0), max)
+          
+          setProp(nodeId, (pr: Record<string, unknown>) => {
+            if (isResponsive) {
+              // Atualiza apenas para o viewport atual
+              pr[key] = setResponsiveValue(pr[key] as ResponsiveProp<number>, clampedValue, currentViewport)
+            } else {
+              pr[key] = clampedValue
+            }
+          })
+        }
+
+        // Verificar se tem overrides por viewport para mostrar indicadores
+        const hasDesktopOverride = isResponsive && hasViewportOverride(rawValue as ResponsiveProp<number>, 'desktop')
+        const hasTabletOverride = isResponsive && hasViewportOverride(rawValue as ResponsiveProp<number>, 'tablet')
+        const hasMobileOverride = isResponsive && hasViewportOverride(rawValue as ResponsiveProp<number>, 'mobile')
+
+        const viewportIcons = {
+          desktop: Monitor,
+          tablet: Tablet,
+          mobile: Smartphone,
+        }
+
         const sliderContent = (
           <div key={key} className="space-y-2">
             <div className="flex justify-between items-center">
               <Label className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
               <div className="flex items-center gap-1">
+                {/* Indicadores de viewports com valores customizados */}
+                {isResponsive && (
+                  <TooltipProvider delayDuration={300}>
+                    <div className="flex gap-0.5 mr-2">
+                      {(['desktop', 'tablet', 'mobile'] as ViewportMode[]).map((vp) => {
+                        const Icon = viewportIcons[vp]
+                        const hasOverride = vp === 'desktop' ? hasDesktopOverride : vp === 'tablet' ? hasTabletOverride : hasMobileOverride
+                        const vpValue = getViewportValue(rawValue as ResponsiveProp<number>, vp, 0)
+                        
+                        return (
+                          <Tooltip key={vp}>
+                            <TooltipTrigger asChild>
+                              <div 
+                                className={cn(
+                                  "p-0.5 rounded cursor-pointer transition-colors",
+                                  hasOverride 
+                                    ? "bg-primary/20 text-primary" 
+                                    : "text-muted-foreground/40 hover:text-muted-foreground/60",
+                                  currentViewport === vp && "ring-1 ring-primary"
+                                )}
+                              >
+                                <Icon className="w-3 h-3" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              <p className="capitalize">{vp}: {hasOverride ? vpValue : 'herda'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )
+                      })}
+                    </div>
+                  </TooltipProvider>
+                )}
                 <Input
                   type="number"
-                  value={processedValue}
-                  onChange={(e) => {
-                    const newValue = parseInt(e.target.value) || 0
-                    const max = maxValues[key] || 100
-                    const clampedValue = Math.min(Math.max(newValue, 0), max)
-                    setProp(nodeId, (pr: Record<string, unknown>) => {
-                      pr[key] = clampedValue
-                    })
-                  }}
+                  value={numericValue}
+                  onChange={(e) => handleValueChange(parseInt(e.target.value) || 0)}
                   className="text-xs w-16 px-2 py-1"
                   min={0}
                   max={maxValues[key] || 100}
+                  step={key === 'answerLineHeight' ? 0.1 : 1}
                   disabled={isWidthLocked}
                 />
-                {(key === 'width' || key === 'height' || key === 'padding' || key === 'paddingTop' || key === 'paddingBottom' || key === 'paddingLeft' || key === 'paddingRight' || key === 'margin' || key === 'gap' || key === 'playerWidth') && (
+                {(key === 'width' || key === 'height' || key === 'padding' || key === 'paddingTop' || key === 'paddingBottom' || key === 'paddingLeft' || key === 'paddingRight' || key === 'margin' || key === 'gap' || key === 'playerWidth' || key.includes('borderRadius') || key.includes('borderWidth') || key.includes('Padding') || key.includes('Gap')) && (
                   <span className="text-xs text-muted-foreground">px</span>
                 )}
               </div>
@@ -4144,13 +4313,9 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
               <Slider
                 min={0}
                 max={maxValues[key] || 100}
-                step={key === 'flex' ? 0.1 : 1}
-                value={[processedValue as number]}
-                onValueChange={(v) =>
-                  setProp(nodeId, (pr: Record<string, unknown>) => {
-                    pr[key] = v[0]
-                  })
-                }
+                step={key === 'flex' || key === 'answerLineHeight' ? 0.1 : 1}
+                value={[numericValue]}
+                onValueChange={(v) => handleValueChange(v[0])}
               />
             )}
             {isWidthLocked && widthLockMessage && (
@@ -4202,10 +4367,14 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
                 <Label className="text-xs font-medium">Auto Height</Label>
                 <input
                   type="checkbox"
-                  checked={(value as number) === 0}
+                  checked={numericValue === 0}
                   onChange={(e) =>
                     setProp(nodeId, (pr: Record<string, unknown>) => {
-                      pr.height = e.target.checked ? 0 : 200
+                      if (isResponsive) {
+                        pr.height = setResponsiveValue(pr.height as ResponsiveProp<number>, e.target.checked ? 0 : 200, currentViewport)
+                      } else {
+                        pr.height = e.target.checked ? 0 : 200
+                      }
                     })
                   }
                   className="w-4 h-4 rounded cursor-pointer"
@@ -4228,10 +4397,14 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
           <Label className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
           <Input
             type="number"
-            value={processedValue}
+            value={numericValue}
             onChange={(e) =>
               setProp(nodeId, (pr: Record<string, unknown>) => {
-                pr[key] = parseInt(e.target.value)
+                if (isResponsive) {
+                  pr[key] = setResponsiveValue(pr[key] as ResponsiveProp<number>, parseInt(e.target.value) || 0, currentViewport)
+                } else {
+                  pr[key] = parseInt(e.target.value)
+                }
               })
             }
             className="text-xs"
@@ -4240,14 +4413,77 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       )
     }
 
-    // Selects para enum
+    // Selects responsivos para layout (display, flexDirection, justifyContent, alignItems)
     if (
-      key === 'alignment' ||
-      key === 'textAlignment' ||
       key === 'display' ||
       key === 'flexDirection' ||
       key === 'justifyContent' ||
-      key === 'alignItems' ||
+      key === 'alignItems'
+    ) {
+      const options: Record<string, string[]> = {
+        display: ['block', 'flex', 'grid'],
+        flexDirection: ['row', 'column'],
+        justifyContent: ['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'],
+        alignItems: ['flex-start', 'center', 'flex-end', 'stretch'],
+      }
+
+      const isResponsive = isResponsivePropName(key)
+      
+      // Obter o valor atual para o viewport
+      const currentViewportValue = isResponsive 
+        ? getViewportValue(value as ResponsiveProp<string>, currentViewport, options[key][0])
+        : (processedValue as string)
+      
+      // Verificar se há overrides em outros viewports
+      const hasDesktopOverride = isResponsive && hasViewportOverride(value as ResponsiveProp<string>, 'desktop')
+      const hasTabletOverride = isResponsive && hasViewportOverride(value as ResponsiveProp<string>, 'tablet')
+      const hasMobileOverride = isResponsive && hasViewportOverride(value as ResponsiveProp<string>, 'mobile')
+
+      return (
+        <div key={key} className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
+            {isResponsive && (
+              <div className="flex gap-1">
+                <span className={`text-[10px] ${hasDesktopOverride ? 'text-blue-500' : 'text-muted-foreground/40'}`} title="Desktop">🖥</span>
+                <span className={`text-[10px] ${hasTabletOverride ? 'text-green-500' : 'text-muted-foreground/40'}`} title="Tablet">📱</span>
+                <span className={`text-[10px] ${hasMobileOverride ? 'text-orange-500' : 'text-muted-foreground/40'}`} title="Mobile">📲</span>
+              </div>
+            )}
+          </div>
+          <Select 
+            value={currentViewportValue} 
+            onValueChange={(v) => {
+              if (isResponsive) {
+                setProp(nodeId, (pr: Record<string, unknown>) => { 
+                  pr[key] = setResponsiveValue(pr[key] as ResponsiveProp<string>, v, currentViewport)
+                })
+              } else {
+                setProp(nodeId, (pr: Record<string, unknown>) => { 
+                  pr[key] = v 
+                })
+              }
+            }}
+          >
+            <SelectTrigger className="text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options[key]?.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )
+    }
+
+    // Selects para enum (não responsivos)
+    if (
+      key === 'alignment' ||
+      key === 'textAlignment' ||
       key === 'fontFamily' ||
       key === 'fontWeight' ||
       key === 'questionFontWeight' ||
@@ -4257,10 +4493,6 @@ function PropertyPanelContent({ nodeId }: PropertyPanelContentProps) {
       const options: Record<string, string[]> = {
         alignment: ['left', 'center', 'right'],
         textAlignment: ['left', 'center', 'right'],
-        display: ['block', 'flex', 'grid'],
-        flexDirection: ['row', 'column'],
-        justifyContent: ['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'],
-        alignItems: ['flex-start', 'center', 'flex-end', 'stretch'],
         fontFamily: AVAILABLE_FONTS.map(f => `${f.variable}|${f.label}`),
         videoSource: ['youtube', 'upload'],
         aspectRatio: ['16 / 9', '4 / 3', '1 / 1', '9 / 16', '21 / 9'],

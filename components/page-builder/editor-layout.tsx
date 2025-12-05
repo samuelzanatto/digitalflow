@@ -129,9 +129,11 @@ interface CollaborationManagerProps {
 
 function CollaborationManager({ pageId, onRemoteChange }: CollaborationManagerProps) {
   const { query, actions } = useEditor()
-  const isProcessingRemoteRef = useRef(false)
   const lastSelectedNodeRef = useRef<string | null>(null)
-  const { setBroadcastPageSaved } = usePageBuilderCollaborationContext()
+  const { setBroadcastPageSaved, setCollaborators, setIsConnected } = usePageBuilderCollaborationContext()
+  
+  // Ref para armazenar setProcessingRemote do hook de colaboração
+  const setProcessingRemoteRef = useRef<(value: boolean) => void>(() => {})
 
   // Função para obter o estado serializado
   const getSerializedState = useCallback(() => {
@@ -146,14 +148,15 @@ function CollaborationManager({ pageId, onRemoteChange }: CollaborationManagerPr
   // Função para aplicar estado serializado
   const applySerializedState = useCallback((serialized: string) => {
     try {
-      isProcessingRemoteRef.current = true
+      // Usa a função do hook para sinalizar que está processando mudança remota
+      setProcessingRemoteRef.current(true)
       actions.deserialize(serialized)
       onRemoteChange?.()
     } catch (error) {
       console.error('[CollaborationManager] Error deserializing state:', error)
     } finally {
       setTimeout(() => {
-        isProcessingRemoteRef.current = false
+        setProcessingRemoteRef.current(false)
       }, 100)
     }
   }, [actions, onRemoteChange])
@@ -165,6 +168,7 @@ function CollaborationManager({ pageId, onRemoteChange }: CollaborationManagerPr
     broadcastNodeSelect,
     broadcastPageSaved,
     isProcessingRemote,
+    setProcessingRemote,
   } = usePageBuilderCollaboration({
     pageId,
     getSerializedState,
@@ -177,10 +181,24 @@ function CollaborationManager({ pageId, onRemoteChange }: CollaborationManagerPr
     },
   })
 
+  // Atualiza a ref com a função do hook
+  useEffect(() => {
+    setProcessingRemoteRef.current = setProcessingRemote
+  }, [setProcessingRemote])
+
   // Registra a função de broadcast no contexto
   useEffect(() => {
     setBroadcastPageSaved(broadcastPageSaved)
   }, [broadcastPageSaved, setBroadcastPageSaved])
+
+  // Sincroniza colaboradores e status de conexão com o contexto
+  useEffect(() => {
+    setCollaborators(collaborators)
+  }, [collaborators, setCollaborators])
+
+  useEffect(() => {
+    setIsConnected(isConnected)
+  }, [isConnected, setIsConnected])
 
   // Observa mudanças locais e faz broadcast
   const { nodes, selectedNodeId, selectedNodeName } = useEditor((state) => {
@@ -241,31 +259,11 @@ function CollaborationManager({ pageId, onRemoteChange }: CollaborationManagerPr
 /**
  * Componente que renderiza o overlay de seleção dentro do canvas
  * Deve ser renderizado dentro do craftjs-frame
+ * Usa o contexto para obter os colaboradores em vez de criar uma nova conexão
  */
-interface SelectionOverlayWrapperProps {
-  pageId: string
-}
-
-function SelectionOverlayWrapper({ pageId }: SelectionOverlayWrapperProps) {
-  const { query } = useEditor()
-  
-  // Função para obter o estado serializado (necessário para o hook)
-  const getSerializedState = useCallback(() => {
-    try {
-      return query.serialize()
-    } catch {
-      return null
-    }
-  }, [query])
-
-  // Função vazia para aplicar estado (não usada neste componente)
-  const applySerializedState = useCallback(() => {}, [])
-
-  const { collaborators } = usePageBuilderCollaboration({
-    pageId,
-    getSerializedState,
-    applySerializedState,
-  })
+function SelectionOverlayWrapper() {
+  // Obtém colaboradores do contexto compartilhado
+  const { collaborators } = usePageBuilderCollaborationContext()
 
   return <CollaboratorSelectionOverlay collaborators={collaborators} />
 }
@@ -439,7 +437,7 @@ export function EditorLayout({
                       </Frame>
                       
                       {/* Overlay de seleção de colaboradores - DEPOIS do Frame, sobre o conteúdo */}
-                      <SelectionOverlayWrapper pageId={pageId} />
+                      <SelectionOverlayWrapper />
                     </div>
                   </EditorViewportProvider>
                 </DeviceFrame>
