@@ -60,7 +60,6 @@ export async function POST(req: Request) {
       temperature: 0.7,
       system: ASSISTANT_PROMPT,
       messages: convertToModelMessages(messages),
-      maxSteps: 3,
       tools: {
         redirectToMap: {
           description: 'Redireciona o usuário para o mapa inteligente quando ele quer buscar estabelecimentos, lugares físicos, restaurantes, farmácias, hospitais, lojas, supermercados, postos de gasolina, cafés, bares, hotéis, escolas, academias ou qualquer local. Use SEMPRE que o usuário mencionar busca de lugares.',

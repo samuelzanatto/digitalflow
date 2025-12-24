@@ -345,7 +345,6 @@ export async function POST(req: Request) {
       temperature: 0.7,
       system: ASSISTANT_PROMPT,
       messages: convertToModelMessages(messages),
-      maxSteps: 3,
       tools: {
         searchPlaces: {
           description: 'Busca estabelecimentos ou lugares por nome ou tipo (restaurantes, farmácias, hospitais, bancos, supermercados, etc). Use quando o usuário quiser encontrar lugares específicos. Sempre busca em um raio de 15km para encontrar mais resultados.',

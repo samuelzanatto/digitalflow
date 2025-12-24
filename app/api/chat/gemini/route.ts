@@ -281,7 +281,6 @@ export async function POST(req: Request) {
       temperature: 0.7, // Alta criatividade para designs únicos
       system: CREATIVE_SYSTEM_PROMPT,
       messages: convertToModelMessages(messages),
-      maxSteps: 30, // Mais steps para designs complexos
       tools: {
         // ========== TOOL: INICIAR CANVAS CRIATIVO ==========
         startPageBuilder: tool({
