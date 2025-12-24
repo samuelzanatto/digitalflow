@@ -707,7 +707,7 @@ export default function MapaPage() {
   const { setPageHeader } = usePageHeader()
 
   useEffect(() => {
-    setPageHeader('Mapa de Trends', 'Contornos de países e continentes')
+    setPageHeader('Mapa de Trends', 'Trends do Momento ao Redor do Mundo')
   }, [setPageHeader])
 
   useEffect(() => {

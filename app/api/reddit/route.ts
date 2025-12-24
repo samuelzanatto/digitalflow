@@ -30,6 +30,9 @@ interface RedditResponse {
   };
 }
 
+// User-Agent realista para evitar bloqueios do Reddit
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
 /**
  * Valida se o título é adequado (não apenas emoji ou caracteres especiais)
  */
@@ -68,7 +71,7 @@ async function translateToPortuguese(text: string): Promise<string> {
     
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'DigitalFlow/1.0.0'
+        'User-Agent': USER_AGENT
       }
     });
 
@@ -81,6 +84,53 @@ async function translateToPortuguese(text: string): Promise<string> {
   } catch {
     return text; // Se falhar, retorna texto original
   }
+}
+
+/**
+ * Busca com retry para lidar com rate limiting
+ */
+async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        next: { revalidate: 3600 } // Cache por 1 hora
+      });
+
+      // Se tiver sucesso, retorna
+      if (res.ok) {
+        return res;
+      }
+
+      // Se for 429 (rate limit) ou 503 (service unavailable), tenta novamente
+      if ((res.status === 429 || res.status === 503) && i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000; // Exponential backoff: 1s, 2s, 4s
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Outros erros, retorna a resposta
+      return res;
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Tenta novamente em caso de erro de rede
+      if (i < maxRetries - 1) {
+        const delay = Math.pow(2, i) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+  }
+
+  // Se chegou aqui, todas as tentativas falharam
+  throw lastError || new Error('Falha ao buscar do Reddit após todas as tentativas');
 }
 
 export async function GET(request: NextRequest) {
@@ -103,39 +153,42 @@ export async function GET(request: NextRequest) {
     for (const sub of subreddits) {
       const url = `https://www.reddit.com/r/${sub}/top.json?t=${time}&limit=${perSubredditLimit}`;
       
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'DigitalFlow/1.0.0'
-        },
-        next: { revalidate: 3600 } // Cache por 1 hora
-      });
+      try {
+        const res = await fetchWithRetry(url);
 
-      if (!res.ok) {
-        console.error(`Falha ao buscar r/${sub}: ${res.status}`);
+        if (!res.ok) {
+          console.error(`Falha ao buscar r/${sub}: ${res.status}`);
+          continue;
+        }
+
+        const data = await res.json() as RedditResponse;
+        
+        const trends = data.data.children
+          .map((post) => ({
+            title: post.data.title,
+            score: post.data.score,
+            url: `https://reddit.com${post.data.permalink}`,
+            image: post.data.thumbnail && 
+                   post.data.thumbnail !== 'self' && 
+                   post.data.thumbnail !== 'default' && 
+                   post.data.thumbnail.startsWith('http') 
+              ? post.data.thumbnail 
+              : null,
+            comments: post.data.num_comments,
+            subreddit: post.data.subreddit,
+            created_utc: post.data.created_utc,
+            author: post.data.author
+          }))
+          .filter(trend => isValidTitle(trend.title)); // Filtra posts sem título válido
+
+        allTrends.push(...trends);
+      } catch (error) {
+        console.error(`Erro ao buscar r/${sub}:`, error);
         continue;
       }
 
-      const data = await res.json() as RedditResponse;
-      
-      const trends = data.data.children
-        .map((post) => ({
-          title: post.data.title,
-          score: post.data.score,
-          url: `https://reddit.com${post.data.permalink}`,
-          image: post.data.thumbnail && 
-                 post.data.thumbnail !== 'self' && 
-                 post.data.thumbnail !== 'default' && 
-                 post.data.thumbnail.startsWith('http') 
-            ? post.data.thumbnail 
-            : null,
-          comments: post.data.num_comments,
-          subreddit: post.data.subreddit,
-          created_utc: post.data.created_utc,
-          author: post.data.author
-        }))
-        .filter(trend => isValidTitle(trend.title)); // Filtra posts sem título válido
-
-      allTrends.push(...trends);
+      // Pequeno delay entre requisições para não sobrecarregar
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     // Ordena por score (popularidade)
