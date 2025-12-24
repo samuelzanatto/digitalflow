@@ -1,6 +1,11 @@
 import { streamText, convertToModelMessages, UIMessage, stepCountIs } from 'ai';
-import { google } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
 import { z } from 'zod';
+
+// Inicializar Groq
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 // ============================================
 // ASSISTENTE IA - Chat de Conversação
@@ -51,11 +56,11 @@ export async function POST(req: Request) {
     const { messages }: { messages: UIMessage[] } = await req.json();
 
     const result = streamText({
-      model: google('gemini-2.0-flash'),
+      model: groq('llama-3.3-70b-versatile'),
       temperature: 0.7,
       system: ASSISTANT_PROMPT,
       messages: convertToModelMessages(messages),
-      stopWhen: stepCountIs(3),
+      maxSteps: 3,
       tools: {
         redirectToMap: {
           description: 'Redireciona o usuário para o mapa inteligente quando ele quer buscar estabelecimentos, lugares físicos, restaurantes, farmácias, hospitais, lojas, supermercados, postos de gasolina, cafés, bares, hotéis, escolas, academias ou qualquer local. Use SEMPRE que o usuário mencionar busca de lugares.',

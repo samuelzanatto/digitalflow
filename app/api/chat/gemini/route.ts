@@ -1,6 +1,11 @@
 import { streamText, tool, stepCountIs, convertToModelMessages, UIMessage } from 'ai';
-import { google } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
 import { z } from 'zod';
+
+// Inicializar Groq com a API key do .env
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 // ============================================
 // SISTEMA DE PAGE BUILDER AVANÇADO v2.0
@@ -272,11 +277,11 @@ export async function POST(req: Request) {
     const { messages }: { messages: UIMessage[] } = await req.json();
 
     const result = streamText({
-      model: google('gemini-2.0-flash'),
+      model: groq('llama-3.3-70b-versatile'),
       temperature: 0.7, // Alta criatividade para designs únicos
       system: CREATIVE_SYSTEM_PROMPT,
       messages: convertToModelMessages(messages),
-      stopWhen: stepCountIs(30), // Mais steps para designs complexos
+      maxSteps: 30, // Mais steps para designs complexos
       tools: {
         // ========== TOOL: INICIAR CANVAS CRIATIVO ==========
         startPageBuilder: tool({

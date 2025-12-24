@@ -1,397 +1,759 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePageHeader } from '@/hooks/usePageHeader'
-import {
-  Map,
-  MapMarker,
-  MapPopup,
-  MapTileLayer,
-  MapZoomControl,
-} from '@/components/ui/map'
-import { useMap } from 'react-leaflet'
-import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Badge } from '@/components/ui/badge'
-import { 
-  IconSend, 
-  IconMapPin, 
-  IconPhone, 
-  IconWorld, 
-  IconClock,
-  IconSparkles,
-  IconX,
-  IconChevronRight,
-  IconSearch,
-  IconLoader2,
-  IconToolsKitchen2,
-} from '@tabler/icons-react'
-import { cn } from '@/lib/utils'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Html, OrbitControls, Stars } from '@react-three/drei'
+import * as THREE from 'three'
+import { feature as topojsonFeature } from 'topojson-client'
+import countries from 'world-countries'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-interface SearchResult {
-  name: string
-  address: string
-  phone?: string | null
-  website?: string | null
-  openingHours?: string | null
-  cuisine?: string | null
-  distance?: number
-  position: [number, number]
-  source?: 'overpass' | 'nominatim' | 'foursquare'
+type GeoJSONPolygon = {
+  type: 'Polygon'
+  coordinates: number[][][]
 }
 
-// Componente para controlar o mapa (flyTo quando center muda)
-function MapController({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap()
-  
-  useEffect(() => {
-    map.flyTo(center, zoom, { duration: 1 })
-  }, [map, center, zoom])
-  
-  return null
+type GeoJSONMultiPolygon = {
+  type: 'MultiPolygon'
+  coordinates: number[][][][]
 }
 
-// Centro padrão: Campo Grande MS
-const DEFAULT_CENTER: [number, number] = [-20.4697, -54.6087]
+type GeoJSONFeature = {
+  type: 'Feature'
+  geometry: GeoJSONPolygon | GeoJSONMultiPolygon
+}
 
-export default function MapaPage() {
-  const { setPageHeader } = usePageHeader()
-  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
-  const [mapZoom, setMapZoom] = useState(14)
-  const [markers, setMarkers] = useState<SearchResult[]>([])
-  const [isChatOpen, setIsChatOpen] = useState(true)
-  const [inputValue, setInputValue] = useState('')
-  const [hasSentPendingSearch, setHasSentPendingSearch] = useState(false)
-  const [isHydrated, setIsHydrated] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+type GeoJSONFeatureCollection = {
+  type: 'FeatureCollection'
+  features: GeoJSONFeature[]
+}
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/chat/map',
-      body: {
-        location: {
-          lat: mapCenter[0],
-          lon: mapCenter[1],
-          city: 'Campo Grande MS',
-        },
-      },
-    }),
-  })
+const RADIUS = 2.5
 
-  const isLoading = status === 'streaming' || status === 'submitted'
+const progressStyles = `
+  @keyframes progressBorder {
+    from {
+      stroke-dashoffset: 1000;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  
+  .progress-border {
+    animation: progressBorder 5s linear forwards;
+  }
+`
 
-  // Controlar hidratação do componente
+type TrendPost = {
+  title: string
+  url: string
+  score: number
+  comments: number
+}
+
+type TrendMarker = {
+  geo: string
+  subreddit: string
+  countryName: string
+  posts: TrendPost[]
+  lat: number
+  lon: number
+}
+
+type WorldCountry = {
+  cca2?: string
+  latlng?: [number, number]
+  name?: { common?: string }
+}
+
+const DEFAULT_TRENDS_GEOS = [
+  'BR',
+  'US',
+  'CA',
+  'MX',
+  'AR',
+  'CL',
+  'CO',
+  'GB',
+  'DE',
+  'FR',
+  'ES',
+  'IT',
+  'PT',
+  'NL',
+  'SE',
+  'NO',
+  'PL',
+  'TR',
+  'ZA',
+  'EG',
+  'NG',
+  'SA',
+  'AE',
+  'IN',
+  'JP',
+]
+
+const SUBREDDIT_BY_GEO: Record<string, string> = {
+  BR: 'brasil',
+  US: 'unitedstates',
+  CA: 'canada',
+  MX: 'mexico',
+  AR: 'argentina',
+  CL: 'chile',
+  CO: 'colombia',
+  GB: 'unitedkingdom',
+  DE: 'de',
+  FR: 'france',
+  ES: 'spain',
+  IT: 'italy',
+  PT: 'portugal',
+  NL: 'thenetherlands',
+  SE: 'sweden',
+  NO: 'norway',
+  PL: 'poland',
+  TR: 'Turkey',
+  ZA: 'southafrica',
+  EG: 'Egypt',
+  NG: 'Nigeria',
+  SA: 'saudiarabia',
+  AE: 'UAE',
+  IN: 'india',
+  JP: 'japan',
+}
+
+function lonLatToVector3(lon: number, lat: number, radius: number) {
+  // Converte coordenadas geográficas (graus) para XYZ em esfera.
+  const phi = (90 - lat) * (Math.PI / 180)
+  const theta = (lon + 180) * (Math.PI / 180)
+
+  const x = -radius * Math.sin(phi) * Math.cos(theta)
+  const z = radius * Math.sin(phi) * Math.sin(theta)
+  const y = radius * Math.cos(phi)
+
+  return new THREE.Vector3(x, y, z)
+}
+
+function OutlinedGlobe() {
+  const { camera } = useThree()
+  const groupRef = useRef<THREE.Group>(null)
+  const baseSphereRef = useRef<THREE.Mesh>(null)
+  const [geojson, setGeojson] = useState<GeoJSONFeatureCollection | null>(null)
+  const [trendMarkers, setTrendMarkers] = useState<TrendMarker[]>([])
+  const [selectedMarker, setSelectedMarker] = useState<TrendMarker | null>(null)
+
+  const [cardMarker, setCardMarker] = useState<TrendMarker | null>(null)
+  const [cardVisible, setCardVisible] = useState(false)
+  const [currentPostIndex, setCurrentPostIndex] = useState(0)
+  const [isLocked, setIsLocked] = useState(false)
+  const [lockedCountryGeo, setLockedCountryGeo] = useState<string | null>(null)
+  const postIndexByGeoRef = useRef<Map<string, number>>(new Map())
+  const lockedGeoRef = useRef<string | null>(null)
+  const hideCardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const swapCardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const carouselIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const cardVisibleRef = useRef(false)
+  const cardGeoRef = useRef<string | null>(null)
+  const pendingGeoRef = useRef<string | null>(null)
+
+  const candidateRef = useRef<TrendMarker | null>(null)
+  const candidateSinceRef = useRef<number>(0)
+  const hideSinceRef = useRef<number>(0)
+
+  const selectedRef = useRef(selectedMarker)
   useEffect(() => {
-    setIsHydrated(true)
+    selectedRef.current = selectedMarker
+  }, [selectedMarker])
+
+  // Carrossel automático: troca de post a cada 5 segundos com fade suave
+  useEffect(() => {
+    if (carouselIntervalRef.current) {
+      clearInterval(carouselIntervalRef.current)
+      carouselIntervalRef.current = null
+    }
+
+    if (!cardMarker || !cardMarker.posts || cardMarker.posts.length <= 1) {
+      return
+    }
+
+    // Se país está fixado, não avança automaticamente
+    if (lockedGeoRef.current === cardMarker.geo) {
+      return
+    }
+
+    // Recupera o índice atual deste país ou começa do próximo
+    const currentGeo = cardMarker.geo
+    const lastIndex = postIndexByGeoRef.current.get(currentGeo) ?? -1
+    const startIndex = (lastIndex + 1) % cardMarker.posts.length
+    
+    // Atualiza para o índice inicial
+    const updateIndex = () => {
+      setCurrentPostIndex(startIndex)
+      postIndexByGeoRef.current.set(currentGeo, startIndex)
+    }
+    requestAnimationFrame(updateIndex)
+
+    carouselIntervalRef.current = setInterval(() => {
+      setCurrentPostIndex((prev) => {
+        if (!cardMarker) return 0
+        const nextIndex = (prev + 1) % cardMarker.posts.length
+        
+        // Salva o novo índice para este país
+        postIndexByGeoRef.current.set(currentGeo, nextIndex)
+        
+        // Fade out/in suave ao trocar
+        setCardVisible(false)
+        setTimeout(() => {
+          setCardVisible(true)
+        }, 200)
+        
+        return nextIndex
+      })
+    }, 5000) // Troca a cada 5 segundos
+
+    return () => {
+      if (carouselIntervalRef.current) {
+        clearInterval(carouselIntervalRef.current)
+        carouselIntervalRef.current = null
+      }
+    }
+  }, [cardMarker])
+
+  // Carregar contornos de países (Natural Earth 110m via world-atlas)
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+      const topo = await res.json()
+
+      const countriesObject = topo?.objects?.countries
+      if (!countriesObject) return
+
+      const fc = topojsonFeature(topo, countriesObject) as unknown as GeoJSONFeatureCollection
+      if (!cancelled) setGeojson(fc)
+    }
+
+    load().catch(() => {
+      // Silencioso: se falhar a rede, apenas não renderiza as linhas.
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  // Verificar se há busca pendente do assistente IA
+  // Manter a esfera opaca, mas com o “cinza suave” (sem transparência).
   useEffect(() => {
-    if (hasSentPendingSearch) return
-    
-    const pendingSearch = sessionStorage.getItem('pendingMapSearch')
-    
-    if (pendingSearch) {
-      sessionStorage.removeItem('pendingMapSearch')
-      setHasSentPendingSearch(true)
-      setIsChatOpen(true) // Garantir que o chat está aberto
-      // Pequeno delay para garantir que o chat esteja pronto
-      setTimeout(() => {
-        sendMessage({ text: pendingSearch })
-      }, 500)
-    }
-  }, [sendMessage, hasSentPendingSearch])
+    const mesh = baseSphereRef.current
+    const material = mesh?.material as THREE.MeshBasicMaterial | undefined
+    if (!mesh || !material) return
 
-  // Helper para extrair texto das mensagens
-  const getMessageContent = useCallback((message: typeof messages[0]): string => {
-    if (message.parts) {
-      return message.parts
-        .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-        .map(part => part.text)
-        .join('')
-    }
-    return ''
+    material.color = new THREE.Color('#e5e7eb').multiplyScalar(0.02)
   }, [])
 
-  // Auto-scroll para última mensagem
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  // Rotação contínua do globo
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += 0.0012
+    }
 
-  useEffect(() => {
-    setPageHeader('Mapa Inteligente', 'Busque estabelecimentos usando IA')
-  }, [setPageHeader])
+    // Seleção automática: marcador mais central na face visível.
+    // A face visível é definida pelo hemisfério voltado para a câmera.
+    const group = groupRef.current
+    if (!group || trendMarkers.length === 0) return
 
-  // Processar tool calls das mensagens para extrair marcadores
-  useEffect(() => {
-    for (const message of messages) {
-      if (message.role === 'assistant' && message.parts) {
-        for (const part of message.parts) {
-          // O tipo é 'tool-{toolName}', ex: 'tool-searchPlaces'
-          if (part.type === 'tool-searchPlaces') {
-            const toolPart = part as {
-              type: string;
-              state?: string;
-              output?: { success?: boolean; results?: SearchResult[] };
-            }
-            
-            // Verificar se tem output disponível com resultados
-            if (toolPart.state === 'output-available' && toolPart.output?.success && toolPart.output.results && toolPart.output.results.length > 0) {
-              const results = toolPart.output.results
-              setMarkers(results)
-              // Centralizar no primeiro resultado
-              if (results[0]?.position) {
-                setMapCenter(results[0].position)
-                setMapZoom(15)
-              }
-              return
+    const front = camera.position.clone().normalize()
+    const yAxis = new THREE.Vector3(0, 1, 0)
+    const rotationY = group.rotation.y
+
+    // Se há país fixado, força a seleção daquele país E centraliza no globo
+    if (lockedGeoRef.current) {
+      const lockedMarker = trendMarkers.find(m => m.geo === lockedGeoRef.current)
+      if (lockedMarker && selectedRef.current?.geo !== lockedGeoRef.current) {
+        setSelectedMarker(lockedMarker)
+        if (cardGeoRef.current !== lockedGeoRef.current) {
+          setCardMarker(lockedMarker)
+          cardGeoRef.current = lockedGeoRef.current
+          requestAnimationFrame(() => {
+            setCardVisible(true)
+            cardVisibleRef.current = true
+          })
+        }
+      }
+      
+      // Rotaciona o globo para centralizar o país fixado
+      if (lockedMarker) {
+        // Calcula qual rotação Y levaria o país para o front (0 radianos)
+        const targetRotationY = -lockedMarker.lon * (Math.PI / 180)
+        const diff = targetRotationY - rotationY
+        const normalizedDiff = Math.atan2(Math.sin(diff), Math.cos(diff))
+        
+        // Interpolação suave na direção do alvo (velocidade: 0.05 radianos por frame)
+        const rotationSpeed = 0.05
+        const newRotation = rotationY + Math.max(-rotationSpeed, Math.min(rotationSpeed, normalizedDiff))
+        
+        if (group) {
+          group.rotation.y = newRotation
+        }
+      }
+      return
+    }
+
+    let best: { m: TrendMarker; dot: number } | null = null
+    for (const m of trendMarkers) {
+      // Direção unitária do marcador (em coordenadas locais) e aplicada rotação do grupo.
+      const dir = lonLatToVector3(m.lon, m.lat, 1).normalize().applyAxisAngle(yAxis, rotationY)
+      const dot = dir.dot(front)
+      if (dot <= 0) continue // lado de trás
+      if (!best || dot > best.dot) best = { m, dot }
+    }
+
+    // Threshold: só mostra card quando estiver razoavelmente centralizado.
+    const threshold = 0.62
+    const lockMs = 280
+    const hideMs = 220
+    const now = performance.now()
+
+    const current = selectedRef.current
+
+    if (!best || best.dot < threshold) {
+      candidateRef.current = null
+      candidateSinceRef.current = 0
+
+      if (current) {
+        if (!hideSinceRef.current) hideSinceRef.current = now
+        if (now - hideSinceRef.current >= hideMs) {
+          setSelectedMarker(null)
+          hideSinceRef.current = 0
+        }
+      }
+
+      // Fade out suave do card, e só remove do DOM após a transição.
+      if (cardVisibleRef.current) {
+        setCardVisible(false)
+        cardVisibleRef.current = false
+
+        if (swapCardTimeoutRef.current) {
+          clearTimeout(swapCardTimeoutRef.current)
+          swapCardTimeoutRef.current = null
+        }
+        pendingGeoRef.current = null
+
+        if (hideCardTimeoutRef.current) clearTimeout(hideCardTimeoutRef.current)
+        hideCardTimeoutRef.current = setTimeout(() => {
+          setCardMarker(null)
+          cardGeoRef.current = null
+          hideCardTimeoutRef.current = null
+        }, 220)
+      }
+      return
+    }
+
+    // voltou a ter candidato visível, cancela contagem de hide
+    hideSinceRef.current = 0
+
+    // Se há candidato visível, cancela qualquer limpeza pendente.
+    if (hideCardTimeoutRef.current) {
+      clearTimeout(hideCardTimeoutRef.current)
+      hideCardTimeoutRef.current = null
+    }
+
+    const candidate = candidateRef.current
+    if (!candidate || candidate.geo !== best.m.geo) {
+      candidateRef.current = best.m
+      candidateSinceRef.current = now
+      return
+    }
+
+    if (!current || current.geo !== best.m.geo) {
+      if (now - candidateSinceRef.current >= lockMs) {
+        setSelectedMarker(best.m)
+
+        // Troca/mostra o card apenas quando realmente mudou.
+        if (cardGeoRef.current !== best.m.geo) {
+          const nextGeo = best.m.geo
+
+          // Evita re-agendar o mesmo swap a cada frame.
+          if (pendingGeoRef.current !== nextGeo) {
+            pendingGeoRef.current = nextGeo
+
+            // Se já está visível, faz crossfade (saída -> troca -> entrada).
+            if (cardVisibleRef.current) {
+              setCardVisible(false)
+              cardVisibleRef.current = false
+
+              if (swapCardTimeoutRef.current) clearTimeout(swapCardTimeoutRef.current)
+              swapCardTimeoutRef.current = setTimeout(() => {
+                setCardMarker(best.m)
+                cardGeoRef.current = nextGeo
+                pendingGeoRef.current = null
+
+                requestAnimationFrame(() => {
+                  setCardVisible(true)
+                  cardVisibleRef.current = true
+                })
+
+                swapCardTimeoutRef.current = null
+              }, 160)
+            } else {
+              // Se está oculto, apenas troca e mostra.
+              setCardMarker(best.m)
+              cardGeoRef.current = nextGeo
+              pendingGeoRef.current = null
+              requestAnimationFrame(() => {
+                setCardVisible(true)
+                cardVisibleRef.current = true
+              })
             }
           }
+        } else if (!cardVisibleRef.current) {
+          // Mesmo marker, mas card estava invisível: reaparece suave.
+          requestAnimationFrame(() => {
+            setCardVisible(true)
+            cardVisibleRef.current = true
+          })
         }
       }
     }
-  }, [messages])
+  })
 
-  // Quick actions
-  const quickActions = [
-    { label: 'Restaurantes', query: 'busque restaurantes próximos' },
-    { label: 'Farmácias', query: 'encontre farmácias na região' },
-    { label: 'Supermercados', query: 'supermercados perto de mim' },
-    { label: 'Postos', query: 'postos de combustível próximos' },
-  ]
+  // Buscar tendências (top 1 por país) e mapear para coordenadas aproximadas.
+  useEffect(() => {
+    let cancelled = false
 
-  const handleQuickAction = (query: string) => {
-    sendMessage({ text: query })
-  }
+    const countryByCca2 = new Map<string, { lat: number; lon: number }>()
+    const countryNameByCca2 = new Map<string, string>()
+    for (const c of countries as unknown as WorldCountry[]) {
+      const cca2 = String(c.cca2 || '').toUpperCase()
+      const latlng = c.latlng
+      if (!cca2 || !Array.isArray(latlng) || latlng.length < 2) continue
+      const lat = Number(latlng[0])
+      const lon = Number(latlng[1])
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue
+      countryByCca2.set(cca2, { lat, lon })
 
-  const handleSendMessage = useCallback(() => {
-    if (!inputValue.trim() || isLoading) return
-    sendMessage({ text: inputValue })
-    setInputValue('')
-  }, [inputValue, isLoading, sendMessage])
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
+      const commonName = c?.name?.common
+      if (typeof commonName === 'string' && commonName.trim()) {
+        countryNameByCca2.set(cca2, commonName.trim())
+      }
     }
-  }
+
+    async function loadTrends() {
+      const geos = DEFAULT_TRENDS_GEOS
+        .map((g) => String(g || '').toUpperCase())
+        .filter((g) => Boolean(SUBREDDIT_BY_GEO[g]))
+
+      const subreddits = geos.map((g) => SUBREDDIT_BY_GEO[g])
+      const res = await fetch(
+        `/api/reddit?subreddit=${encodeURIComponent(subreddits.join(','))}&time=day&limit=10`
+      )
+      if (!res.ok) return
+      const json = await res.json()
+
+      const posts = Array.isArray(json?.data) ? json.data : []
+      const postsBySubreddit = new Map<string, TrendPost[]>()
+
+      for (const p of posts) {
+        const subreddit = typeof p?.subreddit === 'string' ? p.subreddit : null
+        const title = typeof p?.title === 'string' ? p.title : null
+        const score = typeof p?.score === 'number' ? p.score : null
+        const url = typeof p?.url === 'string' ? p.url : null
+        const comments = typeof p?.comments === 'number' ? p.comments : 0
+        if (!subreddit || !title || score === null || !url) continue
+
+        const existing = postsBySubreddit.get(subreddit) || []
+        existing.push({ title, url, score, comments })
+        postsBySubreddit.set(subreddit, existing)
+      }
+
+      const markers: TrendMarker[] = []
+
+      for (const geo of geos) {
+        const subreddit = SUBREDDIT_BY_GEO[geo]
+        const subredditPosts = postsBySubreddit.get(subreddit)
+        if (!subredditPosts || subredditPosts.length === 0) continue
+        const coord = countryByCca2.get(geo)
+        if (!coord) continue
+
+        const countryName = countryNameByCca2.get(geo) || geo
+        markers.push({
+          geo,
+          subreddit,
+          countryName,
+          posts: subredditPosts,
+          lat: coord.lat,
+          lon: coord.lon,
+        })
+      }
+
+      if (!cancelled) setTrendMarkers(markers)
+    }
+
+    loadTrends().catch(() => {
+      // Silencioso se a API falhar.
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Atualizar o header via evento global (sem criar UI extra aqui dentro).
+  useEffect(() => {
+    if (!selectedMarker || !selectedMarker.posts || selectedMarker.posts.length === 0) return
+    const currentPost = selectedMarker.posts[0]
+    window.dispatchEvent(
+      new CustomEvent('digitalflow:trend-selected', {
+        detail: { geo: selectedMarker.geo, title: currentPost.title },
+      })
+    )
+  }, [selectedMarker])
+
+  const markerGeometry = useMemo(() => {
+    const geometry = new THREE.SphereGeometry(0.04, 12, 12)
+    return geometry
+  }, [])
+
+  const markerMaterial = useMemo(() => {
+    return new THREE.MeshBasicMaterial({ color: '#e5e7eb' })
+  }, [])
+
+  const linesGeometry = useMemo(() => {
+    if (!geojson) return null
+
+    const positions: number[] = []
+
+    const pushRing = (ring: number[][]) => {
+      if (!ring || ring.length < 2) return
+
+      for (let i = 0; i < ring.length - 1; i++) {
+        const [lon1, lat1] = ring[i]
+        const [lon2, lat2] = ring[i + 1]
+
+        const p1 = lonLatToVector3(lon1, lat1, RADIUS)
+        const p2 = lonLatToVector3(lon2, lat2, RADIUS)
+
+        positions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z)
+      }
+    }
+
+    for (const f of geojson.features) {
+      const geom = f.geometry
+      if (!geom) continue
+
+      if (geom.type === 'Polygon') {
+        for (const ring of geom.coordinates) pushRing(ring)
+      }
+
+      if (geom.type === 'MultiPolygon') {
+        for (const poly of geom.coordinates) {
+          for (const ring of poly) pushRing(ring)
+        }
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+    return geometry
+  }, [geojson])
+
+  return (
+    <group
+      ref={groupRef}
+      onPointerDown={(e) => {
+        // Clique fora do card = desseleciona/libera o país fixado
+        if ((e.target as HTMLElement)?.tagName !== 'A') {
+          lockedGeoRef.current = null
+          setLockedCountryGeo(null)
+          setIsLocked(false)
+        }
+      }}
+    >
+      {/* Esfera base sutil para dar volume ao globo */}
+      <mesh ref={baseSphereRef}>
+        <sphereGeometry args={[RADIUS - 0.02, 64, 64]} />
+        <meshBasicMaterial color="#e5e7eb" />
+      </mesh>
+
+      {linesGeometry && (
+        <lineSegments geometry={linesGeometry}>
+          <lineBasicMaterial color="#e5e7eb" linewidth={1} transparent opacity={0.5} />
+        </lineSegments>
+      )}
+
+      {/* Marcadores de tendências */}
+      {trendMarkers.map((m) => {
+        const p = lonLatToVector3(m.lon, m.lat, RADIUS + 0.03)
+        return (
+          <mesh
+            key={m.geo}
+            geometry={markerGeometry}
+            material={markerMaterial}
+            position={[p.x, p.y, p.z]}
+          />
+        )
+      })}
+
+      {/* Card flutuante conectado ao ponto selecionado */}
+      {useMemo(
+        () => {
+          if (!cardMarker || !cardMarker.posts || cardMarker.posts.length === 0) {
+            return null
+          }
+
+          const p = lonLatToVector3(cardMarker.lon, cardMarker.lat, RADIUS + 0.03)
+          const currentPost = cardMarker.posts[currentPostIndex] || cardMarker.posts[0]
+
+          return (
+            <Html
+              position={[p.x, p.y, p.z]}
+              sprite
+              zIndexRange={[10, 0]}
+              onPointerDown={(e) => {
+                e.stopPropagation()
+              }}
+            >
+              {/* Wrapper fixo: ancora o card acima do ponto */}
+              <div className="relative -translate-x-1/2 -translate-y-full -mt-3">
+                {/* SVG de progresso ao redor do card */}
+                {cardMarker.posts.length > 1 && (
+                  <svg
+                    key={`${cardMarker.geo}-${currentPostIndex}`}
+                    className="absolute inset-0 pointer-events-none z-10"
+                    width="100%"
+                    height="100%"
+                    preserveAspectRatio="none"
+                  >
+                    <style>{progressStyles}</style>
+                    <rect
+                      className="progress-border"
+                      x="1.5"
+                      y="1.5"
+                      width="calc(100% - 3px)"
+                      height="calc(100% - 3px)"
+                      rx="8"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeDasharray="1000"
+                      opacity="0.8"
+                    />
+                  </svg>
+                )}
+                
+                {/* Wrapper animado: faz fade/slide sem mexer na ancoragem */}
+                <div
+                  className="relative"
+                  onClick={(e) => {
+                    // Clique no card (fora do link) = fixa o país
+                    if ((e.target as HTMLElement)?.tagName !== 'A') {
+                      lockedGeoRef.current = cardMarker.geo
+                      setLockedCountryGeo(cardMarker.geo)
+                      setIsLocked(true)
+                    }
+                  }}
+                >
+                  <Card className="w-80 bg-background/90 backdrop-blur cursor-pointer">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center justify-between">
+                        <span>
+                          {cardMarker.countryName}
+                          {isLocked && lockedCountryGeo === cardMarker.geo && (
+                            <span className="text-xs ml-2 text-amber-400">📌</span>
+                          )}
+                        </span>
+                        {cardMarker.posts.length > 1 && (
+                          <span className="text-xs text-muted-foreground font-normal">
+                            {currentPostIndex + 1}/{cardMarker.posts.length}
+                          </span>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent 
+                      key={`${cardMarker.geo}-post-${currentPostIndex}`}
+                      className={
+                        'pt-0 transition-opacity duration-300 ' +
+                        (cardVisible ? 'opacity-100' : 'opacity-0')
+                      }
+                    >
+                      <a
+                        href={currentPost.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block text-sm hover:underline"
+                      >
+                        {currentPost.title}
+                      </a>
+                      <div className="text-xs text-muted-foreground">
+                        score {currentPost.score} · {currentPost.comments} comentários
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </Html>
+          )
+        },
+        [cardMarker, currentPostIndex, cardVisible, isLocked, lockedCountryGeo]
+      )}
+    </group>
+  )
+}
+
+export default function MapaPage() {
+  const { setPageHeader } = usePageHeader()
+
+  useEffect(() => {
+    setPageHeader('Mapa de Trends', 'Contornos de países e continentes')
+  }, [setPageHeader])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { geo?: string; title?: string } | undefined
+      if (!detail?.geo || !detail?.title) return
+      setPageHeader('Mapa de Trends', `${detail.geo}: ${detail.title}`)
+    }
+
+    window.addEventListener('digitalflow:trend-selected', handler)
+    return () => window.removeEventListener('digitalflow:trend-selected', handler)
+  }, [setPageHeader])
 
   return (
     <div className="flex flex-1 h-full bg-black overflow-hidden relative">
-      {/* Mapa */}
-      <div className="flex-1 h-full">
-        <Map 
-          center={mapCenter} 
-          zoom={mapZoom}
-          className="h-full w-full brightness-125"
-        >
-          <MapController center={mapCenter} zoom={mapZoom} />
-          <MapTileLayer />
-          <MapZoomControl className="absolute top-4 left-4" />
-          
-          {/* Marcadores de busca */}
-          {markers.map((marker, index) => (
-            <MapMarker 
-              key={`${marker.name}-${index}`}
-              position={marker.position}
-            >
-              <MapPopup>
-                <div className="p-2 min-w-[220px] max-w-[280px]">
-                  <h3 className="font-semibold text-base mb-2">{marker.name}</h3>
-                  <div className="space-y-1.5 text-sm">
-                    <p className="flex items-start gap-2 text-zinc-600">
-                      <IconMapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span>{marker.address || 'Endereço não disponível'}</span>
-                    </p>
-                    {marker.cuisine && (
-                      <p className="flex items-center gap-2 text-zinc-600">
-                        <IconToolsKitchen2 className="w-4 h-4 shrink-0" />
-                        <span className="capitalize">{marker.cuisine.replace(/_/g, ' ')}</span>
-                      </p>
-                    )}
-                    {marker.phone && (
-                      <p className="flex items-center gap-2 text-zinc-600">
-                        <IconPhone className="w-4 h-4 shrink-0" />
-                        <a href={`tel:${marker.phone}`} className="hover:text-blue-500">
-                          {marker.phone}
-                        </a>
-                      </p>
-                    )}
-                    {marker.website && (
-                      <p className="flex items-center gap-2 text-zinc-600">
-                        <IconWorld className="w-4 h-4 shrink-0" />
-                        <a 
-                          href={marker.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="hover:text-blue-500 truncate"
-                        >
-                          Website
-                        </a>
-                      </p>
-                    )}
-                    {marker.openingHours && (
-                      <p className="flex items-center gap-2 text-zinc-600">
-                        <IconClock className="w-4 h-4 shrink-0" />
-                        <span className="truncate">{marker.openingHours}</span>
-                      </p>
-                    )}
-                    {marker.distance !== undefined && (
-                      <Badge variant="secondary" className="mt-2">
-                        📏 {marker.distance.toFixed(1)} km
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </MapPopup>
-            </MapMarker>
-          ))}
-        </Map>
-      </div>
-
-      {/* Chat com IA - Sidebar */}
-      <div 
-        className={cn(
-          "absolute top-0 right-0 h-full bg-zinc-950/95 backdrop-blur-sm border-l border-zinc-800 transition-all duration-300 flex flex-col",
-          isHydrated && isChatOpen ? "w-[400px]" : "w-0"
-        )}
+      <Canvas 
+        camera={{ position: [0, 0, 8], fov: 60 }}
+        gl={{ antialias: true }}
       >
-        {isHydrated && isChatOpen && (
-          <>
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <IconSparkles className="w-5 h-5 text-violet-500" />
-                <span className="font-medium text-zinc-100">Assistente de Busca</span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setIsChatOpen(false)}
-              >
-                <IconX className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="p-3 border-b border-zinc-800">
-              <p className="text-xs text-zinc-500 mb-2">Busca rápida:</p>
-              <div className="flex flex-wrap gap-2">
-                {quickActions.map((action) => (
-                  <Button
-                    key={action.label}
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs bg-zinc-900 border-zinc-700 hover:bg-zinc-800"
-                    onClick={() => handleQuickAction(action.query)}
-                    disabled={isLoading}
-                  >
-                    {action.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-              {messages.length === 0 ? (
-                <div className="text-center text-zinc-500 mt-8">
-                  <IconSearch className="w-12 h-12 mx-auto mb-4 text-zinc-700" />
-                  <p className="text-sm">Pergunte sobre estabelecimentos,</p>
-                  <p className="text-sm">endereços ou locais na região.</p>
-                  <p className="text-xs mt-4 text-zinc-600">
-                    Ex: &quot;Encontre restaurantes em Campo Grande&quot;
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex",
-                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
-                          message.role === 'user'
-                            ? 'bg-violet-600 text-white'
-                            : 'bg-zinc-800 text-zinc-100'
-                        )}
-                      >
-                        {getMessageContent(message)}
-                      </div>
-                    </div>
-                  ))}
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 flex items-center gap-2">
-                        <IconLoader2 className="w-4 h-4 animate-spin" />
-                        Buscando...
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Input */}
-            <div className="p-4 border-t border-zinc-800">
-              <div className="flex gap-2">
-                <Input
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Buscar estabelecimentos..."
-                  className="flex-1 bg-zinc-900 border-zinc-700 focus:border-violet-500"
-                  disabled={isLoading}
-                />
-                <Button 
-                  type="button"
-                  onClick={handleSendMessage}
-                  size="icon"
-                  disabled={isLoading || !inputValue.trim()}
-                  className="bg-violet-600 hover:bg-violet-700"
-                >
-                  <IconSend className="w-4 h-4" />
-                </Button>
-              </div>
-              <p className="text-xs text-zinc-600 mt-2 text-center">
-                Powered by OpenStreetMap • 100% Gratuito
-              </p>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Toggle Chat Button */}
-      {isHydrated && !isChatOpen && (
-        <Button
-          className="absolute top-4 right-4 bg-violet-600 hover:bg-violet-700 shadow-lg"
-          onClick={() => setIsChatOpen(true)}
-        >
-          <IconSparkles className="w-4 h-4 mr-2" />
-          Buscar com IA
-          <IconChevronRight className="w-4 h-4 ml-1" />
-        </Button>
-      )}
-
-      {/* Markers count badge */}
-      {markers.length > 0 && (
-        <Badge 
-          className="absolute bottom-4 left-4 bg-violet-600 text-white shadow-lg"
-        >
-          {markers.length} estabelecimentos encontrados
-        </Badge>
-      )}
+        {/* Iluminação (sutil, para dar profundidade nas linhas) */}
+        <ambientLight intensity={0.25} />
+        <directionalLight position={[5, 3, 5]} intensity={0.8} />
+        
+        {/* Estrelas de fundo */}
+        <Stars 
+          radius={300} 
+          depth={60} 
+          count={20000} 
+          factor={7} 
+          saturation={0} 
+          fade 
+          speed={1}
+        />
+        
+        {/* Contornos (sem preenchimento) */}
+        <OutlinedGlobe />
+        
+        {/* Controles de órbita (arrastar, zoom) */}
+        <OrbitControls 
+          enablePan={false}
+          minDistance={5}
+          maxDistance={15}
+          autoRotate={false}
+          rotateSpeed={0.5}
+        />
+      </Canvas>
     </div>
   )
 }

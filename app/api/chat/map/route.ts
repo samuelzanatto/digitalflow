@@ -1,6 +1,11 @@
 import { streamText, convertToModelMessages, UIMessage, stepCountIs } from 'ai'
-import { google } from '@ai-sdk/google'
+import { createGroq } from '@ai-sdk/groq'
 import { z } from 'zod'
+
+// Inicializar Groq
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY,
+})
 
 // ============================================
 // ASSISTENTE IA - Integrado com Busca no Mapa
@@ -336,11 +341,11 @@ export async function POST(req: Request) {
     } = await req.json()
 
     const result = streamText({
-      model: google('gemini-2.0-flash'),
+      model: groq('llama-3.3-70b-versatile'),
       temperature: 0.7,
       system: ASSISTANT_PROMPT,
       messages: convertToModelMessages(messages),
-      stopWhen: stepCountIs(3),
+      maxSteps: 3,
       tools: {
         searchPlaces: {
           description: 'Busca estabelecimentos ou lugares por nome ou tipo (restaurantes, farmácias, hospitais, bancos, supermercados, etc). Use quando o usuário quiser encontrar lugares específicos. Sempre busca em um raio de 15km para encontrar mais resultados.',
